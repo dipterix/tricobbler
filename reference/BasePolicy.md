@@ -1,0 +1,23 @@
+# Abstract Base Class for Policy Objects
+
+Internal abstract base class for all policy objects. It defines common
+properties `name` and `description` that are shared by concrete
+subclasses. This class is not exported and is intended for internal use
+only.
+
+## Usage
+
+``` r
+BasePolicy(name = character(0), description = character(0))
+```
+
+## Arguments
+
+- name:
+
+  Character. Must be a non-blank single string.
+
+- description:
+
+  Character. Human-readable description; multiple values are collapsed
+  into a single space-separated string.
