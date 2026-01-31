@@ -2,31 +2,108 @@
 % Please edit documentation in R/class001-policy.R
 \name{Manifest}
 \alias{Manifest}
-\title{Manifest}
+\title{Validated Container Linking Master Policy to State Policies}
 \usage{
-Manifest(master = MasterPolicy(), stages = list())
+Manifest(master = MasterPolicy(), states = list())
+}
+\arguments{
+\item{master}{\code{MasterPolicy} object.}
+
+\item{states}{List of \code{StatePolicy} objects.}
 }
 \description{
 Container that ties a \code{MasterPolicy} together with a list of
-\code{StagePolicy} objects. The validator ensures that every state defined in
-the master policy is represented by at least one stage.
+\code{StatePolicy} objects. The validator ensures that every stage defined in
+the master policy is represented by at least one state.
 }
-\section{Fields}{
+\details{
+\subsection{TriCobbler's Three-Tier Architecture}{
 
-\describe{
-\item{\code{master}}{\code{MasterPolicy} object.}
+The \code{Manifest} class represents the validated blueprint layer (Tier 1) in
+TriCobbler's three-tier design:
+\enumerate{
+\item \strong{Policy Layer (Tier 1 - Immutable S7)}: Blueprint definitions
+\itemize{
+\item \code{Manifest}: Validated container linking \code{MasterPolicy} to \code{StatePolicy} list
+\item \code{MasterPolicy}: Workflow version + allowed stages (macro-level phases)
+\item \code{StatePolicy}: Individual state metadata (stage, description, parameters, priority)
+}
+\item \strong{Contract Layer (Tier 2 - Immutable S7)}: Execution agreements
+\itemize{
+\item \code{Contract}: Master agreement linking \code{Manifest} to \code{StageContract} list
+\item \code{StageContract}: Per-stage execution spec (executor, tools, validators)
+\item \code{ContractExecutor}: Callable function wrapping LLM/script execution logic
+}
+\item \strong{State Layer (Tier 3 - Mutable R6)}: Runtime tracking
+\itemize{
+\item \code{ContractState}: Orchestrates all stage states and workflow progression
+\item \code{SubContractState}: Tracks one stage's execution (status, I/O, timing)
+}
+}
+}
 
-\item{\code{stages}}{List of \code{StagePolicy} objects.}
-}}
+\subsection{Stages vs States: Critical Distinction}{
+\itemize{
+\item \strong{Stages} (symbolic vocabulary): Workflow phase names defined in \code{MasterPolicy@stages}
+(e.g., "triage", "planning", "executing")
+\item \strong{States} (concrete implementations): \code{StatePolicy} objects that reference
+stages and add execution metadata (description, parameters, priority)
+\item \strong{Multiple states per stage}: Enables different execution patterns:
+\itemize{
+\item \strong{Parallel}: Multiple states with equal priority (concurrent execution)
+\item \strong{Sequential}: Different priorities create ordered execution chains
+\item \strong{Critical gates}: Critical states enforce sequential fail-fast semantics
+}
+\item \strong{Validation rule}: Every stage in \code{MasterPolicy@stages} MUST have at least
+one corresponding \code{StatePolicy} (enforced by validator)
+}
+}
 
+\subsection{Validation Rules}{
+
+The \code{Manifest} validator performs critical cross-checks:
+\enumerate{
+\item \strong{Completeness}: Every \code{MasterPolicy} stage has at least one \code{StatePolicy}
+\itemize{
+\item Prevents "orphaned" stages with no implementation
+\item Error message: "Missing stages: ..."
+}
+\item \strong{Critical priority uniqueness}: Critical states cannot share priorities
+\itemize{
+\item If \code{StatePolicy@critical = TRUE}, no other state in the same stage can
+have the same \code{priority} value
+\item Prevents ambiguity about which critical state blocks lower-priority states
+\item Error message: "Critical state ... cannot share its priority with ..."
+}
+}
+}
+
+\subsection{Immutability and Serialization}{
+
+Once created, \code{Manifest} objects are immutable (S7 value semantics), providing
+a stable reference for \code{Contract} creation. Manifests can be serialized to/from
+YAML for version control:
+\itemize{
+\item \code{manifest_write(manifest, file)}: Save to human-readable YAML
+\item \code{manifest_read(file)}: Load with full validation
+\item All validation rules apply on deserialization
+}
+}
+
+\subsection{Manifest vs Contract}{
+
+\strong{Important}: \code{Manifest} is NOT a \code{Contract}. It's purely a policy-level
+blueprint that defines WHAT the workflow should do (stages and states), not
+HOW it executes. The actual execution contract (with executors, validators,
+tools, SLAs) is defined separately in the \code{Contract} class.
+}
+}
 \examples{
 # Create a valid manifest
 mp <- MasterPolicy(name = "example", version = "1.0.0",
-                   states = c("idle", "triage"), parameters = list())
-sp1 <- StagePolicy(name = "stage1", state = "idle", purpose = "idle stage")
-sp2 <- StagePolicy(name = "stage2", state = "triage", purpose = "triage stage")
-mf <- Manifest(master = mp, stages = list(sp1, sp2))
+                   stages = c("idle", "triage"), parameters = list())
+sp1 <- StatePolicy(name = "state1", stage = "idle", description = "idle state")
+sp2 <- StatePolicy(name = "state2", stage = "triage", description = "triage state")
+mf <- Manifest(master = mp, states = list(sp1, sp2))
 mf
-# Invalid: missing a required stage
-try(Manifest(master = mp, stages = list(sp1)))
 }

@@ -14,7 +14,6 @@
 #'   \item \code{Librarian}: Manages long-term memory and context sweeping.
 #' }
 #'
-#' @field name An optional identifier for the agent instance.
 #'
 #' @export
 BaseAgent <- R6::R6Class(
@@ -30,7 +29,7 @@ BaseAgent <- R6::R6Class(
 
     #' @description
     #' Initialize a new `TriCobbler` Agent.
-    #' @param role A string defining the agent's purpose.
+    #' @param role A string defining the agent's description.
     #' @param chat An initialized \code{ellmer::Chat} object.
     #' @param context_window Integer. The token limit for the model in use (default 4000).
     initialize = function(role, chat, context_window = 4000L) {

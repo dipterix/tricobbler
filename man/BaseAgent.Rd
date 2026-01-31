@@ -17,18 +17,9 @@ The \code{BaseAgent} class is designed to be the foundation for the "TriCobbler 
 \item \code{Librarian}: Manages long-term memory and context sweeping.
 }
 }
-\section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{name}}{An optional identifier for the agent instance.}
-}
-\if{html}{\out{</div>}}
-}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{name}}{An optional identifier for the agent instance.}
-
 \item{\code{role}}{The assigned role of the agent (read-only).}
 
 \item{\code{model}}{The name of the underlying LLM model (read-only).}
@@ -62,7 +53,7 @@ Initialize a new \code{TriCobbler} Agent.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{role}}{A string defining the agent's purpose.}
+\item{\code{role}}{A string defining the agent's description.}
 
 \item{\code{chat}}{An initialized \code{ellmer::Chat} object.}
 

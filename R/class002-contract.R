@@ -11,16 +11,25 @@
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# ContractExecutor – callable function that executes a stage
+# ContractExecutor - callable function that executes a stage
 # Wraps the actual execution logic (LLM call, script, etc.) as a function.
 # It inherits from `S7::class_function` so the object itself is callable
 # while still carrying additional attributes (name, description, metadata).
 # ---------------------------------------------------------------------------
+#' @title ContractExecutor
+#' @description Callable function that executes a stage. It wraps the actual execution
+#'   logic (LLM call, script, etc.) as a function. Inherits from `S7::class_function`
+#'   so the object itself is callable while still carrying additional attributes.
+#' @param .data Internal data argument injected by S7 (unused).
+#' @param name Name of the executor (character, length 1).
+#' @param description Description of the executor (character).
+#' @param metadata List of arbitrary metadata for the executor.
+#' @export
 ContractExecutor <- S7::new_class(
   name = "ContractExecutor",
   parent = S7::class_function,
   properties = list(
-    # Human‑readable name for this executor
+    # Human-readable name for this executor
     name = S7::new_property(
       class = S7::class_character,
       default = "",
@@ -43,10 +52,16 @@ ContractExecutor <- S7::new_class(
 )
 
 # ---------------------------------------------------------------------
-# OutputSchema – describes the expected shape of a stage's output.
+# OutputSchema - describes the expected shape of a stage's output.
 # For simplicity we store a named list where each element is a character
 # string describing the R type (e.g., "character", "numeric", "list").
 # ---------------------------------------------------------------------
+#' @title OutputSchema
+#' @description Describes the expected shape of a stage's output. It stores a named list
+#'   where each element is a character string describing the R type (e.g., "character",
+#'   "numeric", "list").
+#' @param schema Named list where each element is a single character string describing the R type of the corresponding output.
+#' @export
 OutputSchema <- S7::new_class(
   name = "OutputSchema",
   properties = list(
@@ -69,16 +84,21 @@ OutputSchema <- S7::new_class(
 )
 
 # ---------------------------------------------------------------------
-# OutputValidator – encapsulates a validation function for stage output.
+# OutputValidator - encapsulates a validation function for stage output.
 # The function should accept the stage output (and optionally the input) and
 # return TRUE on success or a character error message.
 # ---------------------------------------------------------------------
+#' @title OutputValidator
+#' @description Encapsulates a validation function for stage output. The function should
+#'   accept the stage output (and optionally the input) and return `TRUE` on success or a
+#'   character error message.
+#' @param validate Function that validates the stage output; should return TRUE or an error message.
+#' @export
 OutputValidator <- S7::new_class(
   name = "OutputValidator",
   properties = list(
     validate = S7::new_property(
       class = S7::class_function,
-      default = function(output, input = NULL) TRUE,
       validator = function(value) {
         if (!is.function(value)) return("validator must be a function")
         return()
@@ -88,14 +108,27 @@ OutputValidator <- S7::new_class(
 )
 
 # ---------------------------------------------------------------------------
-# StageContract – defines the agreement for ONE workflow stage
+# StageContract - defines the agreement for ONE workflow stage
 # Specifies: who (executor), what tools, acceptance criteria
 # ---------------------------------------------------------------------------
+#' @title StageContract
+#' @description Defines the agreement for a single workflow stage, specifying who (executor),
+#'   what tools, and acceptance criteria.
+#' @param state_policy `StatePolicy` object defining the state.
+#' @param executor `ContractExecutor` object that runs the stage.
+#' @param tools List of tools available to the stage.
+#' @param parameters List of additional parameters for the executor.
+#' @param output_schema `OutputSchema` describing expected output.
+#' @param validator Function to validate output (optional).
+#' @param max_retries Integer, max retry attempts.
+#' @param timeout_seconds Numeric, timeout for the stage.
+#' @param fallback Optional fallback `ContractExecutor`.
+#' @export
 StageContract <- S7::new_class(
   name = "StageContract",
   properties = list(
-    # Which stage this contract covers (must match a StagePolicy)
-    stage_policy = S7::new_property(class = StagePolicy),
+    # Which state this contract covers (must match a StatePolicy)
+    state_policy = S7::new_property(class = StatePolicy),
     
     # ========== WHO: The executor ==========
     # A callable ContractExecutor function that performs the work
@@ -126,16 +159,26 @@ StageContract <- S7::new_class(
 )
 
 # ---------------------------------------------------------------------------
-# Contract – the master user-orchestrator agreement
+# Contract - the master user-orchestrator agreement
 # Contains all stage contracts and validates completeness
 # ---------------------------------------------------------------------------
+#' @title Contract
+#' @description Master user-orchestrator agreement that contains all stage contracts and
+#'   validates completeness against the manifest.
+#' @param manifest `Manifest` object describing the workflow.
+#' @param stage_contracts List of `StageContract` objects.
+#' @param global_tools List of tools available globally.
+#' @param global_context List of global context items.
+#' @param total_timeout_seconds Numeric total timeout for the contract.
+#' @param total_budget_dollars Numeric total budget for the contract.
+#' @export
 Contract <- S7::new_class(
   name = "Contract",
   properties = list(
     # The workflow blueprint (defines all stages)
     manifest = S7::new_property(class = Manifest),
     
-    # Stage contracts – one per workflow stage
+    # Stage contracts - one per workflow stage
     stage_contracts = S7::new_property(
       class = S7::class_list,
       validator = function(value) {
@@ -157,10 +200,10 @@ Contract <- S7::new_class(
   ),
   validator = function(self) {
     # Every stage in the manifest must have a corresponding contract
-    stage_states <- vapply(self@manifest@stages, function(s) s@state, character(1))
-    contract_states <- vapply(self@stage_contracts, function(c) c@stage_policy@state, character(1))
+    state_stages <- vapply(self@manifest@states, function(s) s@stage, character(1))
+    contract_stages <- vapply(self@stage_contracts, function(c) c@state_policy@stage, character(1))
     
-    missing <- setdiff(stage_states, contract_states)
+    missing <- setdiff(state_stages, contract_stages)
     if (length(missing) > 0) {
       return(sprintf(
         "Missing contracts for stages: %s",
@@ -169,7 +212,7 @@ Contract <- S7::new_class(
     }
     
     # No extra contracts for non-existent stages
-    extra <- setdiff(contract_states, stage_states)
+    extra <- setdiff(contract_stages, state_stages)
     if (length(extra) > 0) {
       return(sprintf(
         "Contracts reference non-existent stages: %s",

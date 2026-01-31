@@ -145,7 +145,7 @@ ContractState <- R6::R6Class(
       # Create SubContractState for each stage
       self$stage_states <- list()
       for (sc in contract@stage_contracts) {
-        state_name <- sc@stage_policy@state
+        state_name <- sc@state_policy@stage
         self$stage_states[[state_name]] <- SubContractState$new(sc, parent_state = self)
       }
       

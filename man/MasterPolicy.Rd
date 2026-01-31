@@ -2,40 +2,63 @@
 % Please edit documentation in R/class001-policy.R
 \name{MasterPolicy}
 \alias{MasterPolicy}
-\title{Master Policy}
+\title{Master Workflow Policy Defining Stages and Version}
 \usage{
 MasterPolicy(
   name = character(0),
   description = character(0),
   version = character(0),
-  states = character(0),
+  stages = character(0),
   parameters = list()
 )
+}
+\arguments{
+\item{name}{Character. Name of the policy (non-blank).}
+
+\item{description}{Character. Human-readable description.}
+
+\item{version}{Character. Version string validated by \code{property_version()}.}
+
+\item{stages}{Character vector. Non-empty, lower-cased, unique, and each
+element may contain only letters, digits, underscores or dashes.}
+
+\item{parameters}{List. Additional free-form parameters for the workflow.}
 }
 \description{
 Concrete policy that defines the overall workflow version and the
-set of allowed states. Inherits from \code{BasePolicy}.
+set of allowed stages. Inherits from \code{BasePolicy}.
 }
-\section{Fields}{
+\details{
+\subsection{Stages as Workflow Vocabulary}{
 
-\describe{
-\item{\code{version}}{Character. Version string validated by \code{property_version()}.}
+The \code{stages} property defines the symbolic vocabulary of workflow phases
+(e.g., "triage", "planning", "executing"). These are macro-level phase names
+that must be implemented by at least one \code{StatePolicy} object in the \code{Manifest}.
+}
 
-\item{\code{states}}{Character vector. Non‑empty, lower‑cased, unique, and each
-element may contain only letters, digits, underscores or dashes.}
+\subsection{Stage Naming Conventions}{
+\itemize{
+\item Stages are automatically lowercased for consistency
+\item Must contain only letters (a-z), digits (0-9), underscores (_), or dashes (-)
+\item Must be unique (case-insensitive) within a workflow
+\item Cannot be blank or NA
+}
+}
 
-\item{\code{parameters}}{List. Additional free‑form parameters for the workflow.}
-}}
+\subsection{Immutability}{
 
+\code{MasterPolicy} objects are immutable (S7 value semantics). Once created, they
+serve as a stable reference for \code{Contract} objects. Use the \code{@} accessor to
+read properties (e.g., \code{policy@stages}).
+}
+}
 \examples{
-# Valid MasterPolicy
-mp <- MasterPolicy(
+
+MasterPolicy(
   name = "example",
   version = "1.0.0",
-  states = c("idle", "triage", "planning"),
+  stages = c("idle", "triage", "planning"),
   parameters = list()
 )
-mp
-# Invalid: duplicate state (case‑insensitive)
-try(MasterPolicy(name = "bad", version = "1.0", states = c("idle", "IDLE")))
+
 }

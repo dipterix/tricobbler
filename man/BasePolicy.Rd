@@ -2,9 +2,15 @@
 % Please edit documentation in R/class001-policy.R
 \name{BasePolicy}
 \alias{BasePolicy}
-\title{Base Policy (abstract)}
+\title{Abstract Base Class for Policy Objects}
 \usage{
 BasePolicy(name = character(0), description = character(0))
+}
+\arguments{
+\item{name}{Character. Must be a non-blank single string.}
+
+\item{description}{Character. Human-readable description; multiple values are
+collapsed into a single space-separated string.}
 }
 \description{
 Internal abstract base class for all policy objects. It defines
@@ -12,13 +18,4 @@ common properties \code{name} and \code{description} that are shared by concrete
 subclasses. This class is not exported and is intended for internal use
 only.
 }
-\section{Fields}{
-
-\describe{
-\item{\code{name}}{Character. Must be a non‑blank single string.}
-
-\item{\code{description}}{Character. Human‑readable description; multiple values are
-collapsed into a single space‑separated string.}
-}}
-
 \keyword{internal}

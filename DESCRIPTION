@@ -1,9 +1,17 @@
 Package: tricobbler
-Title: What the Package Does (One Line, Title Case)
+Title: Multi-Agent Workflow Orchestration with Immutable Policy Definitions
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Dipterix", "Wang", , "dipterix.wang@gmail.com", role = c("aut", "cre"))
+Description: Provides a three-tier architecture for building multi-agent AI workflows
+    combining immutable policy definitions (S7 classes) with mutable execution state
+    (R6 classes). Defines workflow blueprints through MasterPolicy (stages vocabulary)
+    and StatePolicy (stage implementations with priority-based ordering), validates
+    completeness via Manifest, creates execution agreements with Contract, and tracks
+    runtime state through ContractState. Supports sequential and parallel execution
+    patterns, critical validation gates with fail-fast semantics, and YAML serialization
+    for version control. Designed for controlled and reproducible AI agent orchestration 
+    with LLMs.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -14,5 +22,8 @@ Imports:
     S7 (>= 0.2.1),
     yaml (>= 2.3.12)
 Suggests: 
+    spelling,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+URL: http://dipterix.org/tricobbler/
+Language: en-US

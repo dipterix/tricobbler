@@ -2,6 +2,8 @@
 # tricobbler
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/dipterix/tricobbler/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/dipterix/tricobbler/actions/workflows/R-CMD-check.yaml)
+[![CRAN status](https://www.r-pkg.org/badges/version/tricobbler)](https://CRAN.R-project.org/package=tricobbler)
 <!-- badges: end -->
 
 The word `tricobbler` comes from a Chinese proverb emphasizing that collaboration among ordinary people can surpass the intelligence of a single genius.
