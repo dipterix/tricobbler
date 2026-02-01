@@ -8,7 +8,7 @@
 
 The word `tricobbler` comes from a Chinese proverb emphasizing that collaboration among ordinary people can surpass the intelligence of a single genius.
 
-> Three cobblers with their wits combined equal Zhuge Liang
+> Three cobblers with their wits combined equal `Zhuge Liang`
 >
 > 三个臭皮匠，顶个诸葛亮
 

@@ -1,0 +1,8 @@
+# Prevent auto-loading detailed Copilot instruction files
+.github/copilot/
+
+# Exclude RStudio/R project temporary files
+.Rproj.user
+
+# Exclude archived/obsolete code
+adhoc/old/

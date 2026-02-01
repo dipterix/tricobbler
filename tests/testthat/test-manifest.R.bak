@@ -11,25 +11,19 @@ test_that("MasterPolicy validates stages correctly", {
   
   # Stages should be lowercased
   expect_error(
-    MasterPolicy(
-      name = "test", version = "1.0.0", stages = character(0)
-    ),
+    MasterPolicy(name = "test", version = "1.0.0", stages = character(0)),
     "number of stages cannot be 0"
   )
   
   # Duplicates not allowed
   expect_error(
-    MasterPolicy(
-      name = "test", version = "1.0.0", stages = c("idle", "IDLE")
-    ),
+    MasterPolicy(name = "test", version = "1.0.0", stages = c("idle", "IDLE")),
     "duplicated"
   )
   
   # Invalid characters
   expect_error(
-    MasterPolicy(
-      name = "test", version = "1.0.0", stages = c("idle!", "working")
-    ),
+    MasterPolicy(name = "test", version = "1.0.0", stages = c("idle!", "working")),
     "can only contain letters"
   )
 })
@@ -47,19 +41,13 @@ test_that("StatePolicy validates stage correctly", {
   
   # Stage cannot be blank
   expect_error(
-    StatePolicy(
-      name = "state1", stage = "",
-      description = "test", agent_id = "agent1"
-    ),
+    StatePolicy(name = "state1", stage = "", description = "test", agent_id = "agent1"),
     "non-blank"
   )
   
   # Stage must be single string
   expect_error(
-    StatePolicy(
-      name = "state1", stage = c("idle", "working"),
-      description = "test", agent_id = "agent1"
-    ),
+    StatePolicy(name = "state1", stage = c("idle", "working"), description = "test", agent_id = "agent1"),
     "non-blank single character string"
   )
 })
@@ -72,14 +60,8 @@ test_that("Manifest validates stage-state correspondence", {
     parameters = list()
   )
   
-  sp1 <- StatePolicy(
-    name = "init", stage = "idle",
-    description = "init", agent_id = "agent_init"
-  )
-  sp2 <- StatePolicy(
-    name = "work", stage = "working",
-    description = "work", agent_id = "agent_work"
-  )
+  sp1 <- StatePolicy(name = "init", stage = "idle", description = "init")
+  sp2 <- StatePolicy(name = "work", stage = "working", description = "work")
   
   # Valid manifest
   mf <- Manifest(master = mp, states = list(sp1, sp2))
@@ -93,10 +75,7 @@ test_that("Manifest validates stage-state correspondence", {
   )
   
   # Multiple states per stage is allowed
-  sp3 <- StatePolicy(
-    name = "work2", stage = "working",
-    description = "work again", agent_id = "agent_work2"
-  )
+  sp3 <- StatePolicy(name = "work2", stage = "working", description = "work again")
   mf2 <- Manifest(master = mp, states = list(sp1, sp2, sp3))
   expect_true(S7::S7_inherits(mf2, Manifest))
 })
@@ -113,7 +92,6 @@ test_that("manifest_write creates valid YAML file", {
     name = "init",
     stage = "idle",
     description = "Initial idle state",
-    agent_id = "agent_init",
     parameters = list(wait = TRUE)
   )
   
@@ -121,7 +99,6 @@ test_that("manifest_write creates valid YAML file", {
     name = "process",
     stage = "working",
     description = "Processing state with execution",
-    agent_id = "agent_process",
     parameters = list(max_duration = 600)
   )
   
@@ -152,18 +129,9 @@ test_that("manifest_read reconstructs Manifest correctly", {
     parameters = list(verbose = TRUE)
   )
   
-  sp1 <- StatePolicy(
-    name = "s1", stage = "alpha",
-    description = "First state", agent_id = "agent_s1"
-  )
-  sp2 <- StatePolicy(
-    name = "s2", stage = "beta",
-    description = "Second state", agent_id = "agent_s2"
-  )
-  sp3 <- StatePolicy(
-    name = "s3", stage = "gamma",
-    description = "Third state", agent_id = "agent_s3"
-  )
+  sp1 <- StatePolicy(name = "s1", stage = "alpha", description = "First state")
+  sp2 <- StatePolicy(name = "s2", stage = "beta", description = "Second state")
+  sp3 <- StatePolicy(name = "s3", stage = "gamma", description = "Third state")
   
   original <- Manifest(master = mp, states = list(sp1, sp2, sp3))
   
@@ -201,14 +169,8 @@ test_that("manifest_read validates on deserialization", {
       parameters = list()
     ),
     states = list(
-      list(
-        name = "s1", stage = "idle", description = "idle state",
-        agent_id = "agent_s1", parameters = list()
-      ),
-      list(
-        name = "s2", stage = "working", description = "work state",
-        agent_id = "agent_s2", parameters = list()
-      )
+      list(name = "s1", stage = "idle", description = "idle state", parameters = list()),
+      list(name = "s2", stage = "working", description = "work state", parameters = list())
       # Missing "done" stage!
     )
   )
@@ -234,7 +196,6 @@ test_that("manifest roundtrip with complex descriptions", {
     name = "s1",
     stage = "stage1",
     description = c("Line 1", "Line 2", "Line 3"),
-    agent_id = "agent_s1",
     parameters = list()
   )
   
@@ -246,8 +207,7 @@ test_that("manifest roundtrip with complex descriptions", {
   manifest_write(original, tmp)
   reconstructed <- manifest_read(tmp)
   
-  # Description should be collapsed (YAML preserves newlines,
-  # so it becomes multiline string)
+  # Description should be collapsed (YAML preserves newlines, so it becomes multiline string)
   expect_type(reconstructed@states[[1]]@description, "character")
   expect_length(reconstructed@states[[1]]@description, 1)
   # YAML writes multiline strings with newlines preserved
@@ -266,7 +226,6 @@ test_that("manifest handles empty parameters", {
     name = "state",
     stage = "s1",
     description = "test",
-    agent_id = "agent_state",
     parameters = list()
   )
   
@@ -284,77 +243,50 @@ test_that("manifest handles empty parameters", {
 
 test_that("StatePolicy priority validation works", {
   # Valid priorities
-  sp1 <- StatePolicy(
-    name = "s1", stage = "idle",
-    agent_id = "agent_s1", priority = 0L
-  )
+  sp1 <- StatePolicy(name = "s1", stage = "idle", priority = 0L)
   expect_equal(sp1@priority, 0L)
   
-  sp2 <- StatePolicy(
-    name = "s2", stage = "idle",
-    agent_id = "agent_s2", priority = 999L
-  )
+  sp2 <- StatePolicy(name = "s2", stage = "idle", priority = 999L)
   expect_equal(sp2@priority, 999L)
   
   # Default priority
-  sp3 <- StatePolicy(name = "s3", stage = "idle", agent_id = "agent_s3")
+  sp3 <- StatePolicy(name = "s3", stage = "idle")
   expect_equal(sp3@priority, 100L)
   
   # NA treated as default
-  sp4 <- StatePolicy(
-    name = "s4", stage = "idle",
-    agent_id = "agent_s4", priority = NA
-  )
+  sp4 <- StatePolicy(name = "s4", stage = "idle", priority = NA)
   expect_equal(sp4@priority, 100L)
   
   # NULL treated as default (via setter)
-  sp5 <- StatePolicy(
-    name = "s5", stage = "idle",
-    agent_id = "agent_s5", priority = NULL
-  )
+  sp5 <- StatePolicy(name = "s5", stage = "idle", priority = NULL)
   expect_equal(sp5@priority, 100L)
   
   # Invalid priorities
   expect_error(
-    StatePolicy(
-      name = "s", stage = "idle",
-      agent_id = "agent_s", priority = -1L
-    ),
+    StatePolicy(name = "s", stage = "idle", priority = -1L),
     "between 0 and 999"
   )
   
   expect_error(
-    StatePolicy(
-      name = "s", stage = "idle",
-      agent_id = "agent_s", priority = 1000L
-    ),
+    StatePolicy(name = "s", stage = "idle", priority = 1000L),
     "between 0 and 999"
   )
 })
 
 test_that("Critical states must have priority >= 1", {
   # Valid critical state
-  sp <- StatePolicy(
-    name = "s", stage = "idle",
-    agent_id = "agent_s", priority = 1L, critical = TRUE
-  )
+  sp <- StatePolicy(name = "s", stage = "idle", priority = 1L, critical = TRUE)
   expect_true(sp@critical)
   expect_equal(sp@priority, 1L)
   
   # High priority critical
-  sp2 <- StatePolicy(
-    name = "s2", stage = "idle",
-    agent_id = "agent_s2", priority = 900L, critical = TRUE
-  )
+  sp2 <- StatePolicy(name = "s2", stage = "idle", priority = 900L, critical = TRUE)
   expect_true(sp2@critical)
   expect_equal(sp2@priority, 900L)
   
   # Invalid: critical with priority 0
   expect_error(
-    StatePolicy(
-      name = "s", stage = "idle",
-      agent_id = "agent_s", priority = 0L, critical = TRUE
-    ),
+    StatePolicy(name = "s", stage = "idle", priority = 0L, critical = TRUE),
     "critical states must have priority >= 1"
   )
 })
@@ -368,48 +300,31 @@ test_that("Manifest validates critical priority uniqueness", {
   )
   
   # Valid: critical state with unique priority
-  sp1 <- StatePolicy(
-    name = "critical1", stage = "executing",
-    agent_id = "agent_critical1",
-    priority = 900L, critical = TRUE
-  )
-  sp2 <- StatePolicy(
-    name = "normal1", stage = "executing",
-    agent_id = "agent_normal1",
-    priority = 100L, critical = FALSE
-  )
+  sp1 <- StatePolicy(name = "critical1", stage = "executing", 
+                     priority = 900L, critical = TRUE)
+  sp2 <- StatePolicy(name = "normal1", stage = "executing", 
+                     priority = 100L, critical = FALSE)
   
   mf <- Manifest(master = mp, states = list(sp1, sp2))
   expect_true(S7::S7_inherits(mf, Manifest))
   
-  # Invalid: another state in same stage with same priority
-  # as critical
-  sp3 <- StatePolicy(
-    name = "conflict", stage = "executing",
-    agent_id = "agent_conflict",
-    priority = 900L, critical = FALSE
-  )
+  # Invalid: another state in same stage with same priority as critical
+  sp3 <- StatePolicy(name = "conflict", stage = "executing", 
+                     priority = 900L, critical = FALSE)
   expect_error(
     Manifest(master = mp, states = list(sp1, sp3)),
     "cannot share its priority"
   )
   
   # Valid: critical states with different priorities in same stage
-  sp4 <- StatePolicy(
-    name = "critical2", stage = "executing",
-    agent_id = "agent_critical2",
-    priority = 800L, critical = TRUE
-  )
+  sp4 <- StatePolicy(name = "critical2", stage = "executing", 
+                     priority = 800L, critical = TRUE)
   mf2 <- Manifest(master = mp, states = list(sp1, sp4))
   expect_true(S7::S7_inherits(mf2, Manifest))
   
-  # Valid: non-critical states can share priorities
-  # with each other
-  sp5 <- StatePolicy(
-    name = "normal2", stage = "executing",
-    agent_id = "agent_normal2",
-    priority = 100L, critical = FALSE
-  )
+  # Valid: non-critical states can share priorities with each other
+  sp5 <- StatePolicy(name = "normal2", stage = "executing", 
+                     priority = 100L, critical = FALSE)
   mf3 <- Manifest(master = mp, states = list(sp2, sp5))
   expect_true(S7::S7_inherits(mf3, Manifest))
 })
@@ -423,26 +338,14 @@ test_that("Priority ordering makes sense for multi-state workflows", {
   )
   
   # Create states with different priorities
-  sp_high <- StatePolicy(
-    name = "high_priority", stage = "executing",
-    agent_id = "agent_high",
-    priority = 900L, critical = TRUE
-  )
-  sp_med <- StatePolicy(
-    name = "medium_priority", stage = "executing",
-    agent_id = "agent_med",
-    priority = 500L
-  )
-  sp_low <- StatePolicy(
-    name = "low_priority", stage = "executing",
-    agent_id = "agent_low",
-    priority = 100L
-  )
-  sp_lowest <- StatePolicy(
-    name = "lowest_priority", stage = "executing",
-    agent_id = "agent_lowest",
-    priority = 0L
-  )
+  sp_high <- StatePolicy(name = "high_priority", stage = "executing", 
+                         priority = 900L, critical = TRUE)
+  sp_med <- StatePolicy(name = "medium_priority", stage = "executing", 
+                        priority = 500L)
+  sp_low <- StatePolicy(name = "low_priority", stage = "executing", 
+                        priority = 100L)
+  sp_lowest <- StatePolicy(name = "lowest_priority", stage = "executing", 
+                           priority = 0L)
   
   mf <- Manifest(master = mp, states = list(sp_high, sp_med, sp_low, sp_lowest))
   expect_true(S7::S7_inherits(mf, Manifest))

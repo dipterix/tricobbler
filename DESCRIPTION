@@ -2,28 +2,50 @@ Package: tricobbler
 Title: Multi-Agent Workflow Orchestration with Immutable Policy Definitions
 Version: 0.0.0.9000
 Authors@R: 
-    person("Dipterix", "Wang", , "dipterix.wang@gmail.com", role = c("aut", "cre"))
-Description: Provides a three-tier architecture for building multi-agent AI workflows
-    combining immutable policy definitions (S7 classes) with mutable execution state
-    (R6 classes). Defines workflow blueprints through MasterPolicy (stages vocabulary)
-    and StatePolicy (stage implementations with priority-based ordering), validates
-    completeness via Manifest, creates execution agreements with Contract, and tracks
-    runtime state through ContractState. Supports sequential and parallel execution
-    patterns, critical validation gates with fail-fast semantics, and YAML serialization
-    for version control. Designed for controlled and reproducible AI agent orchestration 
-    with LLMs.
+    c(
+        person("Dipterix", "Wang", , "dipterix.wang@gmail.com", 
+                role = c("aut", "cre"))
+    )
+Description: Provides a two-tier architecture for building multi-agent AI 
+    workflows combining immutable policy definitions (S7 classes) with mutable 
+    execution state (R6 classes). Defines workflow blueprints through master 
+    policies (stages vocabulary) and state policies (stage implementations with 
+    priority-based ordering), validates completeness via manifests, and 
+    orchestrates runtime execution through schedulers. Supports priority-based 
+    sequential execution, critical validation gates with fail-fast semantics, 
+    and YAML serialization for version control. Designed for controlled and 
+    reproducible AI agent orchestration with Large Language Models.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: 
     ellmer (>= 0.4.0),
+    fastmap,
+    jsonlite,
+    pkgsearch,
     R6 (>= 2.6.1),
     S7 (>= 0.2.1),
     yaml (>= 2.3.12)
 Suggests: 
+    cli,
     spelling,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 URL: http://dipterix.org/tricobbler/
 Language: en-US
+Collate: 
+    'aaa.R'
+    'basic-properties.R'
+    'class-s7base.R'
+    'mcp-describe.R'
+    'class-baseagent.R'
+    'class-context.R'
+    'class-policy.R'
+    'class-scheduler.R'
+    'mcp-context.R'
+    'mcp-state.R'
+    'mcp-tooldef-config.R'
+    'mcp-tooldef-package.R'
+    'mcp-tools.R'
+    'tricobbler-package.R'

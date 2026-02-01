@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-adhoc
-docs
+adhoc/
+docs/
 ..Rcheck
+.DS_Store

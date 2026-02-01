@@ -1,14 +1,17 @@
+#' @include class-s7base.R
+NULL
+
+
 # ---------------------------------------------------------------------------
-# DESIGN LOGIC: Three-Tier Policy System
+# DESIGN LOGIC: Two-Tier Policy System
 # ---------------------------------------------------------------------------
-# This file defines the immutable policy layer (Tier 1) of TriCobbler's
+# This file defines the immutable policy layer (Tier 1) of the package
 # architecture. Policies are blueprints that specify WHAT a workflow should
-# do, not HOW it executes (which is handled by Contract/ContractState layers).
+# do, not HOW it executes (which is handled by the Runtime layer).
 #
-# The three-tier separation is:
+# The two-tier separation is:
 #   1. Policy (this file) - Immutable workflow blueprints using S7
-#   2. Contract (class002) - Immutable execution agreements using S7
-#   3. ContractState (class003) - Mutable runtime tracking using R6
+#   2. Runtime (R/class-scheduler.R) - Mutable execution orchestration using R6
 #
 # KEY DESIGN DECISIONS:
 #
@@ -17,27 +20,28 @@
 #      in MasterPolicy. They represent the vocabulary of workflow phases.
 #    - STATES are concrete policy implementations (StatePolicy objects) that
 #      reference stages and add metadata (description, parameters).
-#    - Multiple states can share the same stage, enabling parallel workflows.
-#    - Every stage MUST have at least one state (enforced by Manifest validator).
+#    - Multiple states can share the same stage, enabling fallback chains.
+#    - Every stage MUST have at least one state (enforced by \code{Manifest} 
+#      validation).
 #
 # 2. Manifest as Validated Blueprint:
 #    - Manifest ties MasterPolicy to StatePolicy list, ensuring completeness.
-#    - The validator performs cross-validation: all master stages must have
+#    - The validation performs cross-validation: all master stages must have
 #      at least one corresponding state policy.
 #    - This ensures no "orphaned" stages exist in the workflow definition.
-#    - Note: Manifest is NOT a Contract - it's a policy container. The actual
-#      execution contract (with executors, validators, etc.) is defined in
-#      the Contract class (class002-contract.R).
+#    - Manifest is a policy container that defines the workflow blueprint,
+#      which is then executed by the Scheduler in the Runtime layer.
 #
 # 3. Immutability via S7:
-#    - Policies are immutable to prevent accidental modification during execution.
+#    - Policies are immutable to prevent accidental modification during 
+#      execution.
 #    - Once created, a policy serves as a stable reference for contracts.
 #    - Use S7 @ accessor (e.g., policy@name) not R6 $ accessor.
 #
 # 4. Serialization (manifest_read/manifest_write):
 #    - Policies can be saved as YAML for version control and sharing.
 #    - YAML format enables human-readable workflow definitions.
-#    - Deserialization validates all constraints automatically.
+#    - Reading YAML validates all constraints automatically.
 # ---------------------------------------------------------------------------
 
 #' @title Abstract Base Class for Policy Objects
@@ -49,7 +53,7 @@
 #' @param description Character. Human-readable description; multiple values are
 #'   collapsed into a single space-separated string.
 #' @keywords internal
-BasePolicy = S7::new_class(
+BasePolicy <- S7::new_class(
   name = "Policy",
   parent = BaseClass,
   abstract = TRUE,
@@ -57,7 +61,7 @@ BasePolicy = S7::new_class(
     name = S7::new_property(
       class = S7::class_character,
       validator = function(value) {
-        if(length(value) != 1 || is.na(value) || !nzchar(trimws(value))) {
+        if (length(value) != 1 || is.na(value) || !nzchar(trimws(value))) {
           return("cannot be blank value.")
         }
         return()
@@ -74,27 +78,29 @@ BasePolicy = S7::new_class(
 )
 
 #' @title Master Workflow Policy Defining Stages and Version
-#' @description Concrete policy that defines the overall workflow version and the
-#'   set of allowed stages. Inherits from `BasePolicy`.
+#' @description Concrete policy that defines the overall workflow version and 
+#'   the set of allowed stages. Inherits from `BasePolicy`.
 #' @details
 #' ## Stages as Workflow Vocabulary
 #'
 #' The `stages` property defines the symbolic vocabulary of workflow phases
 #' (e.g., "triage", "planning", "executing"). These are macro-level phase names
-#' that must be implemented by at least one `StatePolicy` object in the `Manifest`.
+#' that must be implemented by at least one \code{StatePolicy} object in the 
+#' \code{Manifest}.
 #'
 #' ## Stage Naming Conventions
 #'
-#' - Stages are automatically lowercased for consistency
-#' - Must contain only letters (a-z), digits (0-9), underscores (_), or dashes (-)
+#' - Stages are automatically converted to lowercase for consistency
+#' - Must contain only letters (a-z), digits (0-9), underscores (_), or 
+#'   dashes (-)
 #' - Must be unique (case-insensitive) within a workflow
 #' - Cannot be blank or NA
 #'
 #' ## Immutability
 #'
-#' `MasterPolicy` objects are immutable (S7 value semantics). Once created, they
-#' serve as a stable reference for `Contract` objects. Use the `@` accessor to
-#' read properties (e.g., `policy@stages`).
+#' \code{MasterPolicy} objects are immutable (S7 value semantics). Once created,
+#' they serve as a stable reference for \code{Contract} objects. Use the 
+#' \code{@@} accessor to read properties (e.g., `policy@stages`).
 #'
 #' @param name Character. Name of the policy (non-blank).
 #' @param description Character. Human-readable description.
@@ -120,16 +126,22 @@ MasterPolicy <- S7::new_class(
     stages = S7::new_property(
       class = S7::class_character,
       validator = function(value) {
-        if(length(value) == 0) { return("number of stages cannot be 0") }
-        value <- tolower(value)
-        if(anyNA(value) || anyDuplicated(value) || !all(nzchar(value))) {
-          return("stage string cannot be duplicated (case-insensitive), NA, or blank.")
+        if (length(value) == 0) {
+          return("number of stages cannot be 0")
         }
-        if(any(grepl("[^a-zA-Z0-9_-]", value))) {
-          return("stage string can only contain letters (a-z), digits (0-9), underscore (_) or dash (-).")
+        value <- tolower(value)
+        if (anyNA(value) || anyDuplicated(value) || !all(nzchar(value))) {
+          return("stage string cannot be duplicated (case-insensitive), NA, or blank.") # nolint: line_length_linter.
+        }
+        if (any(grepl("[^a-zA-Z0-9_-]", value))) {
+          return("stage string can only contain letters (a-z), digits (0-9), underscore (_) or dash (-).") # nolint: line_length_linter.
+        }
+        if (any(c("ready", "error", "human") %in% value)) {
+          return("`ready`, `error`, and `human` are reserved stages. Please remove them.") # nolint: line_length_linter.
         }
         return()
-      }
+      },
+      default = c("triage", "planning", "executing")
     ),
     # Additional parameters
     parameters = S7::class_list
@@ -145,60 +157,90 @@ MasterPolicy <- S7::new_class(
 #' @title State-Level Policy Implementation for Workflow Stages
 #' @description Represents a single workflow state. Inherits from `BasePolicy`
 #'   and adds a mandatory `stage` that must match one of the stages defined in a
-#'   `MasterPolicy`. Includes priority and criticality flags for execution ordering
-#'   when multiple states share the same stage.
+#'   \code{MasterPolicy}. Includes priority and criticality flags for execution
+#'   ordering when multiple states share the same stage.
 #' @details
 #' ## Stages vs States
 #'
-#' - **Stage** (macro): The workflow phase name from `MasterPolicy@stages` (e.g., "executing")
-#' - **State** (micro): A concrete `StatePolicy` implementation of that stage
-#' - Multiple states can reference the same stage for different execution patterns
+#' - **Stage** (macro): The workflow phase name from `MasterPolicy@stages`
+#'   (e.g., "executing")
+#' - **State** (micro): A concrete \code{StatePolicy} implementation of that
+#'   stage
+#' - Multiple states can reference the same stage for different execution
+#'   patterns
 #'
 #' ## Priority System and Execution Patterns
 #'
-#' When multiple states share the same stage, execution pattern depends on priority:
+#' When multiple states share the same stage, execution pattern depends on
+#'   priority:
 #'
 #' - **Range**: 0 (lowest) to 999 (highest)
 #' - **Default**: 100 (when `priority = NA` or `NULL`)
-#' - **Equal priority**: States run in parallel (truly concurrent execution)
-#' - **Different priorities**: States run sequentially (higher priority first)
+#' - **Execution order**: States run sequentially by priority (higher first)
 #'
 #' ## Critical Flag: Enforcing Sequential Execution
 #'
-#' The `critical` flag enforces **sequential** execution with fail-fast semantics:
+#' The `critical` flag enforces **sequential** execution with fail-fast
+#'   semantics:
 #'
 #' - If `critical = TRUE`, this state **must** execute and succeed before any
 #'   lower-priority states in the same stage can run
 #' - If a critical state fails, lower-priority states are skipped entirely
-#' - Critical states **prevent parallel execution** - you cannot have parallel
-#'   states when one is marked critical (enforced by priority uniqueness)
+#' - Critical states must have unique priority (enforced by \code{Manifest})
 #' - Critical states must have `priority >= 1` (cannot be lowest priority 0)
 #' - Critical states cannot share their priority value with other states in the
-#'   same stage (enforced by `Manifest` validator)
-#' - **Use case**: Required validation gates that must pass before alternatives run
+#'   same stage (enforced by \code{Manifest} validation)
+#' - **Use case**: Required validation gates that must pass before
+#'   alternatives run
 #'
 #' ## When to Use Multiple States Per Stage
 #'
-#' Create multiple `StatePolicy` objects for the same stage when you need:
+#' Create multiple \code{StatePolicy} objects for the same stage when you need:
 #'
-#' 1. **Parallel alternatives**: Multiple states with equal priority for concurrent
-#'    execution (e.g., A/B testing, redundant processing)
-#' 2. **Sequential fallback chains**: Different priorities create ordered execution
-#'    with fallbacks (e.g., primary approach → fallback → last resort)
-#' 3. **Critical validation gates**: Critical state must succeed before lower-priority
-#'    alternatives execute (enforces sequential, fail-fast semantics)
-#' 4. **Staged rollout**: Gradually shift priority as new implementations mature
+#' 1. **Fallback chains**: Different priorities create ordered
+#'    execution with alternative strategies
+#' 2. **Alternative implementations**: Multiple states for the same stage
+#'    execution with alternative strategies
+#'    (e.g., primary approach -> fallback -> last resort)
+#' 3. **Critical validation gates**: Critical state must succeed before
+#'    lower-priority alternatives execute (enforces sequential, fail-fast
+#'    semantics)
+#' 4. **Phased deployment**: Gradually shift priority as new implementations
+#'    mature
 #'
-#' @param name Character. Name of the state policy (non-blank).
-#' @param description Character. Human-readable description.
-#' @param stage Character. Must be a non-blank single string.
-#' @param parameters List. Optional state-specific parameters.
-#' @param priority Integer. Execution priority (0-999, default 100). Higher values
-#'   run first (999 = highest priority, 0 = lowest). Used when multiple states
-#'   share the same stage. NA or NULL are treated as 100.
-#' @param critical Logical. If `TRUE`, states with lower priority won't
-#'   execute if this state fails (default `FALSE`). Critical states must have
-#'   `priority >= 1` and cannot share priority code with other states.
+#' @param name character, name of the state policy (non-blank)
+#' @param description character, human-readable description
+#' @param stage character, must be a non-blank single string
+#' @param parameters list, optional state-specific parameters
+#' @param priority integer, execution priority (0-999, default 100). Higher
+#'   values run first (999 = highest priority, 0 = lowest). Used when multiple
+#'   states share the same stage. NA or NULL are treated as 100
+#' @param critical logical, if TRUE, states with lower priority will not
+#'   execute if this state fails (default FALSE). Critical states must have
+#'   priority >= 1 and cannot share priority code with other states
+#' @param agent_id character, unique identifier for the agent responsible for
+#'   executing this state. Must contain only letters, digits, underscores, or
+#'   dashes
+#' @param resources character vector, tools that the agent may call during
+#'   execution (default empty vector)
+#' @param max_retry integer, maximum total attempts (initial + retries) for
+#'   this state during stage execution (default 0, meaning single attempt).
+#'   The \code{max_retry} limit applies globally across all re-entries to this
+#'   state within the same stage. If \code{on_failure} is set, this state will
+#'   not retry locally but will jump to the failure handler immediately. If
+#'   \code{on_failure} is NA, local retries up to \code{max_retry} will be
+#'   attempted before moving to next state
+#' @param final logical, if TRUE and validation succeeds, skip remaining states
+#'   in the workflow (default FALSE)
+#' @param on_failure character, name of the state to jump to on first failure
+#'   (default NA to retry locally up to \code{max_retry} times). When set,
+#'   failures trigger immediate jump to the specified state without local
+#'   retries. The \code{max_retry} limit still applies globally to prevent
+#'   infinite loops: if this state is re-entered and total attempts exceed
+#'   \code{max_retry}, execution stops with an error. Common patterns:
+#'   validation loops (\code{on_failure = "executor"}), alternative strategies
+#'   (\code{on_failure = "slower_alternative"}), or repair chains
+#'   (\code{on_failure = "repair_step"})
 #' @examples
 #'
 #' # Basic state
@@ -206,6 +248,7 @@ MasterPolicy <- S7::new_class(
 #'   name = "state1",
 #'   stage = "idle",
 #'   description = "initial idle state",
+#'   agent_id = "agent1",
 #'   parameters = list()
 #' )
 #'
@@ -214,6 +257,7 @@ MasterPolicy <- S7::new_class(
 #'   name = "validator",
 #'   stage = "executing",
 #'   description = "critical validation step",
+#'   agent_id = "validator_agent",
 #'   priority = 900,
 #'   critical = TRUE
 #' )
@@ -223,7 +267,9 @@ StatePolicy <- S7::new_class(
   name = "StatePolicy",
   parent = BasePolicy,
   properties = list(
-    # The symbolic name of the state – must correspond to a MasterPolicy stage
+    # @name must be unique within the same MasterPolicy
+
+    # The symbolic name of the state - must correspond to a MasterPolicy stage
     stage = S7::new_property(
       class = S7::class_character,
       validator = function(value) {
@@ -233,10 +279,43 @@ StatePolicy <- S7::new_class(
         return()
       }
     ),
+
     # Short description of what the state does (e.g., "classify request")
+    # For AI agents, this "should" be the system prompt (although the impl might
+    # put the prompts in the parameters and I'm not yet sure about this)
     description = S7::new_property(class = S7::class_character),
-    # Optional list of state-specific parameters (e.g., timeout, retries)
+
+    # WHO: Agent name to help us find the agent class (R6)
+    # The agent should implement $run(context, policy)
+    # $validate(output) -> TRUE/error
+    agent_id = S7::new_property(
+      class = S7::class_character,
+      validator = function(value) {
+        if (
+          length(value) != 1 ||
+            is.na(value) ||
+            !nzchar(value) ||
+            grepl("[^a-zA-Z0-9_-]", value)
+        ) {
+          return(
+            "Agent ID must not be empty and must only contain letters, digits, underscores, or dashes" # nolint: line_length_linter.
+          ) 
+        }
+        return()
+      }
+    ),
+
+    # WHAT: Tools available to this stage
+    resources = S7::new_property(
+      class = S7::class_character,
+      default = character(0L)
+    ),
+
+    # Optional list of state-specific parameters (e.g., timeout, retries, or 
+    # other constraints)
     parameters = S7::new_property(class = S7::class_list),
+    max_retry = S7::new_property(class = S7::class_integer, default = 0L),
+
     # Execution priority: higher values run first (0-999)
     priority = S7::new_property(
       class = S7::class_integer,
@@ -260,10 +339,26 @@ StatePolicy <- S7::new_class(
       },
       default = 100L
     ),
-    # Critical flag: if TRUE, lower-priority stages won't run if this fails
+
+    # Critical flag: if TRUE, suspend and wait for human
     critical = S7::new_property(
       class = S7::class_logical,
       default = FALSE
+    ),
+
+    # final flag: if TRUE and validated, then skip the states
+    final = S7::new_property(
+      class = S7::class_logical,
+      default = FALSE
+    ),
+
+    # Bailout state: if max try reached, jump to a state to handle it
+    # default is NA, jump to the next one;
+    # This field is respected either critical or not
+    # must not be @name
+    on_failure = S7::new_property(
+      class = S7::class_character,
+      default = NA_character_
     )
   ),
   validator = function(self) {
@@ -276,81 +371,94 @@ StatePolicy <- S7::new_class(
 )
 
 #' @title Validated Container Linking Master Policy to State Policies
-#' @description Container that ties a `MasterPolicy` together with a list of
-#'   `StatePolicy` objects. The validator ensures that every stage defined in
-#'   the master policy is represented by at least one state.
+#' @description Container that ties a \code{MasterPolicy} together with a list
+#'   of \code{StatePolicy} objects. The validation ensures that every stage
+#'   defined in the master policy is represented by at least one state.
 #' @details
-#' ## TriCobbler's Three-Tier Architecture
+#' ## Two-Tier Architecture
 #'
-#' The `Manifest` class represents the validated blueprint layer (Tier 1) in
-#' TriCobbler's three-tier design:
+#' The \code{Manifest} class represents the validated blueprint layer (Tier 1)
+#'   in the package two-tier design:
 #'
 #' 1. **Policy Layer (Tier 1 - Immutable S7)**: Blueprint definitions
-#'    - `Manifest`: Validated container linking `MasterPolicy` to `StatePolicy` list
-#'    - `MasterPolicy`: Workflow version + allowed stages (macro-level phases)
-#'    - `StatePolicy`: Individual state metadata (stage, description, parameters, priority)
+#'    - \code{Manifest}: Validated container linking \code{MasterPolicy} to
+#'      \code{StatePolicy} list
+#'    - \code{MasterPolicy}: Workflow version + allowed stages (macro-level
+#'      phases)
+#'    - \code{StatePolicy}: Individual state metadata (stage, description,
+#'      parameters, priority)
 #'
-#' 2. **Contract Layer (Tier 2 - Immutable S7)**: Execution agreements
-#'    - `Contract`: Master agreement linking `Manifest` to `StageContract` list
-#'    - `StageContract`: Per-stage execution spec (executor, tools, validators)
-#'    - `ContractExecutor`: Callable function wrapping LLM/script execution logic
-#'
-#' 3. **State Layer (Tier 3 - Mutable R6)**: Runtime tracking
-#'    - `ContractState`: Orchestrates all stage states and workflow progression
-#'    - `SubContractState`: Tracks one stage's execution (status, I/O, timing)
+#' 2. **Runtime Layer (Tier 2 - Mutable R6)**: Execution orchestration
+#'    - \code{Scheduler}: Orchestrates all stage/state progression and
+#'      workflow execution
+#'    - \code{Context}: Manages execution environment (logging, storage,
+#'      attachments)
+#'    - \code{Agent}: Executes state-specific logic
 #'
 #' ## Stages vs States: Critical Distinction
 #'
-#' - **Stages** (symbolic vocabulary): Workflow phase names defined in `MasterPolicy@stages`
+#' - **Stages** (symbolic vocabulary): Workflow phase names defined in
+#'   \code{MasterPolicy@@stages}
 #'   (e.g., "triage", "planning", "executing")
-#' - **States** (concrete implementations): `StatePolicy` objects that reference
-#'   stages and add execution metadata (description, parameters, priority)
+#' - **States** (concrete implementations): \code{StatePolicy} objects that
+#'   reference stages and add execution metadata (description, parameters,
+#'   priority)
 #' - **Multiple states per stage**: Enables different execution patterns:
-#'   - **Parallel**: Multiple states with equal priority (concurrent execution)
-#'   - **Sequential**: Different priorities create ordered execution chains
-#'   - **Critical gates**: Critical states enforce sequential fail-fast semantics
-#' - **Validation rule**: Every stage in `MasterPolicy@stages` MUST have at least
-#'   one corresponding `StatePolicy` (enforced by validator)
+#'   - **Sequential fallback**: Different priorities create ordered execution
+#'   - **Critical gates**: Critical states enforce fail-fast validation
+#'     semantics
+#' - **Validation rule**: Every stage in \code{MasterPolicy@@stages} MUST have
+#'     at least one corresponding \code{StatePolicy} (enforced by validation)
 #'
 #' ## Validation Rules
 #'
-#' The `Manifest` validator performs critical cross-checks:
+#' The \code{Manifest} validation performs critical cross-checks:
 #'
-#' 1. **Completeness**: Every `MasterPolicy` stage has at least one `StatePolicy`
+#' 1. **Completeness**: Every \code{MasterPolicy} stage has at least one
+#'      \code{StatePolicy}
 #'    - Prevents "orphaned" stages with no implementation
 #'    - Error message: "Missing stages: ..."
 #'
 #' 2. **Critical priority uniqueness**: Critical states cannot share priorities
 #'    - If `StatePolicy@critical = TRUE`, no other state in the same stage can
 #'      have the same `priority` value
-#'    - Prevents ambiguity about which critical state blocks lower-priority states
+#'    - Prevents ambiguity about which critical state blocks lower-priority
+#'      states
 #'    - Error message: "Critical state ... cannot share its priority with ..."
 #'
 #' ## Immutability and Serialization
 #'
-#' Once created, `Manifest` objects are immutable (S7 value semantics), providing
-#' a stable reference for `Contract` creation. Manifests can be serialized to/from
-#' YAML for version control:
+#' Once created, \code{Manifest} objects are immutable (S7 value semantics),
+#' providing a stable reference for runtime execution. Manifests can be
+#' serialized to/from YAML for version control:
 #'
-#' - `manifest_write(manifest, file)`: Save to human-readable YAML
-#' - `manifest_read(file)`: Load with full validation
-#' - All validation rules apply on deserialization
+#' - \code{manifest_write(manifest, file)}: Save to human-readable YAML
+#' - \code{manifest_read(file)}: Load with full validation
+#' - All validation rules apply when reading YAML
 #'
-#' ## Manifest vs Contract
+#' ## Policy vs Runtime Separation
 #'
-#' **Important**: `Manifest` is NOT a `Contract`. It's purely a policy-level
-#' blueprint that defines WHAT the workflow should do (stages and states), not
-#' HOW it executes. The actual execution contract (with executors, validators,
-#' tools, SLAs) is defined separately in the `Contract` class.
+#' The \code{Manifest} is a policy-level blueprint that defines WHAT the
+#' workflow should do (stages and states), not HOW it executes. The actual
+#' execution (orchestration, logging, state management) is handled by
+#' \code{Scheduler} and \code{Context} in the Runtime layer.
 #'
-#' @param master `MasterPolicy` object.
-#' @param states List of `StatePolicy` objects.
+#' @param master \code{MasterPolicy} object
+#' @param states list of \code{StatePolicy} objects
 #' @examples
 #' # Create a valid manifest
-#' mp <- MasterPolicy(name = "example", version = "1.0.0",
-#'                    stages = c("idle", "triage"), parameters = list())
-#' sp1 <- StatePolicy(name = "state1", stage = "idle", description = "idle state")
-#' sp2 <- StatePolicy(name = "state2", stage = "triage", description = "triage state")
+#' mp <- MasterPolicy(
+#'   name = "example", version = "1.0.0",
+#'   stages = c("idle", "triage"), parameters = list()
+#' )
+#' sp1 <- StatePolicy(
+#'   name = "state1", stage = "idle",
+#'   description = "idle state", agent_id = "agent1"
+#' )
+#' sp2 <- StatePolicy(
+#'   name = "state2", stage = "triage",
+#'   description = "triage state", agent_id = "agent2"
+#' )
 #' mf <- Manifest(master = mp, states = list(sp1, sp2))
 #' mf
 #' @export
@@ -365,13 +473,19 @@ Manifest <- S7::new_class(
       }
     ),
     master = MasterPolicy,
-    # List of StatePolicy objects – one per workflow state
+    # List of StatePolicy objects - one per workflow state
     states = S7::new_property(
       class = S7::class_list,
       validator = function(value) {
-        ok <- vapply(value, function(x) S7::S7_inherits(x, StatePolicy), logical(1))
+        ok <- vapply(
+          value,
+          function(x) S7::S7_inherits(x, StatePolicy),
+          logical(1)
+        )
         if (!all(ok)) {
-          return("all elements in 'states' must be `StatePolicy` objects.")
+          return(
+            "all elements in 'states' must be \\code{StatePolicy} objects."
+          )
         }
         return()
       }
@@ -388,7 +502,7 @@ Manifest <- S7::new_class(
     missing_stages <- setdiff(valid_stages, state_stages)
     if (length(missing_stages) > 0) {
       return(sprintf(
-        "Each stage defined in MasterPolicy must be implemented with one or more StatePolicies. Missing stages: %s",
+        "Each stage defined in MasterPolicy must be implemented with one or more StatePolicies. Missing stages: %s", # nolint: line_length_linter.
         paste(sQuote(missing_stages), collapse = ", ")
       ))
     }
@@ -418,7 +532,7 @@ Manifest <- S7::new_class(
               character(1)
             )
             return(sprintf(
-              "Critical state %s (stage=%s, priority=%d) cannot share its priority with other states in the same stage: %s",
+              "Critical state %s (stage=%s, priority=%d) cannot share its priority with other states in the same stage: %s", # nolint: line_length_linter
               sQuote(state@name),
               sQuote(state@stage),
               state@priority,
@@ -451,7 +565,6 @@ extract_manifest_state <- function(x, stage) {
 
 
 S7::method(format, Manifest) <- function(x, ...) {
-
   stages <- x@master@stages
 
   stage_str <- lapply(stages, function(stage) {
@@ -469,8 +582,13 @@ S7::method(format, Manifest) <- function(x, ...) {
 
   concatern(
     c(
-      sprintf("Manifest (S7 class) - `%s` (%s)", x@name, x@master@version), "",
-      sprintf("Master policy stages: \n  %s", paste(x@master@stages, collapse = ", ")), "",
+      sprintf("Manifest (S7 class) - `%s` (%s)", x@name, x@master@version),
+      "",
+      sprintf(
+        "Master policy stages: \n  %s",
+        paste(x@master@stages, collapse = ", ")
+      ),
+      "",
       unlist(stage_str)
     )
   )
@@ -479,25 +597,25 @@ S7::method(format, Manifest) <- function(x, ...) {
 #' @name manifest-file
 #' @title Read or Write Manifest from or to a YAML File
 #' @description
-#' Serialize and deserialize `Manifest` objects to and from YAML files. This
+#' Serialize and read \code{Manifest} objects to and from YAML files. This
 #' enables version control and sharing of workflow policy definitions. The
 #' resulting YAML files are human-readable and can be edited manually, though
 #' changes must still pass validation when read back.
 #'
-#' `manifest_write()` serializes a `Manifest` object to a YAML file.
+#' \code{manifest_write()} serializes a \code{Manifest} object to a YAML file.
 #'
-#' `manifest_read()` deserializes a YAML file back into a validated `Manifest`
-#' object, reconstructing the `MasterPolicy` and `StatePolicy` objects and
-#' enforcing all validation rules (e.g., every stage must have a corresponding
-#' state).
-#' @param x A `Manifest` object to serialize (for `manifest_write`).
+#' \code{manifest_read()} reads a YAML file back into a validated 
+#' \code{Manifest} object, reconstructing the \code{MasterPolicy} and 
+#' \code{StatePolicy} objects and enforcing all validation rules (e.g., 
+#' every stage must have a corresponding state).
+#' @param x a \code{Manifest} object to serialize (for \code{manifest_write})
 #' @param file Character. Path to the YAML file (input for `manifest_read`,
 #'   output for `manifest_write`).
 #' @param ... Additional arguments passed to `yaml::read_yaml()` or
 #'   `yaml::write_yaml()`.
 #' @return
 #' - `manifest_write()`: Invisibly returns the path to the written file.
-#' - `manifest_read()`: A validated `Manifest` object.
+#' - \code{manifest_read()}: A validated \code{Manifest} object
 #' @examples
 #' # Create a manifest
 #' mp <- MasterPolicy(
@@ -506,10 +624,14 @@ S7::method(format, Manifest) <- function(x, ...) {
 #'   stages = c("idle", "working"),
 #'   parameters = list(timeout = 300)
 #' )
-#' sp1 <- StatePolicy(name = "init", stage = "idle",
-#'                    description = "Initial state")
-#' sp2 <- StatePolicy(name = "process", stage = "working",
-#'                    description = "Processing state")
+#' sp1 <- StatePolicy(
+#'   name = "init", stage = "idle",
+#'   description = "Initial state", agent_id = "agent_init"
+#' )
+#' sp2 <- StatePolicy(
+#'   name = "process", stage = "working",
+#'   description = "Processing state", agent_id = "agent_process"
+#' )
 #' manifest <- Manifest(master = mp, states = list(sp1, sp2))
 #'
 #' # Write to temporary file
@@ -557,6 +679,16 @@ manifest_read <- function(file, ...) {
       trim_collapsed = TRUE
     )
     state$parameters <- as.list(state$parameters)
+    # Fix resources field: YAML may read empty arrays as list(),
+    # convert to character()
+    if (
+      is.null(state$resources) ||
+        (is.list(state$resources) && length(state$resources) == 0)
+    ) {
+      state$resources <- character(0L)
+    } else {
+      state$resources <- as.character(state$resources)
+    }
     do.call(StatePolicy, state)
   })
   Manifest(master = master_policy, states = state_policies)

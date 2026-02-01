@@ -24,7 +24,7 @@ property_version <- function(...) {
     class = S7::class_character,
     validator = function(value) {
       v <- package_version(value, strict = FALSE)
-      if(length(v) != 1 || is.na(v)) {
+      if (length(v) != 1 || is.na(v)) {
         return(sprintf("invalid version specification %s", sQuote(version)))
       }
       return(NULL)
