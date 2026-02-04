@@ -4,16 +4,13 @@
 \alias{mcptool_instantiate}
 \title{Instantiate from RAVE \verb{MCP} tool definition}
 \usage{
-mcptool_instantiate(tool, ..., state_env = NULL)
+mcptool_instantiate(tool, ...)
 }
 \arguments{
 \item{tool}{An object of class \code{tricobbler_mcp_tool} (loaded via
 \code{\link{mcptool_read}} or \code{\link{mcptool_load_all}}).}
 
 \item{...}{Additional arguments passed to \code{\link[ellmer]{tool}}.}
-
-\item{state_env}{Environment or \code{NULL} (default). Environment in which
-the tools share and store data; see \code{\link{mcptool_state_factory}}}
 }
 \value{
 An \code{\link[ellmer]{ToolDef}} object ready to be registered

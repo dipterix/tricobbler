@@ -3,7 +3,9 @@
 name: tricobbler-mcp_tool_context_attachment_exists
 description: Check whether a specific attachment exists in the current workflow context.
   This is a lightweight check that validates the identifier format and verifies the
-  file exists on disk without loading the attachment data.
+  file exists on disk without loading the attachment data. This tool works at any
+  accessibility level. When accessibility is not "all", a note is included indicating
+  the agent cannot read attachment content.
 parameters:
   type: object
   properties:
@@ -20,6 +22,10 @@ returns:
     error:
       type: string
       description: Character, error message if success is FALSE
+    note:
+      type: string
+      description: Character, present when accessibility is not "all", indicating
+        the agent cannot read attachment content
     exists:
       type: boolean
       description: Logical, whether the attachment exists

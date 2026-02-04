@@ -79,4 +79,4 @@ implementation_example: |
   #>  [ reached 'max' / getOption("max.print") -- omitted 6 columns ]
   #>  [ reached 'max' / getOption("max.print") -- omitted 3 rows ]
   #>
-execution_time: 0.017
+execution_time: 0.009

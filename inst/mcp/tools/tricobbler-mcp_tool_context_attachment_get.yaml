@@ -3,7 +3,8 @@
 name: tricobbler-mcp_tool_context_attachment_get
 description: Retrieve a specific attachment (recorded result) from the current workflow
   context. Returns the full attachment data including the result object, description,
-  and metadata.
+  and metadata. Requires policy accessibility level "all". Returns an error if accessibility
+  is "logs" or "none".
 parameters:
   type: object
   properties:

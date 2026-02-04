@@ -57,4 +57,4 @@ implementation_example: |
   #> [4] ""                                                      
   #> [5] "     Generic function for the trimmed arithmetic mean."
   #>  [ reached 'max' / getOption("max.print") -- omitted 51 entries ]
-execution_time: 0.446
+execution_time: 0.246

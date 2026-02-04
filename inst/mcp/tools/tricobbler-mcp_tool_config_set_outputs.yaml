@@ -7,24 +7,15 @@ description: '(This function is intended for \verb{MCP} calls directly, not for 
   size or complexity), tools automatically fall back to human-readable text output
   via mcp_describe. ## When to Use Need to adjust output format for large results
   or token optimization. Typically not needed unless outputs fail serialization or
-  are too verbose. ## Best Practices - DO: Increase max_size_for_json_output if results
-  too large (try 51200 or 102400) - DO: Adjust max_print_lines based on verbosity
-  needs (50-500) - DON''T: Execute this tool immediately after dangerous operations
-  - DON''T: Accept default limits when results are truncated or fail'
+  are too verbose.'
 parameters:
   type: object
   properties:
-    max_print_lines:
+    tricobbler.mcp_describe.max_size:
       type: integer
       description: '. Maximum number of lines for text output when using mcp_describe.
         Default is NULL (no change). Controls verbosity of fallback text formatting.
         Typical range: 50-200.'
-    max_size_for_json_output:
-      type: integer
-      description: '. Maximum object size (in bytes) for JSON serialization attempt.
-        Default is NULL (no change). When set, objects larger than this threshold
-        will use text formatting. Recommended range: 5120-102400 bytes. Set to Inf
-        to always attempt JSON serialization (not recommended).'
 category: configuration
 returns:
   type: object
@@ -49,11 +40,8 @@ implementation_example: |
   #> [1] "No settings changed (returning current configuration)"
   #> 
   #> $settings
-  #> $settings$max_size_for_json_output
-  #> [1] 20480
-  #> 
-  #> $settings$max_print_lines
+  #> $settings$tricobbler.mcp_describe.max_size
   #> [1] 100
   #> 
   #>
-execution_time: 0.0
+execution_time: 0.001

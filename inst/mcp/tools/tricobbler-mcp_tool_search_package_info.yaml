@@ -46,4 +46,4 @@ implementation_example: |
   #> [4] "policies (stages vocabulary) and state policies (stage implementations with"
   #> [5] "priority-based ordering), validates completeness via manifests, and"        
   #>  [ reached 'max' / getOption("max.print") -- omitted 4 entries ]
-execution_time: 0.003
+execution_time: 0.001

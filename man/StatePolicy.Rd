@@ -10,6 +10,7 @@ StatePolicy(
   stage = character(0),
   agent_id = character(0),
   resources = character(0),
+  accessbility = "all",
   parameters = list(),
   max_retry = 0L,
   priority = 100L,
@@ -31,6 +32,11 @@ dashes}
 
 \item{resources}{character vector, tools that the agent may call during
 execution (default empty vector)}
+
+\item{accessbility}{character, context accessibility level for the agent.
+Controls what context data the agent can read. One of \code{"all"}
+(full access), \code{"logs"} (logs only), or \code{"none"} (no access).
+Default is \code{"all"}}
 
 \item{parameters}{list, optional state-specific parameters}
 

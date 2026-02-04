@@ -23,7 +23,13 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 \item{\code{current_state}}{character, currently executing state from scheduler
 (read-only)}
 
-\item{\code{memory_path}}{character, path to shared memory directory (read-only)}
+\item{\code{memory_path}}{character, path to shared memory directory,
+used to store agent memories across the sessions (read-only)}
+
+\item{\code{is_default_context}}{logical, whether this is the default context
+(read-only)}
+
+\item{\code{cache}}{map, stores and persists temporary data}
 
 \item{\code{store_path}}{character, path to this context's conversation
 directory (read-only)}
@@ -74,7 +80,10 @@ Associate a scheduler with this context
 \subsection{Method \code{new()}}{
 Initialize a new context
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$new(id = NULL, path = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$new(
+  id = NULL,
+  path = file.path(tempdir(), "tricobbler", "context")
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

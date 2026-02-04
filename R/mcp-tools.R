@@ -2222,30 +2222,19 @@ mcptool_path <- function(tool_name, tools_dir = "../tools") {
 #'
 #' @param tool An object of class \code{tricobbler_mcp_tool} (loaded via
 #'   \code{\link{mcptool_read}} or \code{\link{mcptool_load_all}}).
-#' @param state_env Environment or \code{NULL} (default). Environment in which
-#'   the tools share and store data; see \code{\link{mcptool_state_factory}}
 #' @param ... Additional arguments passed to \code{\link[ellmer]{tool}}.
 #'
 #' @return An \code{\link[ellmer]{ToolDef}} object ready to be registered
 #'  with a chat session.
 #'
 #' @export
-mcptool_instantiate <- function(tool, ..., state_env = NULL) {
-  force(state_env)
-  if (!is.environment(state_env)) {
-    # Debug/isolated mode, use mcpflow_instantiate or construct your own state
-    state_env <- mcptool_state_factory()
-  }
+mcptool_instantiate <- function(tool, ...) {
 
   if (!inherits(tool, "tricobbler_mcp_tool") && is.list(tool)) {
     tool_list <- list()
     for (sub_tool in tool) {
       stopifnot(inherits(sub_tool, "tricobbler_mcp_tool"))
-      tool_list[[sub_tool$name]] <- Recall(
-        tool = sub_tool,
-        ...,
-        state_env = state_env
-      )
+      tool_list[[sub_tool$name]] <- Recall(tool = sub_tool, ...)
     }
     return(tool_list)
   }
@@ -2270,22 +2259,21 @@ mcptool_instantiate <- function(tool, ..., state_env = NULL) {
   wrapper_fun <- function() {
     call <- match.call()
     call[[1]] <- quote(impl)
-    if (".state_env" %in% names(formals(impl))) {
-      call$.state_env <- quote(state_env)
-    }
     res <- eval(call)
 
-    if (!inherits(res, "json")) {
-      max_size <- as.numeric(state_env$.max_size_for_json_output)
-      if (length(max_size) != 1 || is.na(max_size)) {
-        max_size <- getOption(
-          "tricobbler.mcp.max_size_for_json_output",
-          20480
-        )
-      }
-      res <- r_to_mcp_output(res, max_size = max_size)
+    ctx <- get_active_context()
+    max_size <- ctx$cache$get(
+      key = "tricobbler.mcp_describe.max_size",
+      missing = getOption("tricobbler.mcp_describe.max_size", 100)
+    )
+    if (
+      length(max_size) != 1 ||
+        !is.numeric(max_size) ||
+        !isTRUE(max_size > 0L)
+    ) {
+      max_size <- getOption("tricobbler.mcp_describe.max_size", 100)
     }
-
+    res <- mcp_describe(res, max_print = max_size)
     res
   }
   fmls <- formals(impl)

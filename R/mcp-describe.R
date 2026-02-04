@@ -38,7 +38,7 @@ mcp_describe.default <- function(x, ..., max_print = 100) {
 #' @export
 mcp_describe.json <- function(x, ..., max_print = 100) {
   # jsonlite::toJSON already adds "json" class; return as-is
-  as.character(x)
+  x
 }
 
 #' @export

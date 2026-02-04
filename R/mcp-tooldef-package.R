@@ -6,7 +6,7 @@
 #' to help discover what documentation is available.
 #'
 #' @param package_name Character string, the exact name of the package to list
-#'   help topics from (e.g., \code{"tricobbler"}, \code{"base"}, 
+#'   help topics from (e.g., \code{"tricobbler"}, \code{"base"},
 #'   \code{"utils"}). This parameter is required.
 #'
 #' @return A list containing:
@@ -101,7 +101,7 @@ mcp_tool_docs_package_help_topics <- function(package_name) {
 #' \describe{
 #'   \item{success}{Logical, whether the help page was found and retrieved}
 #'   \item{topic}{Character, the topic that was searched for}
-#'   \item{package}{Character, the package where the topic was found 
+#'   \item{package}{Character, the package where the topic was found
 #'         (if specified or discovered)}
 #'   \item{content}{Character, formatted help documentation as plain text}
 #'   \item{error}{Character, error message if success is FALSE}
@@ -203,7 +203,7 @@ mcp_tool_docs_help_page <- function(topic, package_name = "") {
   }
 
   # Convert Rd to plain text using tools::Rd2txt (exported function)
-  # capture.output returns a character vector (one element per line), so 
+  # capture.output returns a character vector (one element per line), so
   # collapse it
   formatted_lines <- utils::capture.output({
       tools::Rd2txt(rd_obj)
@@ -466,7 +466,7 @@ mcp_tool_docs_vignette <- function(package_name, vignette = package_name) {
 #'   package name, or topic. The search is case-insensitive and matches against
 #'   package names, titles, and descriptions.
 #'   Examples: \code{"pipeline"}, \code{"visualization"}, \code{"data"}.
-#' @param max_results Integer, maximum number of results to return. Default is 
+#' @param max_results Integer, maximum number of results to return. Default is
 #'   20. Use this to limit output size for broad searches.
 #'   Example values: \code{10}, \code{50}, \code{100}.
 #'
@@ -479,7 +479,7 @@ mcp_tool_docs_vignette <- function(package_name, vignette = package_name) {
 #'     \code{description} (brief description), \code{date} (publication date),
 #'     and \code{maintainer} (maintainer name)}
 #'   \item{count}{Integer, total number of packages matching the query}
-#'   \item{returned}{Integer, number of results returned 
+#'   \item{returned}{Integer, number of results returned
 #'         (limited by max_results)}
 #'   \item{error}{Character, error message if success is FALSE}
 #' }
@@ -953,7 +953,7 @@ mcp_tool_read_package_file <- function(relpath, package_name,
 #'
 #' @keywords mcp-tool mcp-category-execution
 #' @noRd
-mcp_tool_run_r <- function(code, .state_env = fastmap::fastmap()) {
+mcp_tool_run_r <- function(code) {
   # Validate input
   if (missing(code) || !is.character(code) || length(code) != 1 || code == "") {
     return(list(

@@ -90,14 +90,20 @@ validate_response_against_spec <- function(parsed, yaml_spec) {
   list(valid = length(errors) == 0, errors = errors)
 }
 
+# Helper to create a test context with its directory
+create_test_context <- function() {
+  ctx <- AgentContext$new()
+  ctx$init_resources()
+  ctx
+}
+
 test_that(
   "mcp_tool_context_logs_head output types match YAML spec exactly",
   {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
 
   # Create test context with logs
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -158,8 +164,7 @@ expect_equal(yaml_spec$output_format, "json")
   expect_true("error" %in% names(yaml_spec$returns$properties))
 
   # Create test context with logs
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -223,11 +228,11 @@ expect_equal(yaml_spec$output_format, "json")
   expect_equal(parsed$count, nrow(parsed$entries))
 })
 
-test_that("mcp_tool_context_logs_head error case matches YAML spec", {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
+test_that("mcp_tool_context_logs_search error case matches YAML spec", {
+  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_search")
 
-  # Execute without active context
-  result <- mcp_tool_context_logs_head()
+  # Execute with missing required pattern parameter
+  result <- mcp_tool_context_logs_search(pattern = "")
 
   expect_s3_class(result, "json")
 
@@ -238,11 +243,6 @@ test_that("mcp_tool_context_logs_head error case matches YAML spec", {
   expect_type(parsed$success, "logical")
   expect_type(parsed$error, "character")
   expect_true(nzchar(parsed$error))
-
-  # Error case should not have context_id, count, or entries
-  expect_null(parsed$context_id)
-  expect_null(parsed$count)
-  expect_null(parsed$entries)
 })
 
 test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
@@ -251,8 +251,7 @@ test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
   expect_equal(yaml_spec$output_format, "json")
   expect_equal(yaml_spec$returns$type, "object")
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -308,8 +307,7 @@ test_that("mcp_tool_context_logs_search returns JSON matching YAML spec", {
   # YAML spec should include pattern field
   expect_true("pattern" %in% names(yaml_spec$returns$properties))
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -361,8 +359,7 @@ test_that("mcp_tool_context_logs_search validates required pattern parameter", {
   required_params <- yaml_spec$parameters$required
   expect_true("pattern" %in% required_params)
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   # Call without pattern - should return error
@@ -385,8 +382,7 @@ test_that("ellmer tool instantiation preserves YAML spec metadata", {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
 
   # Instantiate as ellmer tool
-  state_env <- mcptool_state_factory()
-  tool <- mcptool_instantiate(yaml_spec, state_env = state_env)
+  tool <- mcptool_instantiate(yaml_spec)
 
   # Verify it's an ellmer ToolDef
   expect_s3_class(tool, "ellmer::ToolDef")
@@ -405,12 +401,10 @@ test_that("instantiated tool executes and returns valid JSON", {
   skip_if_not_installed("ellmer")
 
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-  state_env <- mcptool_state_factory()
-  tool <- mcptool_instantiate(yaml_spec, state_env = state_env)
+  tool <- mcptool_instantiate(yaml_spec)
 
   # Create context and add logs
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -438,8 +432,7 @@ test_that("instantiated tool executes and returns valid JSON", {
 })
 
 test_that("entries array elements have consistent structure", {
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   # Create multiple log entries with different levels
@@ -495,8 +488,7 @@ test_that("entries array elements have consistent structure", {
 })
 
 test_that("level filtering works correctly", {
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -534,8 +526,7 @@ test_that("level filtering works correctly", {
 })
 
 test_that("pattern filtering works correctly", {
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -571,8 +562,7 @@ test_that("pattern filtering works correctly", {
 })
 
 test_that("skip_lines pagination works", {
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -596,8 +586,7 @@ test_that("skip_lines pagination works", {
 })
 
 test_that("empty log file returns valid empty response", {
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   # Don't add any logs
@@ -700,8 +689,7 @@ test_that("search_logs YAML spec includes pattern as required", {
 test_that("actual JSON output field types match YAML spec types", {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -754,10 +742,10 @@ test_that("actual JSON output field types match YAML spec types", {
 test_that(
   "error response only contains fields specified in YAML for error case",
   {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
+  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_search")
 
-  # Call without context to get error
-  result <- mcp_tool_context_logs_head()
+  # Call with empty pattern to get error (search requires a pattern)
+  result <- mcp_tool_context_logs_search(pattern = "")
   parsed <- jsonlite::fromJSON(as.character(result))
 
   # Error response should have success: false
@@ -792,8 +780,7 @@ test_that("entries structure matches documented entry fields", {
   }
 
   # Now verify actual output matches
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -829,8 +816,7 @@ test_that(
 
   # Create context with logs
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -867,8 +853,7 @@ test_that(
   {
   skip_if_not_installed("ellmer")
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   # Create varied log entries
@@ -928,11 +913,9 @@ test_that(
   skip_if_not_installed("ellmer")
 
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-  state_env <- mcptool_state_factory()
-  tool <- mcptool_instantiate(yaml_spec, state_env = state_env)
+  tool <- mcptool_instantiate(yaml_spec)
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -949,7 +932,10 @@ test_that(
     tool(max_lines = 10L)
   })
 
-  # Result should be json class
+  # Result should be a character with json class
+  # (mcp_describe.json returns x as-is, preserving the json class)
+  expect_type(result, "character")
+  expect_true(nzchar(result))
   expect_s3_class(result, "json")
 
   # Wrap in ContentToolResult and verify tool_string passes it through
@@ -972,8 +958,8 @@ test_that(
   {
   skip_if_not_installed("ellmer")
 
-  # Test without active context - should return error JSON
-  result <- mcp_tool_context_logs_head(max_lines = 10L)
+  # Test with empty pattern - should return error JSON
+  result <- mcp_tool_context_logs_search(pattern = "")
 
   expect_s3_class(result, "json")
 
@@ -992,8 +978,7 @@ test_that(
   {
   skip_if_not_installed("ellmer")
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({
@@ -1022,8 +1007,7 @@ test_that(
 test_that("JSON arrays are serialized as rows not columns", {
   skip_if_not_installed("ellmer")
 
-  context <- AgentContext$new()
-  context$init_resources()
+  context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
   context$with_activated({

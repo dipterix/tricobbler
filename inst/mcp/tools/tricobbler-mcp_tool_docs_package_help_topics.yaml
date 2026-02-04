@@ -56,4 +56,4 @@ implementation_example: |
   #> $count
   #> [1] 752
   #>
-execution_time: 0.015
+execution_time: 0.007

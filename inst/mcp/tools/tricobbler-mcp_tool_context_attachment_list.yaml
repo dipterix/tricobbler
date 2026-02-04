@@ -3,7 +3,9 @@
 name: tricobbler-mcp_tool_context_attachment_list
 description: List all attachments (recorded results) in the current workflow context.
   Returns metadata for each attachment including stage, state, agent ID, attempt number,
-  and the attachment identifier needed for retrieval.
+  and the attachment identifier needed for retrieval. This tool works at any accessibility
+  level. When accessibility is not "all", a note is included indicating the agent
+  cannot read attachment content.
 parameters:
   type: object
   properties:
@@ -19,6 +21,10 @@ returns:
     error:
       type: string
       description: Character, error message if success is FALSE
+    note:
+      type: string
+      description: Character, present when accessibility is not "all", indicating
+        the agent cannot read attachment content
     attachments:
       type: object
       description: List of attachment metadata, each with stage, state, agent_id,

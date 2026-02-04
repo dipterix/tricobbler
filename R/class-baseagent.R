@@ -193,3 +193,19 @@ Agent <- S7::new_class(
     }
   }
 )
+
+
+as_agent <- S7::new_generic("as_agent", dispatch_args = "x")
+
+S7::method(as_agent, Agent) <- function(x, ...) {
+  x
+}
+
+S7::method(as_agent, S7::class_character) <- function(x, ...) {
+  # x can be tool specs, or a package function (with `::`)
+  # when is tool specs, instantiate and register context to state_env
+  # when is package function, wrap with Agent
+  
+  # if tool specs
+  mcptool_instantiate()
+}

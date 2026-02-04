@@ -1,8 +1,8 @@
-#' Add Context to Chat Messages
+#' Attach Context to Chat Messages
 #'
 #' @description
-#' Formats R objects and combines them with optional text to provide context
-#' for chat messages. Similar to \code{btw::btw()}, this function wraps
+#' Formats R objects and combines them with optional text to attach context
+#' to chat messages. Similar to \code{btw::btw()}, this function wraps
 #' formatted output in a structured format that chat models can easily
 #' understand.
 #'
@@ -40,19 +40,19 @@
 #'
 #' @examples
 #' # Single object
-#' mcp_context(sessionInfo())
+#' mcp_attach(sessionInfo())
 #'
 #' # Package help topics
-#' mcp_context("{tricobbler}")
+#' mcp_attach("{tricobbler}")
 #'
 #' # Multiple objects with question
-#' mcp_context(sessionInfo(), mtcars, "What packages and data are available?")
+#' mcp_attach(sessionInfo(), mtcars, "What packages and data are available?")
 #'
 #' \dontrun{
 #' # Use in chat
 #' chat <- ellmer::chat_anthropic()
 #' response <- chat$chat(
-#'   mcp_context(sessionInfo(), "What R version am I using?")
+#'   mcp_attach(sessionInfo(), "What R version am I using?")
 #' )
 #' }
 #'
@@ -60,7 +60,7 @@
 #' \code{\link{mcp_describe}} for the underlying formatting function,
 #'
 #' @export
-mcp_context <- function(..., .header = "## Context", .wrap_code = TRUE) {
+mcp_attach <- function(..., .header = "## Context", .wrap_code = TRUE) {
   args <- list(...)
 
   if (length(args) == 0) {

@@ -1,8 +1,17 @@
 # Test AgentContext attachment methods: has_attachment, get_attachment
 
-test_that("has_attachment returns FALSE for invalid inputs", {
-  ctx <- AgentContext$new()
+# Helper to create a context with its directory
+create_test_context <- function() {
+
+  test_path <- file.path(tempdir(), "tricobbler", "context")
+  dir.create(test_path, showWarnings = FALSE, recursive = TRUE)
+  ctx <- AgentContext$new(path = test_path)
   ctx$init_resources()
+  ctx
+}
+
+test_that("has_attachment returns FALSE for invalid inputs", {
+  ctx <- create_test_context()
 
 
   # NULL, NA, empty string
@@ -21,8 +30,7 @@ test_that("has_attachment returns FALSE for invalid inputs", {
 })
 
 test_that("has_attachment returns FALSE for malformed identifiers", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   # Random strings
   expect_false(ctx$has_attachment("random_string"))
@@ -45,16 +53,14 @@ test_that("has_attachment returns FALSE for malformed identifiers", {
 })
 
 test_that("has_attachment returns FALSE for valid format but non-existent", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   valid_but_missing <- "[test][state][agent123]_260101T120000_1"
   expect_false(ctx$has_attachment(valid_but_missing))
 })
 
 test_that("has_attachment returns TRUE for existing attachments", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   # Create a real attachment
   ctx$record_result(
@@ -76,8 +82,7 @@ test_that("has_attachment returns TRUE for existing attachments", {
 })
 
 test_that("get_attachment errors on missing argument", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   expect_error(
     ctx$get_attachment(),
@@ -86,8 +91,7 @@ test_that("get_attachment errors on missing argument", {
 })
 
 test_that("get_attachment errors on invalid inputs", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   expect_error(
     ctx$get_attachment(NULL),
@@ -112,8 +116,7 @@ test_that("get_attachment errors on invalid inputs", {
 })
 
 test_that("get_attachment errors on malformed identifiers", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   expect_error(
     ctx$get_attachment("random_string"),
@@ -126,8 +129,7 @@ test_that("get_attachment errors on malformed identifiers", {
 })
 
 test_that("get_attachment errors on non-existent but valid format", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   valid_but_missing <- "[test][state][agent123]_260101T120000_1"
   expect_error(
@@ -137,8 +139,7 @@ test_that("get_attachment errors on non-existent but valid format", {
 })
 
 test_that("get_attachment retrieves existing attachments", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   # Create a real attachment
   test_result <- list(value = 42, name = "test")
@@ -167,8 +168,7 @@ test_that("get_attachment retrieves existing attachments", {
 })
 
 test_that("attachment regex accepts valid identifier formats", {
-  ctx <- AgentContext$new()
-  ctx$init_resources()
+  ctx <- create_test_context()
 
   # Create attachments with various valid characters
   ctx$record_result(

@@ -223,6 +223,10 @@ MasterPolicy <- S7::new_class(
 #'   dashes
 #' @param resources character vector, tools that the agent may call during
 #'   execution (default empty vector)
+#' @param accessbility character, context accessibility level for the agent.
+#'   Controls what context data the agent can read. One of \code{"all"}
+#'   (full access), \code{"logs"} (logs only), or \code{"none"} (no access).
+#'   Default is \code{"all"}
 #' @param max_retry integer, maximum total attempts (initial + retries) for
 #'   this state during stage execution (default 0, meaning single attempt).
 #'   The \code{max_retry} limit applies globally across all re-entries to this
@@ -309,6 +313,15 @@ StatePolicy <- S7::new_class(
     resources = S7::new_property(
       class = S7::class_character,
       default = character(0L)
+    ),
+
+    # What context the agent may access: this is a safe-check
+    # in case the agent calls the other tools to read attachments
+    # accessbility != "all" will lock them out
+    # TODO: choices are "all", "logs", "none"
+    accessbility = S7::new_property(
+      class = S7::class_character,
+      default = "all"
     ),
 
     # Optional list of state-specific parameters (e.g., timeout, retries, or 

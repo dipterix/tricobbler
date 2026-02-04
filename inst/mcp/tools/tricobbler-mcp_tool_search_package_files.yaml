@@ -48,4 +48,4 @@ implementation_example: |
   #> [3] "doc/datatable-benchmarking.R"    "doc/datatable-benchmarking.Rmd" 
   #> [5] "doc/datatable-faq.html"         
   #>  [ reached 'max' / getOption("max.print") -- omitted 139 entries ]
-execution_time: 0.003
+execution_time: 0.004

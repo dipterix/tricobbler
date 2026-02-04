@@ -18,7 +18,17 @@ AgentContext <- R6::R6Class(
 
     # ID of the context, created automatically
     .id = NULL,
-    .results = NULL
+    .results = NULL,
+
+    .is_default = FALSE,
+
+    .cache = NULL,
+
+    finalize = function() {
+      if (!is.null(private$.cache)) {
+        private$.cache$reset()
+      }
+    }
   ),
   active = list(
     #' @field id character, unique identifier for this context (read-only)
@@ -44,9 +54,25 @@ AgentContext <- R6::R6Class(
       private$.scheduler$current_state
     },
 
-    #' @field memory_path character, path to shared memory directory (read-only)
+    #' @field memory_path character, path to shared memory directory,
+    #' used to store agent memories across the sessions (read-only)
     memory_path = function() {
-      file.path(self$rootpath, "memory")
+      file.path(
+        tools::R_user_dir("tricobbler", which = "cache"),
+        "context",
+        "memory"
+      )
+    },
+
+    #' @field is_default_context logical, whether this is the default context
+    #' (read-only)
+    is_default_context = function() {
+      private$.is_default
+    },
+
+    #' @field cache map, stores and persists temporary data
+    cache = function() {
+      private$.cache
     },
 
     #' @field store_path character, path to this context's conversation
@@ -82,20 +108,13 @@ AgentContext <- R6::R6Class(
     #' @description Initialize a new context
     #' @param id character, unique identifier (NULL to auto-generate)
     #' @param path character, root directory path (NULL for default cache)
-    initialize = function(id = NULL, path = NULL) {
-      if (length(path) == 1) {
-        if (!dir.exists(path)) {
-          stop("AgentContext$new(): `path` must be an existing directory. Please create the folder first") # nolint: line_length_linter.
-        }
-      } else {
-        path <- file.path(
-          tools::R_user_dir("tricobbler", which = "cache"),
-          "context"
-        ) # nolint: line_length_linter.
-      }
+    initialize = function(
+      id = NULL,
+      path = file.path(tempdir(), "tricobbler", "context")
+    ) {
       private$.rootpath <- path
-
       if (length(id) > 0) {
+        private$.id <- id
         # fetch existing context
         if (!file.exists(self$logger_path)) {
           stop("Unable to retrieve context with ID ", id)
@@ -106,12 +125,28 @@ AgentContext <- R6::R6Class(
           digest::digest(list(Sys.getpid(), Sys.info(), Sys.time())),
           1L,
           6L
-        ) # nolint: line_length_linter.
-        id <- sprintf("%s-%s", format(Sys.time(), "%y%m%dT%H%M%S"), dg)
+        )
+        private$.id <- sprintf("%s-%s", format(Sys.time(), "%y%m%dT%H%M%S"), dg)
       }
 
-      private$.id <- id
+      private$.cache <- fastmap::fastmap()
       private$.results <- fastmap::fastqueue()
+
+      if (!dir.exists(path)) {
+        dir.create(path, recursive = TRUE)
+        path <- normalizePath(path, mustWork = TRUE)
+      }
+      # set again with updated path
+      private$.rootpath <- path
+
+      # check if this context is a default context
+      default_path <- normalizePath(
+        file.path(tempdir(), "tricobbler", "context"),
+        mustWork = FALSE
+      )
+      if (length(id) == 1 && isTRUE(id == "default") && path == default_path) {
+        private$.is_default <- TRUE
+      }
     },
 
     #' @description Create directory structure and initialize logging
@@ -219,9 +254,13 @@ AgentContext <- R6::R6Class(
       # Use cli if requested, available, and console supports ANSI colors
       use_cli <- verbose == "cli" &&
         package_installed("cli") &&
-        call_pkg_fun("cli", "num_ansi_colors",
-          .if_missing = "none", .missing_default = 1L
-        ) > 1L
+        call_pkg_fun(
+          "cli",
+          "num_ansi_colors",
+          .if_missing = "none",
+          .missing_default = 1L
+        ) >
+          1L
 
       if (use_cli) {
         # Use cli for colored output
@@ -229,16 +268,19 @@ AgentContext <- R6::R6Class(
           level,
           "TRACE" = "col_grey",
           "DEBUG" = "col_silver",
-          "INFO"  = "col_blue",
-          "WARN"  = "col_yellow",
+          "INFO" = "col_blue",
+          "WARN" = "col_yellow",
           "ERROR" = "col_red",
           "FATAL" = "col_magenta",
           NULL
         )
         if (!is.null(cli_style)) {
           styled_str <- call_pkg_fun(
-            "cli", cli_style, str_wrapped,
-            .if_missing = "none", .missing_default = str_wrapped
+            "cli",
+            cli_style,
+            str_wrapped,
+            .if_missing = "none",
+            .missing_default = str_wrapped
           )
         } else {
           styled_str <- str_wrapped
@@ -284,14 +326,8 @@ AgentContext <- R6::R6Class(
     #' @param description character, human-readable result description
     #' @param ... additional metadata to store
     record_result = function(
-      result,
-      stage,
-      state,
-      agent_id,
-      current_attempt,
-      description,
-      ...
-    ) {
+      result, stage, state, agent_id, current_attempt, description, ...) {
+
       now <- Sys.time()
       dt <- format(now, "%y%m%dT%H%M%S")
       fname <- sprintf(
@@ -364,18 +400,12 @@ AgentContext <- R6::R6Class(
       self$logger(
         sprintf(
           "%s recorded: Agent=%s, stage=%s, state=%s, attempt=%d, identifier=%s\n%s", # nolint: line_length_linter.
-          prefix,
-          agent_id,
-          stage,
-          state,
-          current_attempt,
-          fname,
-          description
+          prefix, agent_id, stage, state, current_attempt, fname, description
         ),
         caller = self,
         level = level
       )
-      invisible(self)
+      invisible(fname)
     },
 
     #' @description Retrieve the most recent result(s)
@@ -416,7 +446,9 @@ AgentContext <- R6::R6Class(
           is.na(attachment_id) ||
           attachment_id == ""
       ) {
-        stop("AgentContext$get_attachment(): `attachment_id` must be a single non-empty character string") # nolint: line_length_linter.
+        stop(
+          "AgentContext$get_attachment(): `attachment_id` must be a single non-empty character string" # nolint: line_length_linter.
+        )
       }
 
       pattern <- "^\\[[^]]+\\]\\[[^]]+\\]\\[[^]]+\\]_[0-9]{6}T[0-9]{6}_[0-9]+$"
@@ -513,9 +545,9 @@ AgentContext <- R6::R6Class(
 
     #' @description Read and parse log file contents
     #' @param method character, read from "tail" (end) or "head" (beginning)
-    #' @param skip_lines integer, skipping lines relative to the end or start; 
+    #' @param skip_lines integer, skipping lines relative to the end or start;
     #'   If `method` is `"head"`, then `skip` skips the first several lines,
-    #'   otherwise skipping the last several lines; default is `0L` 
+    #'   otherwise skipping the last several lines; default is `0L`
     #'   (no skipping).
     #' @param max_lines integer, maximum number of lines to read (default 300)
     #' @param pattern character, optional regex pattern to filter log content
@@ -579,8 +611,13 @@ AgentContext <- R6::R6Class(
 
       # Single scan call with native skip (efficient, no read-and-discard)
       lines <- scan(
-        logger_path, what = character(), skip = skip, nlines = n_read,
-        sep = "\n", quiet = TRUE, blank.lines.skip = FALSE,
+        logger_path,
+        what = character(),
+        skip = skip,
+        nlines = n_read,
+        sep = "\n",
+        quiet = TRUE,
+        blank.lines.skip = FALSE,
         fileEncoding = "UTF-8"
       )
 
@@ -635,12 +672,108 @@ AgentContext <- R6::R6Class(
   )
 )
 
+default_context <- local({
+  impl <- NULL
+  init <- function() {
+    if (is.null(impl)) {
+      root_path <- file.path(tempdir(), "tricobbler", "context")
+      default_id <- "default"
+      store_path <- file.path(root_path, "conversations", default_id)
+      logger_path <- file.path(store_path, "logger.log")
+      attachment_path <- file.path(store_path, "attachments")
+
+      if (!dir.exists(attachment_path)) {
+        dir.create(attachment_path,
+                   showWarnings = FALSE,
+                   recursive = TRUE)
+      }
+      if (!file.exists(logger_path)) {
+        file.create(logger_path, showWarnings = FALSE)
+      }
+      impl <<- AgentContext$new(id = default_id, path = root_path)
+      impl$init_resources()
+    }
+    impl
+  }
+})
+
+#' Get the Active Context
+#'
+#' @description
+#' Retrieves the currently active \code{AgentContext} from the global state.
+#' If no context is explicitly activated, returns a default context that is
+#' automatically initialized.
+#'
+#' @return An \code{AgentContext} object representing the current execution
+#'   context.
+#'
+#' @export
+get_active_context <- function() {
+  get_globals("active_context", missing = default_context(), simplify = TRUE)
+}
 
 
+#' Check Context Accessibility from Active Policy
+#'
+#' @description
+#' Internal helper to check if the current policy allows the requested
+#' access level. Returns the accessibility level or an error message.
+#'
+#' @param required_level character, the minimum accessibility level required.
+#'   One of \code{"logs"} (logs only) or \code{"all"} (full access).
+#' @return A list with \code{allowed} (logical) and \code{level} (character)
+#'   if access is granted, or \code{allowed = FALSE} and \code{error}
+#'   (character) if denied.
+#' @noRd
+check_context_accessibility <- function(
+    required_level = c("logs", "all")
+) {
+  required_level <- match.arg(required_level)
 
-# --------------------------------------------------------------------------
-# MCP Tools for Context Log Access
-# --------------------------------------------------------------------------
+  # Get active policy from globals, default to "logs" if missing
+  policy <- get_globals("active_policy", missing = NULL, simplify = TRUE)
+
+  if (is.null(policy)) {
+    # No active policy - use default accessibility "logs"
+    current_level <- "logs"
+  } else if (S7::S7_inherits(policy, StatePolicy)) {
+    current_level <- policy@accessbility
+    # Validate accessibility value
+    if (!current_level %in% c("all", "logs", "none")) {
+      current_level <- "logs"
+    }
+  } else {
+    # Invalid policy object - use default
+    current_level <- "logs"
+  }
+
+  # Check access based on current level
+  if (current_level == "none") {
+    return(list(
+      allowed = FALSE,
+      level = current_level,
+      error = "Context access denied. Policy accessibility is set to 'none'."
+    ))
+  }
+
+  if (required_level == "all" && current_level != "all") {
+    return(list(
+      allowed = FALSE,
+      level = current_level,
+      error = paste0(
+        "Attachment access denied. Policy accessibility is '",
+        current_level,
+        "' but 'all' is required for attachment operations."
+      )
+    ))
+  }
+
+  # Access granted
+  list(allowed = TRUE, level = current_level)
+}
+
+
+# ---- MCP Tools for Context Log Access ------------------------------------
 
 #' Read Log Entries from Head (Beginning)
 #'
@@ -679,7 +812,16 @@ mcp_tool_context_logs_head <- function(
   levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
 ) {
 
-  context <- get_globals("active_context")
+  # Check accessibility - logs require "logs" or "all"
+  access <- check_context_accessibility("logs")
+  if (!access$allowed) {
+    return(jsonlite::toJSON(
+      list(success = FALSE, error = access$error),
+      auto_unbox = TRUE, pretty = FALSE
+    ))
+  }
+
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(
@@ -769,7 +911,16 @@ mcp_tool_context_logs_tail <- function(
   pattern = NULL,
   levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
 ) {
-  context <- get_globals("active_context")
+  # Check accessibility - logs require "logs" or "all"
+  access <- check_context_accessibility("logs")
+  if (!access$allowed) {
+    return(jsonlite::toJSON(
+      list(success = FALSE, error = access$error),
+      auto_unbox = TRUE, pretty = FALSE
+    ))
+  }
+
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(
@@ -858,10 +1009,18 @@ mcp_tool_context_logs_search <- function(
   max_lines = 1000L,
   levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
 ) {
-  # Validate pattern
+  # Check accessibility - logs require "logs" or "all"
+  access <- check_context_accessibility("logs")
+  if (!access$allowed) {
+    return(jsonlite::toJSON(
+      list(success = FALSE, error = access$error),
+      auto_unbox = TRUE, pretty = FALSE
+    ))
+  }
 
-if (missing(pattern) || !is.character(pattern) ||
-        length(pattern) != 1 || !nzchar(pattern)) {
+  # Validate pattern
+  if (missing(pattern) || !is.character(pattern) ||
+      length(pattern) != 1 || !nzchar(pattern)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
@@ -871,7 +1030,7 @@ if (missing(pattern) || !is.character(pattern) ||
     ))
   }
 
-  context <- get_globals("active_context")
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(
@@ -926,9 +1085,7 @@ if (missing(pattern) || !is.character(pattern) ||
 }
 
 
-# --------------------------------------------------------------------------
-# MCP Tools for Context Attachment Access
-# --------------------------------------------------------------------------
+# ---- MCP Tools for Context Attachment Access -----------------------------
 
 #' List All Attachments in Context
 #'
@@ -936,6 +1093,10 @@ if (missing(pattern) || !is.character(pattern) ||
 #' List all attachments (recorded results) in the current workflow context.
 #' Returns metadata for each attachment including stage, state, agent ID,
 #' attempt number, and the attachment identifier needed for retrieval.
+#'
+#' This tool works at any accessibility level. When accessibility is not
+#' \code{"all"}, a note is included indicating the agent cannot read
+#' attachment content.
 #'
 #' @param reindex Logical, whether to reload the index from disk
 #'   (default \code{FALSE}). Set to \code{TRUE} if attachments may have been
@@ -948,13 +1109,25 @@ if (missing(pattern) || !is.character(pattern) ||
 #'   \item{count}{Integer, number of attachments found}
 #'   \item{attachments}{List of attachment metadata, each with \code{stage},
 #'     \code{state}, \code{agent_id}, \code{current_attempt}, \code{filename}}
+#'   \item{note}{Character, present when accessibility is not \code{"all"},
+#'     indicating the agent cannot read attachment content}
 #'   \item{error}{Character, error message if success is \code{FALSE}}
 #' }
 #'
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
 mcp_tool_context_attachment_list <- function(reindex = FALSE) {
-  context <- get_globals("active_context")
+  # Check accessibility - list works but note if content is restricted
+  access <- check_context_accessibility("logs")
+  access_note <- NULL
+  if (access$allowed && access$level != "all") {
+    access_note <- paste(
+      "Note: Agent does not have privilege to read attachment content.",
+      "Only metadata is accessible."
+    )
+  }
+
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(
@@ -991,13 +1164,18 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
         count <- 0L
       }
 
+      response <- list(
+        success = TRUE,
+        context_id = context$id,
+        count = count,
+        attachments = attachments
+      )
+      if (!is.null(access_note)) {
+        response$note <- access_note
+      }
+
       jsonlite::toJSON(
-        list(
-          success = TRUE,
-          context_id = context$id,
-          count = count,
-          attachments = attachments
-        ),
+        response,
         auto_unbox = TRUE, dataframe = "rows", pretty = FALSE
       )
     },
@@ -1024,6 +1202,10 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
 #' This is a lightweight check that validates the identifier format and
 #' verifies the file exists on disk without loading the attachment data.
 #'
+#' This tool works at any accessibility level. When accessibility is not
+#' \code{"all"}, a note is included indicating the agent cannot read
+#' attachment content.
+#'
 #' @param attachment_id Character, the attachment identifier. This is the
 #'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
@@ -1035,12 +1217,24 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
 #'   \item{context_id}{Character, the context identifier}
 #'   \item{attachment_id}{Character, the queried attachment identifier}
 #'   \item{exists}{Logical, whether the attachment exists}
+#'   \item{note}{Character, present when accessibility is not \code{"all"},
+#'     indicating the agent cannot read attachment content}
 #'   \item{error}{Character, error message if success is \code{FALSE}}
 #' }
 #'
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
 mcp_tool_context_attachment_exists <- function(attachment_id) {
+  # Check accessibility - exists check works but note if content is restricted
+  access <- check_context_accessibility("logs")
+  access_note <- NULL
+  if (access$allowed && access$level != "all") {
+    access_note <- paste(
+      "Note: Agent does not have privilege",
+      "to read attachment content."
+    )
+  }
+
   # Validate attachment_id
   if (missing(attachment_id) || !is.character(attachment_id) ||
       length(attachment_id) != 1 || is.na(attachment_id) ||
@@ -1054,7 +1248,7 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
     ))
   }
 
-  context <- get_globals("active_context")
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(
@@ -1077,13 +1271,18 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
     {
       exists <- context$has_attachment(attachment_id)
 
+      response <- list(
+        success = TRUE,
+        context_id = context$id,
+        attachment_id = attachment_id,
+        exists = exists
+      )
+      if (!is.null(access_note)) {
+        response$note <- access_note
+      }
+
       jsonlite::toJSON(
-        list(
-          success = TRUE,
-          context_id = context$id,
-          attachment_id = attachment_id,
-          exists = exists
-        ),
+        response,
         auto_unbox = TRUE, pretty = FALSE
       )
     },
@@ -1111,6 +1310,9 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
 #' context. Returns the full attachment data including the result object,
 #' description, and metadata.
 #'
+#' Requires policy accessibility level \code{"all"}.
+#' Returns an error if accessibility is \code{"logs"} or \code{"none"}.
+#'
 #' @param attachment_id Character, the attachment identifier. This is the
 #'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
@@ -1130,6 +1332,15 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
 mcp_tool_context_attachment_get <- function(attachment_id) {
+  # Check accessibility - attachments require "all"
+  access <- check_context_accessibility("all")
+  if (!access$allowed) {
+    return(jsonlite::toJSON(
+      list(success = FALSE, error = access$error),
+      auto_unbox = TRUE, pretty = FALSE
+    ))
+  }
+
   # Validate attachment_id
   if (missing(attachment_id) || !is.character(attachment_id) ||
       length(attachment_id) != 1 || is.na(attachment_id) ||
@@ -1143,7 +1354,7 @@ mcp_tool_context_attachment_get <- function(attachment_id) {
     ))
   }
 
-  context <- get_globals("active_context")
+  context <- get_active_context()
 
   if (is.null(context)) {
     return(jsonlite::toJSON(

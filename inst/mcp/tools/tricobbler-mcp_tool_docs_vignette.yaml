@@ -56,4 +56,4 @@ implementation_example: |
   #> [4] "output:"                                               
   #> [5] "  markdown::html_format:"                              
   #>  [ reached 'max' / getOption("max.print") -- omitted 665 entries ]
-execution_time: 0.006
+execution_time: 0.002
