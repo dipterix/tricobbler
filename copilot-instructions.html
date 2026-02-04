@@ -34,67 +34,19 @@
 
 <div class="section level2">
 <h2 id="architecture-overview">Architecture Overview<a class="anchor" aria-label="anchor" href="#architecture-overview"></a></h2>
-<p><strong>Core Philosophy:</strong> Multi-agent workflow orchestration combining immutable policy definitions (S7) with mutable execution state (R6).</p>
-<div class="section level3">
-<h3 id="three-layer-architecture">Three-Layer Architecture<a class="anchor" aria-label="anchor" href="#three-layer-architecture"></a></h3>
-<ol style="list-style-type: decimal"><li>
-<strong>Policy Layer (S7 - Immutable)</strong>: Blueprint definitions in <a href="R/class001-policy.R">class001-policy.R</a>
-<ul><li>
-<code>MasterPolicy</code>: Workflow version + allowed stages (e.g., “triage”, “planning”, “executing”)</li>
-<li>
-<code>StatePolicy</code>: Individual state metadata (stage name, description, parameters)</li>
-<li>
-<code>Manifest</code>: Validates all MasterPolicy stages have corresponding StatePolicy entries</li>
-</ul></li>
-<li>
-<strong>Contract Layer (S7 - Immutable)</strong>: Execution agreements in <a href="R/class002-contract.R">class002-contract.R</a>
-<ul><li>
-<code>ContractExecutor</code>: Callable function wrapping LLM/script execution logic (inherits <code><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">S7::class_function</a></code>)</li>
-<li>
-<code>StageContract</code>: Per-stage execution spec (executor, tools, validators, retries, timeout, fallback)</li>
-<li>
-<code>Contract</code>: Master agreement linking Manifest to StageContracts with global resources</li>
-</ul></li>
-<li>
-<strong>State Layer (R6 - Mutable)</strong>: Runtime tracking in <a href="R/class003-contractstate.R">class003-contractstate.R</a>
-<ul><li>
-<code>SubContractState</code>: Tracks one stage’s execution (status, attempts, I/O, timing, validation)</li>
-<li>
-<code>ContractState</code>: Orchestrates all stage states and workflow progression</li>
-</ul></li>
-</ol><p><strong>Data Flow:</strong> User creates Manifest → User defines Contract with executors/validators → System creates ContractState → System executes stages through SubContractStates</p>
-</div>
-<div class="section level3">
-<h3 id="the-tricobbler-trinity-wip">The TriCobbler Trinity (WIP)<a class="anchor" aria-label="anchor" href="#the-tricobbler-trinity-wip"></a></h3>
-<p>Specialized agents in <a href="R/class010-baseagent.R">class010-baseagent.R</a>: - <code>BaseAgent</code>: R6 wrapper around <code><a href="https://ellmer.tidyverse.org/reference/Chat.html" class="external-link">ellmer::Chat</a></code> with context window monitoring - Future: <code>Planner</code>, <code>Worker</code>, <code>Librarian</code> subclasses for decomposition/execution/memory</p>
-</div>
+<p><strong>Core Philosophy:</strong> Simplified workflow orchestration with immutable policy blueprints (S7) and mutable runtime execution (R6). Focus on manifest→instance pattern.</p>
+<p><strong>Two-Layer Architecture:</strong> 1. <strong>Policy Layer (S7)</strong>: <code>Manifest</code> contains <code>MasterPolicy</code> + <code>StatePolicy[]</code> - See <a href="R/class-policy.R">R/class-policy.R</a> 2. <strong>Runtime Layer (R6)</strong>: <code>Scheduler</code> orchestrates execution, <code>Context</code> persists results - See <a href="R/class-scheduler.R">R/class-scheduler.R</a></p>
+<p><strong>Data Flow:</strong> Manifest blueprint → Agents registered → Scheduler executes by priority → Context records results</p>
 </div>
 <div class="section level2">
-<h2 id="code-conventions">Code Conventions<a class="anchor" aria-label="anchor" href="#code-conventions"></a></h2>
-<p><strong>Class System:</strong> - S7 for immutable structures (policies, contracts). Document with <code>@field</code> for properties - R6 for mutable state and agents. Document with <code>@field</code> for fields/active bindings - Never mix: S7 uses <code>@</code> accessor, R6 uses <code>$</code></p>
-<p><strong>ASCII-Only:</strong> Package must be portable. Replace en-dashes (–) and non-breaking hyphens (‑) with ASCII <code>-</code>. Use <code>tools::showNonASCIIfile(file)</code> to find violations.</p>
-<p><strong>Formatting:</strong> 2-space indentation, no tabs.</p>
+<h2 id="critical-rules">Critical Rules<a class="anchor" aria-label="anchor" href="#critical-rules"></a></h2>
+<p><strong>⚠️ MANDATORY FIRST STEP: Always read <code>.github/copilot/DEVELOPMENT-RULES.md</code> (lines 1-40) BEFORE performing ANY task</strong> - This contains non-negotiable conventions that prevent repeated mistakes.</p>
+<p><strong>ENFORCEMENT RULE:</strong> You MUST call <code>read_file</code> on <code>.github/copilot/DEVELOPMENT-RULES.md</code> (lines 1-40) as your FIRST action when the user requests: - Documentation changes (roxygen2, .Rd files) - Spell checking (<code>spellchk</code>, <code><a href="https://docs.ropensci.org/spelling//reference/spell_check_package.html" class="external-link">spelling::spell_check_package()</a></code>) - Code formatting or style fixes - Adding/modifying package dependencies - Creating/editing examples - MCP tool changes</p>
+<p><strong>DO NOT proceed with the task until you have read the rules.</strong> The checklist tells you exactly how to handle each scenario correctly.</p>
 </div>
 <div class="section level2">
-<h2 id="developer-workflows">Developer Workflows<a class="anchor" aria-label="anchor" href="#developer-workflows"></a></h2>
-<p><strong>Load &amp; Test:</strong></p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">load_all</span><span class="op">(</span><span class="op">)</span>        <span class="co"># Load package before testing</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"adhoc/test-contract-flow.R"</span><span class="op">)</span>  <span class="co"># Run example workflow</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span>            <span class="co"># Run testthat suite</span></span></code></pre></div>
-<p><strong>Package Checks:</strong></p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">rcmdcheck</span><span class="fu">::</span><span class="fu">rcmdcheck</span><span class="op">(</span>args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"--as-cran"</span>, <span class="st">"--run-donttest"</span><span class="op">)</span><span class="op">)</span>      <span class="co"># Full R CMD check (ask before fixing issues); do NOT use devtools::check()</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">document</span><span class="op">(</span><span class="op">)</span>        <span class="co"># Regenerate Rd files from roxygen2</span></span>
-<span><span class="fu">spelling</span><span class="fu">::</span><span class="fu"><a href="https://docs.ropensci.org/spelling//reference/spell_check_package.html" class="external-link">spell_check_package</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Check spellings (don't edit inst/WORDLIST)</span></span></code></pre></div>
-<p>Please try to fix all the errors and warnings. For notes, please fix as much as you can. Some notes irrelevate to the code such as “Checking CRAN incoming feasibility” or “Unable to verify time” can be ignored.</p>
-<p><strong>Documentation Rules:</strong> - S7 exported classes: <code>@title</code>, <code>@description</code>, <code>@param</code> (for constructor args), <code>@field</code> (for properties), <code>@examples</code>, <code>@export</code> - S7 internal/abstract: Add <code>@keywords internal</code>, omit <code>@export</code> - R6 classes: <code>@title</code>, <code>@description</code>, <code>@field</code> (for public/active), <code>@export</code> - Never include <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> in examples</p>
-<p><strong>Adhoc Scripts:</strong> Use <code>adhoc/</code> for throwaway tests (not committed to tests/testthat)</p>
-</div>
-<div class="section level2">
-<h2 id="key-integration-points">Key Integration Points<a class="anchor" aria-label="anchor" href="#key-integration-points"></a></h2>
-<p><strong>Dependencies:</strong> <code>S7</code>, <code>R6</code>, <code>ellmer</code> (LLM chat), <code>yaml</code> (config parsing). Only use base-R + DESCRIPTION imports.</p>
-<p><strong>Validation Pattern:</strong> Contract validators return <code>TRUE</code> or character error message (see <a href="adhoc/test-contract-flow.R#L115-L120">adhoc/test-contract-flow.R</a>)</p>
+<h2 id="essential-guides">Essential Guides<a class="anchor" aria-label="anchor" href="#essential-guides"></a></h2>
+<p>Additional documentation is available in <code>.github/copilot/</code> for: - DevOps workflows (load, test, check, build) - See <code>.github/copilot/DEVOPS-GUIDE.md</code> - S7 vs R6 documentation examples - See <code>.github/copilot/S7-R6-DOCUMENTATION.md</code></p>
 </div>
 </div>
 

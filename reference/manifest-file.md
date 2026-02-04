@@ -1,16 +1,16 @@
 # Read or Write Manifest from or to a YAML File
 
-Serialize and deserialize `Manifest` objects to and from YAML files.
-This enables version control and sharing of workflow policy definitions.
-The resulting YAML files are human-readable and can be edited manually,
+Serialize and read `Manifest` objects to and from YAML files. This
+enables version control and sharing of workflow policy definitions. The
+resulting YAML files are human-readable and can be edited manually,
 though changes must still pass validation when read back.
 
 `manifest_write()` serializes a `Manifest` object to a YAML file.
 
-`manifest_read()` deserializes a YAML file back into a validated
-`Manifest` object, reconstructing the `MasterPolicy` and `StatePolicy`
-objects and enforcing all validation rules (e.g., every stage must have
-a corresponding state).
+`manifest_read()` reads a YAML file back into a validated `Manifest`
+object, reconstructing the `MasterPolicy` and `StatePolicy` objects and
+enforcing all validation rules (e.g., every stage must have a
+corresponding state).
 
 ## Usage
 
@@ -24,7 +24,7 @@ manifest_read(file, ...)
 
 - x:
 
-  A `Manifest` object to serialize (for `manifest_write`).
+  a `Manifest` object to serialize (for `manifest_write`)
 
 - file:
 
@@ -42,7 +42,7 @@ manifest_read(file, ...)
 
 - `manifest_write()`: Invisibly returns the path to the written file.
 
-- `manifest_read()`: A validated `Manifest` object.
+- `manifest_read()`: A validated `Manifest` object
 
 ## Examples
 
@@ -54,10 +54,14 @@ mp <- MasterPolicy(
   stages = c("idle", "working"),
   parameters = list(timeout = 300)
 )
-sp1 <- StatePolicy(name = "init", stage = "idle",
-                   description = "Initial state")
-sp2 <- StatePolicy(name = "process", stage = "working",
-                   description = "Processing state")
+sp1 <- StatePolicy(
+  name = "init", stage = "idle",
+  description = "Initial state", agent_id = "agent_init"
+)
+sp2 <- StatePolicy(
+  name = "process", stage = "working",
+  description = "Processing state", agent_id = "agent_process"
+)
 manifest <- Manifest(master = mp, states = list(sp1, sp2))
 
 # Write to temporary file

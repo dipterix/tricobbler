@@ -2,98 +2,41 @@
 
 ## Architecture Overview
 
-**Core Philosophy:** Multi-agent workflow orchestration combining
-immutable policy definitions (S7) with mutable execution state (R6).
+**Core Philosophy:** Simplified workflow orchestration with immutable
+policy blueprints (S7) and mutable runtime execution (R6). Focus on
+manifest→instance pattern.
 
-### Three-Layer Architecture
+**Two-Layer Architecture:** 1. **Policy Layer (S7)**: `Manifest`
+contains `MasterPolicy` + `StatePolicy[]` - See
+[R/class-policy.R](http://dipterix.org/tricobbler/R/class-policy.R) 2.
+**Runtime Layer (R6)**: `Scheduler` orchestrates execution, `Context`
+persists results - See
+[R/class-scheduler.R](http://dipterix.org/tricobbler/R/class-scheduler.R)
 
-1.  **Policy Layer (S7 - Immutable)**: Blueprint definitions in
-    [class001-policy.R](http://dipterix.org/tricobbler/R/class001-policy.R)
-    - `MasterPolicy`: Workflow version + allowed stages (e.g., “triage”,
-      “planning”, “executing”)
-    - `StatePolicy`: Individual state metadata (stage name, description,
-      parameters)
-    - `Manifest`: Validates all MasterPolicy stages have corresponding
-      StatePolicy entries
-2.  **Contract Layer (S7 - Immutable)**: Execution agreements in
-    [class002-contract.R](http://dipterix.org/tricobbler/R/class002-contract.R)
-    - `ContractExecutor`: Callable function wrapping LLM/script
-      execution logic (inherits
-      [`S7::class_function`](https://rconsortium.github.io/S7/reference/base_classes.html))
-    - `StageContract`: Per-stage execution spec (executor, tools,
-      validators, retries, timeout, fallback)
-    - `Contract`: Master agreement linking Manifest to StageContracts
-      with global resources
-3.  **State Layer (R6 - Mutable)**: Runtime tracking in
-    [class003-contractstate.R](http://dipterix.org/tricobbler/R/class003-contractstate.R)
-    - `SubContractState`: Tracks one stage’s execution (status,
-      attempts, I/O, timing, validation)
-    - `ContractState`: Orchestrates all stage states and workflow
-      progression
+**Data Flow:** Manifest blueprint → Agents registered → Scheduler
+executes by priority → Context records results
 
-**Data Flow:** User creates Manifest → User defines Contract with
-executors/validators → System creates ContractState → System executes
-stages through SubContractStates
+## Critical Rules
 
-### The TriCobbler Trinity (WIP)
+**⚠️ MANDATORY FIRST STEP: Always read
+`.github/copilot/DEVELOPMENT-RULES.md` (lines 1-40) BEFORE performing
+ANY task** - This contains non-negotiable conventions that prevent
+repeated mistakes.
 
-Specialized agents in
-[class010-baseagent.R](http://dipterix.org/tricobbler/R/class010-baseagent.R): -
-`BaseAgent`: R6 wrapper around
-[`ellmer::Chat`](https://ellmer.tidyverse.org/reference/Chat.html) with
-context window monitoring - Future: `Planner`, `Worker`, `Librarian`
-subclasses for decomposition/execution/memory
+**ENFORCEMENT RULE:** You MUST call `read_file` on
+`.github/copilot/DEVELOPMENT-RULES.md` (lines 1-40) as your FIRST action
+when the user requests: - Documentation changes (roxygen2, .Rd files) -
+Spell checking (`spellchk`,
+[`spelling::spell_check_package()`](https://docs.ropensci.org/spelling//reference/spell_check_package.html)) -
+Code formatting or style fixes - Adding/modifying package dependencies -
+Creating/editing examples - MCP tool changes
 
-## Code Conventions
+**DO NOT proceed with the task until you have read the rules.** The
+checklist tells you exactly how to handle each scenario correctly.
 
-**Class System:** - S7 for immutable structures (policies, contracts).
-Document with `@field` for properties - R6 for mutable state and agents.
-Document with `@field` for fields/active bindings - Never mix: S7 uses
-`@` accessor, R6 uses `$`
+## Essential Guides
 
-**ASCII-Only:** Package must be portable. Replace en-dashes (–) and
-non-breaking hyphens (‑) with ASCII `-`. Use
-`tools::showNonASCIIfile(file)` to find violations.
-
-**Formatting:** 2-space indentation, no tabs.
-
-## Developer Workflows
-
-**Load & Test:**
-
-``` r
-devtools::load_all()        # Load package before testing
-source("adhoc/test-contract-flow.R")  # Run example workflow
-devtools::test()            # Run testthat suite
-```
-
-**Package Checks:**
-
-``` r
-rcmdcheck::rcmdcheck(args = c("--as-cran", "--run-donttest"))      # Full R CMD check (ask before fixing issues); do NOT use devtools::check()
-devtools::document()        # Regenerate Rd files from roxygen2
-spelling::spell_check_package()  # Check spellings (don't edit inst/WORDLIST)
-```
-
-Please try to fix all the errors and warnings. For notes, please fix as
-much as you can. Some notes irrelevate to the code such as “Checking
-CRAN incoming feasibility” or “Unable to verify time” can be ignored.
-
-**Documentation Rules:** - S7 exported classes: `@title`,
-`@description`, `@param` (for constructor args), `@field` (for
-properties), `@examples`, `@export` - S7 internal/abstract: Add
-`@keywords internal`, omit `@export` - R6 classes: `@title`,
-`@description`, `@field` (for public/active), `@export` - Never include
-[`set.seed()`](https://rdrr.io/r/base/Random.html) in examples
-
-**Adhoc Scripts:** Use `adhoc/` for throwaway tests (not committed to
-tests/testthat)
-
-## Key Integration Points
-
-**Dependencies:** `S7`, `R6`, `ellmer` (LLM chat), `yaml` (config
-parsing). Only use base-R + DESCRIPTION imports.
-
-**Validation Pattern:** Contract validators return `TRUE` or character
-error message (see
-[adhoc/test-contract-flow.R](http://dipterix.org/tricobbler/adhoc/test-contract-flow.R#L115-L120))
+Additional documentation is available in `.github/copilot/` for: -
+DevOps workflows (load, test, check, build) - See
+`.github/copilot/DEVOPS-GUIDE.md` - S7 vs R6 documentation examples -
+See `.github/copilot/S7-R6-DOCUMENTATION.md`

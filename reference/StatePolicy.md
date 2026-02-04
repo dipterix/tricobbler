@@ -12,9 +12,14 @@ StatePolicy(
   name = character(0),
   description = character(0),
   stage = character(0),
+  agent_id = character(0),
+  resources = character(0),
   parameters = list(),
+  max_retry = 0L,
   priority = 100L,
-  critical = FALSE
+  critical = FALSE,
+  final = FALSE,
+  on_failure = NA_character_
 )
 ```
 
@@ -22,31 +27,68 @@ StatePolicy(
 
 - name:
 
-  Character. Name of the state policy (non-blank).
+  character, name of the state policy (non-blank)
 
 - description:
 
-  Character. Human-readable description.
+  character, human-readable description
 
 - stage:
 
-  Character. Must be a non-blank single string.
+  character, must be a non-blank single string
+
+- agent_id:
+
+  character, unique identifier for the agent responsible for executing
+  this state. Must contain only letters, digits, underscores, or dashes
+
+- resources:
+
+  character vector, tools that the agent may call during execution
+  (default empty vector)
 
 - parameters:
 
-  List. Optional state-specific parameters.
+  list, optional state-specific parameters
+
+- max_retry:
+
+  integer, maximum total attempts (initial + retries) for this state
+  during stage execution (default 0, meaning single attempt). The
+  `max_retry` limit applies globally across all re-entries to this state
+  within the same stage. If `on_failure` is set, this state will not
+  retry locally but will jump to the failure handler immediately. If
+  `on_failure` is NA, local retries up to `max_retry` will be attempted
+  before moving to next state
 
 - priority:
 
-  Integer. Execution priority (0-999, default 100). Higher values run
+  integer, execution priority (0-999, default 100). Higher values run
   first (999 = highest priority, 0 = lowest). Used when multiple states
-  share the same stage. NA or NULL are treated as 100.
+  share the same stage. NA or NULL are treated as 100
 
 - critical:
 
-  Logical. If `TRUE`, states with lower priority won't execute if this
-  state fails (default `FALSE`). Critical states must have
-  `priority >= 1` and cannot share priority code with other states.
+  logical, if TRUE, states with lower priority will not execute if this
+  state fails (default FALSE). Critical states must have priority \>= 1
+  and cannot share priority code with other states
+
+- final:
+
+  logical, if TRUE and validation succeeds, skip remaining states in the
+  workflow (default FALSE)
+
+- on_failure:
+
+  character, name of the state to jump to on first failure (default NA
+  to retry locally up to `max_retry` times). When set, failures trigger
+  immediate jump to the specified state without local retries. The
+  `max_retry` limit still applies globally to prevent infinite loops: if
+  this state is re-entered and total attempts exceed `max_retry`,
+  execution stops with an error. Common patterns: validation loops
+  (`on_failure = "executor"`), alternative strategies
+  (`on_failure = "slower_alternative"`), or repair chains
+  (`on_failure = "repair_step"`)
 
 ## Details
 
@@ -70,10 +112,7 @@ priority:
 
 - **Default**: 100 (when `priority = NA` or `NULL`)
 
-- **Equal priority**: States run in parallel (truly concurrent
-  execution)
-
-- **Different priorities**: States run sequentially (higher priority
+- **Execution order**: States run sequentially by priority (higher
   first)
 
 ### Critical Flag: Enforcing Sequential Execution
@@ -86,15 +125,13 @@ semantics:
 
 - If a critical state fails, lower-priority states are skipped entirely
 
-- Critical states **prevent parallel execution** - you cannot have
-  parallel states when one is marked critical (enforced by priority
-  uniqueness)
+- Critical states must have unique priority (enforced by `Manifest`)
 
 - Critical states must have `priority >= 1` (cannot be lowest priority
   0)
 
 - Critical states cannot share their priority value with other states in
-  the same stage (enforced by `Manifest` validator)
+  the same stage (enforced by `Manifest` validation)
 
 - **Use case**: Required validation gates that must pass before
   alternatives run
@@ -103,19 +140,19 @@ semantics:
 
 Create multiple `StatePolicy` objects for the same stage when you need:
 
-1.  **Parallel alternatives**: Multiple states with equal priority for
-    concurrent execution (e.g., A/B testing, redundant processing)
+1.  **Fallback chains**: Different priorities create ordered execution
+    with alternative strategies
 
-2.  **Sequential fallback chains**: Different priorities create ordered
-    execution with fallbacks (e.g., primary approach → fallback → last
-    resort)
+2.  **Alternative implementations**: Multiple states for the same stage
+    execution with alternative strategies (e.g., primary approach -\>
+    fallback -\> last resort)
 
 3.  **Critical validation gates**: Critical state must succeed before
     lower-priority alternatives execute (enforces sequential, fail-fast
     semantics)
 
-4.  **Staged rollout**: Gradually shift priority as new implementations
-    mature
+4.  **Phased deployment**: Gradually shift priority as new
+    implementations mature
 
 ## Examples
 
@@ -125,6 +162,7 @@ StatePolicy(
   name = "state1",
   stage = "idle",
   description = "initial idle state",
+  agent_id = "agent1",
   parameters = list()
 )
 #> StatePolicy (S7 class) - `state1` (idle)
@@ -135,6 +173,7 @@ StatePolicy(
   name = "validator",
   stage = "executing",
   description = "critical validation step",
+  agent_id = "validator_agent",
   priority = 900,
   critical = TRUE
 )

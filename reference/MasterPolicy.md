@@ -10,7 +10,7 @@ MasterPolicy(
   name = character(0),
   description = character(0),
   version = character(0),
-  stages = character(0),
+  stages = c("triage", "planning", "executing"),
   parameters = list()
 )
 ```
@@ -49,7 +49,7 @@ the `Manifest`.
 
 ### Stage Naming Conventions
 
-- Stages are automatically lowercased for consistency
+- Stages are automatically converted to lowercase for consistency
 
 - Must contain only letters (a-z), digits (0-9), underscores (\_), or
   dashes (-)
