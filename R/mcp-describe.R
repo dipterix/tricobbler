@@ -1,19 +1,21 @@
 #' Describe an R object for use in \verb{MCP} tools
 #'
 #' @description
-#' A generic function used to describe an R object in a way that can be
+#' An S7 generic function used to describe an R object in a way that can be
 #' safely serialized to JSON and sent to \verb{MCP} clients. Unlike direct
 #' serialization, this function handles special objects (environments,
 #' external pointers, large objects) by generating human-readable descriptions.
 #'
+#' The maximum print size is controlled by the context cache setting
+#' \code{tricobbler.mcp_describe.max_size} (default: 100 lines).
+#'
 #' @param x The object to describe.
 #' @param ... Additional arguments passed down to underlying methods. Unused
 #'   arguments are silently ignored.
-#' @param max_print Maximum number of items to print for long objects.
-#'   Default is 100.
 #'
 #' @return A character vector of lines describing the object. If the object
 #'   is a simple scalar, may return a single-element character vector.
+#'   For \code{ellmer::Content} objects, returns the object as-is.
 #'
 #' @examples
 #' # Describe a data frame
@@ -26,61 +28,82 @@
 #' mcp_describe(matrix(1:12, 3, 4))
 #'
 #' @export
-mcp_describe <- function(x, ..., max_print = 100) {
-  UseMethod("mcp_describe")
+mcp_describe <- S7::new_generic("mcp_describe", dispatch_args = "x")
+
+# Helper function to get max_print from context cache
+.mcp_get_max_print <- function() {
+  ctx <- get_active_context()
+  if (is.null(ctx)) {
+    return(getOption("tricobbler.mcp_describe.max_size", 100L))
+  }
+  max_print <- ctx$cache$get("tricobbler.mcp_describe.max_size", 100L)
+  if (
+    length(max_print) != 1 ||
+      !is.numeric(max_print) ||
+      !isTRUE(max_print > 0L)
+  ) {
+    max_print <- getOption("tricobbler.mcp_describe.max_size", 100L)
+  }
+  max_print
 }
 
-#' @export
-mcp_describe.default <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Default method for any object
+S7::method(mcp_describe, S7::class_any) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.json <- function(x, ..., max_print = 100) {
-  # jsonlite::toJSON already adds "json" class; return as-is
+# Method for ellmer::Content - return as-is
+S7::method(mcp_describe, S7::new_S3_class("Content")) <- function(x, ...) {
   x
 }
 
-#' @export
-mcp_describe.NULL <- function(x, ..., max_print = 100) {
+# Method for json class (from jsonlite::toJSON)
+S7::method(mcp_describe, S7::new_S3_class("json")) <- function(x, ...) {
+  x
+}
+
+# Method for NULL
+S7::method(mcp_describe, S7::class_missing) <- function(x, ...) {
   "NULL"
 }
 
-#' @export
-mcp_describe.logical <- function(x, ..., max_print = 100) {
+# Method for logical
+S7::method(mcp_describe, S7::class_logical) <- function(x, ...) {
   if (length(x) == 0) {
     return("logical(0)")
   }
+
   if (length(x) == 1) {
     return(as.character(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.integer <- function(x, ..., max_print = 100) {
+# Method for integer
+S7::method(mcp_describe, S7::class_integer) <- function(x, ...) {
   if (length(x) == 0) {
     return("integer(0)")
   }
   if (length(x) == 1) {
     return(paste0(x, "L"))
   }
-  .mcp_capture_print(x, max_print = max_print)
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.numeric <- function(x, ..., max_print = 100) {
+# Method for numeric (double)
+S7::method(mcp_describe, S7::class_double) <- function(x, ...) {
   if (length(x) == 0) {
     return("numeric(0)")
   }
   if (length(x) == 1) {
     return(as.character(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.character <- function(x, ..., max_print = 100) {
+# Method for character
+S7::method(mcp_describe, S7::class_character) <- function(x, ...) {
   if (length(x) == 0) {
     return("character(0)")
   }
@@ -88,39 +111,41 @@ mcp_describe.character <- function(x, ..., max_print = 100) {
     # Return a simple quoted string for short single values
     return(deparse(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.factor <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Method for factor
+S7::method(mcp_describe, S7::class_factor) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.matrix <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Method for matrix
+S7::method(mcp_describe, S7::new_S3_class("matrix")) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.array <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Method for array
+S7::method(mcp_describe, S7::new_S3_class("array")) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.data.frame <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Method for data.frame
+S7::method(mcp_describe, S7::new_S3_class("data.frame")) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.list <- function(x, ..., max_print = 100) {
+# Method for list
+S7::method(mcp_describe, S7::class_list) <- function(x, ...) {
   if (length(x) == 0) {
     return("list()")
   }
-  .mcp_capture_print(x, max_print = max_print)
+
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.function <- function(x, ..., max_print = 100) {
+# Method for function
+S7::method(mcp_describe, S7::class_function) <- function(x, ...) {
   # Get function definition
   fn_def <- capture.output(print(x))
 
@@ -135,8 +160,8 @@ mcp_describe.function <- function(x, ..., max_print = 100) {
   fn_def
 }
 
-#' @export
-mcp_describe.environment <- function(x, ..., max_print = 100) {
+# Method for environment
+S7::method(mcp_describe, S7::class_environment) <- function(x, ...) {
   # Environments can't be serialized, so provide a description
   env_name <- environmentName(x)
 
@@ -168,8 +193,8 @@ mcp_describe.environment <- function(x, ..., max_print = 100) {
   desc
 }
 
-#' @export
-mcp_describe.externalptr <- function(x, ..., max_print = 100) {
+# Method for externalptr
+S7::method(mcp_describe, S7::new_S3_class("externalptr")) <- function(x, ...) {
   # External pointers can't be serialized
   c(
     "<external pointer>",
@@ -177,61 +202,63 @@ mcp_describe.externalptr <- function(x, ..., max_print = 100) {
   )
 }
 
-#' @export
-mcp_describe.formula <- function(x, ..., max_print = 100) {
+# Method for formula
+S7::method(mcp_describe, S7::new_S3_class("formula")) <- function(x, ...) {
   deparse(x)
 }
 
-#' @export
-mcp_describe.call <- function(x, ..., max_print = 100) {
+# Method for call
+S7::method(mcp_describe, S7::class_call) <- function(x, ...) {
   deparse(x)
 }
 
-#' @export
-mcp_describe.expression <- function(x, ..., max_print = 100) {
-  .mcp_capture_print(x, max_print = max_print)
+# Method for expression
+S7::method(mcp_describe, S7::class_expression) <- function(x, ...) {
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.name <- function(x, ..., max_print = 100) {
+# Method for name (symbol)
+S7::method(mcp_describe, S7::class_name) <- function(x, ...) {
   as.character(x)
 }
 
-#' @export
-mcp_describe.Date <- function(x, ..., max_print = 100) {
+# Method for Date
+S7::method(mcp_describe, S7::new_S3_class("Date")) <- function(x, ...) {
   if (length(x) == 0) {
     return("Date(0)")
   }
   if (length(x) == 1) {
     return(as.character(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.POSIXct <- function(x, ..., max_print = 100) {
+# Method for POSIXct
+S7::method(mcp_describe, S7::new_S3_class("POSIXct")) <- function(x, ...) {
   if (length(x) == 0) {
     return("POSIXct(0)")
   }
   if (length(x) == 1) {
     return(as.character(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+  .mcp_capture_print(x)
 }
 
-#' @export
-mcp_describe.POSIXlt <- function(x, ..., max_print = 100) {
+# Method for POSIXlt
+S7::method(mcp_describe, S7::new_S3_class("POSIXlt")) <- function(x, ...) {
   if (length(x) == 0) {
     return("POSIXlt(0)")
   }
   if (length(x) == 1) {
     return(as.character(x))
   }
-  .mcp_capture_print(x, max_print = max_print)
+  .mcp_capture_print(x)
 }
 
 # Helper function to capture print output
-.mcp_capture_print <- function(x, max_print = 100) {
+.mcp_capture_print <- function(x) {
+  max_print <- .mcp_get_max_print()
+
   # Set reproducible output options
   old_options <- options(
     max.print = max_print,

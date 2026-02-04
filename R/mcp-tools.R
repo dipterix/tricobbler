@@ -2260,20 +2260,7 @@ mcptool_instantiate <- function(tool, ...) {
     call <- match.call()
     call[[1]] <- quote(impl)
     res <- eval(call)
-
-    ctx <- get_active_context()
-    max_size <- ctx$cache$get(
-      key = "tricobbler.mcp_describe.max_size",
-      missing = getOption("tricobbler.mcp_describe.max_size", 100)
-    )
-    if (
-      length(max_size) != 1 ||
-        !is.numeric(max_size) ||
-        !isTRUE(max_size > 0L)
-    ) {
-      max_size <- getOption("tricobbler.mcp_describe.max_size", 100)
-    }
-    res <- mcp_describe(res, max_print = max_size)
+    res <- mcp_describe(res)
     res
   }
   fmls <- formals(impl)
