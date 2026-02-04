@@ -52,6 +52,7 @@ ordering when multiple states share the same stage.</p>
 <span>  stage <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
 <span>  agent_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
 <span>  resources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  accessbility <span class="op">=</span> <span class="st">"all"</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  max_retry <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  priority <span class="op">=</span> <span class="fl">100L</span>,</span>
@@ -86,6 +87,13 @@ dashes</p></dd>
 <dt id="arg-resources">resources<a class="anchor" aria-label="anchor" href="#arg-resources"></a></dt>
 <dd><p>character vector, tools that the agent may call during
 execution (default empty vector)</p></dd>
+
+
+<dt id="arg-accessbility">accessbility<a class="anchor" aria-label="anchor" href="#arg-accessbility"></a></dt>
+<dd><p>character, context accessibility level for the agent.
+Controls what context data the agent can read. One of <code>"all"</code>
+(full access), <code>"logs"</code> (logs only), or <code>"none"</code> (no access).
+Default is <code>"all"</code></p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>

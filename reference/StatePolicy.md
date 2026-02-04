@@ -14,6 +14,7 @@ StatePolicy(
   stage = character(0),
   agent_id = character(0),
   resources = character(0),
+  accessbility = "all",
   parameters = list(),
   max_retry = 0L,
   priority = 100L,
@@ -46,6 +47,12 @@ StatePolicy(
 
   character vector, tools that the agent may call during execution
   (default empty vector)
+
+- accessbility:
+
+  character, context accessibility level for the agent. Controls what
+  context data the agent can read. One of `"all"` (full access),
+  `"logs"` (logs only), or `"none"` (no access). Default is `"all"`
 
 - parameters:
 

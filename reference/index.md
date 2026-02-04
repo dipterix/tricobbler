@@ -20,12 +20,15 @@
 - [`StatePolicy()`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
   : State-Level Policy Implementation for Workflow Stages
 
+- [`get_active_context()`](http://dipterix.org/tricobbler/reference/get_active_context.md)
+  : Get the Active Context
+
 - [`manifest_write()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
   [`manifest_read()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
   : Read or Write Manifest from or to a YAML File
 
-- [`mcp_context()`](http://dipterix.org/tricobbler/reference/mcp_context.md)
-  : Add Context to Chat Messages
+- [`mcp_attach()`](http://dipterix.org/tricobbler/reference/mcp_attach.md)
+  : Attach Context to Chat Messages
 
 - [`mcp_describe()`](http://dipterix.org/tricobbler/reference/mcp_describe.md)
   :
@@ -61,11 +64,6 @@
   :
 
   Read `MCP` tool definition from `YAML` file
-
-- [`mcptool_state_factory()`](http://dipterix.org/tricobbler/reference/mcptool_state_factory.md)
-  :
-
-  Create Session-Scoped `MCP` State Environment
 
 - [`mcptool_write()`](http://dipterix.org/tricobbler/reference/mcptool_write.md)
   :

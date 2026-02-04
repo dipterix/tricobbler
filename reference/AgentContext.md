@@ -25,7 +25,16 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - `memory_path`:
 
-  character, path to shared memory directory (read-only)
+  character, path to shared memory directory, used to store agent
+  memories across the sessions (read-only)
+
+- `is_default_context`:
+
+  logical, whether this is the default context (read-only)
+
+- `cache`:
+
+  map, stores and persists temporary data
 
 - `store_path`:
 
@@ -89,7 +98,10 @@ Initialize a new context
 
 #### Usage
 
-    AgentContext$new(id = NULL, path = NULL)
+    AgentContext$new(
+      id = NULL,
+      path = file.path(tempdir(), "tricobbler", "context")
+    )
 
 #### Arguments
 

@@ -91,7 +91,7 @@ mcptool_write(tool, stdout(), method = "yaml")
 #>   [1] package     version     title       description date        maintainer \n#>
 #>   <0 rows> (or 0-length row.names)\n#> \n#> $count\n#> [1] 0\n#> \n#> $returned\n#>
 #>   [1] 0\n#> \n#> $message\n#> [1] \"No packages found matching query: tricobbler\"\n#>\n"
-#> execution_time: 0.437
+#> execution_time: 0.5
 
 # Write as Markdown
 mcptool_write(tool, stdout(), method = "markdown")
