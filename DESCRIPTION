@@ -25,6 +25,7 @@ Imports:
     fastmap,
     jsonlite,
     pkgsearch,
+    promises,
     R6 (>= 2.6.1),
     S7 (>= 0.2.1),
     yaml (>= 2.3.12)

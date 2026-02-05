@@ -1,5 +1,6 @@
 #' @importFrom R6 R6Class
 #' @importFrom S7 new_class
+#' @importFrom S7 convert
 #' @importFrom ellmer tool
 #' @importFrom yaml as.yaml
 #' @importFrom utils capture.output

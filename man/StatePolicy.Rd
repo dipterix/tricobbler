@@ -16,7 +16,8 @@ StatePolicy(
   priority = 100L,
   critical = FALSE,
   final = FALSE,
-  on_failure = NA_character_
+  on_failure = NA_character_,
+  depends_on = <object>
 )
 }
 \arguments{
@@ -35,7 +36,9 @@ execution (default empty vector)}
 
 \item{accessibility}{character, context accessibility level for the agent.
 Controls what context data the agent can read. One of \code{"all"}
-(full access), \code{"logs"} (logs only), or \code{"none"} (no access).
+(full access), \code{"logs"} (logs only), \code{"none"} (no access), or
+\code{"explicit"} (use \code{depends_on} to specify inputs; if
+\code{depends_on} is empty, behaves like \code{"logs"}).
 Default is \code{"all"}}
 
 \item{parameters}{list, state-specific parameters passed to the agent.
@@ -69,6 +72,12 @@ infinite loops: if this state is re-entered and total attempts exceed
 validation loops (\code{on_failure = "executor"}), alternative strategies
 (\code{on_failure = "slower_alternative"}), or repair chains
 (\code{on_failure = "repair_step"})}
+
+\item{depends_on}{\code{StateDeps} object or named list specifying explicit
+dependencies on prior state outputs. Each entry maps a parameter name to
+a dependency: \code{list(param = list(state = "state_name", field =
+  "result", stage = NULL))}. Used with \code{accessibility = "explicit"}
+for async execution. See \code{\link{StateDeps}} for format details}
 }
 \description{
 Represents a single workflow state. Inherits from \code{BasePolicy}

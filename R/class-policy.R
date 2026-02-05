@@ -3,6 +3,252 @@ NULL
 
 
 # ---------------------------------------------------------------------------
+# StateDeps - Named list of dependency declarations for async execution
+# ---------------------------------------------------------------------------
+#
+# This class validates dependency declarations used by StatePolicy@depends_on.
+# Each dependency maps a parameter name to a prior state's output.
+#
+# Format: named list where each element is a dependency specification:
+#   list(
+#     param_name = list(state = "state_name", field = "result", stage = NULL),
+#     other_param = list(state = "other_state", field = "description")
+#   )
+#
+# - Names become parameter names passed to the agent function
+# - state: (required) name of the state to depend on
+# - field: (optional) "result" (default) or "description"
+# - stage: (optional) stage of the dependency; NULL = same stage (higher
+#          priority required), or a named stage that must appear earlier
+#          in MasterPolicy@stages
+# ---------------------------------------------------------------------------
+
+#' @title Validated Dependency Declarations for State Policies
+#' @description S7 class representing a named list of dependency declarations
+#'   used by \code{StatePolicy@@depends_on}. Each entry maps a parameter name
+#'   to a prior state's output field.
+#' @details
+#' ## Dependency Entry Format
+#'
+#' Each entry in a \code{StateDeps} object is a named list element where:
+#' \itemize{
+#'   \item \strong{Name}: The parameter name passed to the agent function
+#'   \item \strong{state}: (required) Name of the state to depend on
+#'   \item \strong{field}: (optional) What to extract - \code{"result"}
+#'     (default) or \code{"description"}
+#'   \item \strong{stage}: (optional) Stage of the dependency. If \code{NULL}
+#'     or omitted, the dependency must be in the same stage with higher
+#'     priority. If specified, must be an earlier stage in the workflow
+#' }
+#'
+#' ## Same-Stage vs Cross-Stage Dependencies
+#'
+#' \itemize{
+#'   \item \strong{Same-stage} (stage = NULL): The dependent state must have
+#'     higher priority (lower number = runs later). This ensures the dependency
+
+#'     executes before the dependent within parallel priority groups
+#'   \item \strong{Cross-stage} (stage = "earlier_stage"): The dependency is
+#'     in a previous stage. Since stages execute sequentially, the dependency
+#'     is guaranteed to complete before the dependent stage begins
+#' }
+#'
+#' ## Validation Rules (Property-Level)
+#'
+#' The property-level validator checks structural correctness:
+#' \itemize{
+#'   \item Must be a named list (names become parameter names)
+#'   \item Each entry must be a list with required \code{state} field
+#'   \item \code{state} must be a single non-blank character string
+#'   \item \code{field} (if present) must be \code{"result"} or
+#'     \code{"description"}
+#'   \item \code{stage} (if present) must be a single character string or NULL
+#'   \item Parameter names must be valid R identifiers
+#' }
+#'
+#' ## Cross-Validation (Manifest-Level)
+#'
+#' Additional validation is performed at the \code{Manifest} level to check:
+#' \itemize
+#'   \item Referenced states exist in the manifest
+#'   \item Same-stage dependencies have higher priority
+#'   \item Cross-stage dependencies reference earlier stages
+#' }
+#'
+#' @examples
+#' # Same-stage dependencies (state must have higher priority)
+#' deps <- StateDeps(
+#'   validation_result = list(state = "validator"),
+#'   parsed_data = list(state = "parser", field = "result")
+#' )
+#'
+#' # Cross-stage dependency
+#' deps2 <- StateDeps(
+#'   plan = list(state = "planner", field = "result", stage = "planning")
+#' )
+#'
+#' # Empty dependencies (valid)
+#' empty_deps <- StateDeps()
+#'
+#' @keywords internal
+#' @export
+StateDeps <- S7::new_class(
+  name = "StateDeps",
+  parent = BaseClass,
+  properties = list(
+    deps = S7::new_property(
+      class = S7::class_list,
+      default = list(),
+      setter = function(self, value) {
+        nms <- names(value)
+        value <- structure(
+          names = nms,
+          lapply(value, function(v) {
+            if (is.character(v)) {
+              v <- list(state = v)
+            }
+            v
+          })
+        )
+        S7::prop(self, "deps") <- value
+        self
+      },
+      validator = function(value) {
+        if (length(value) == 0) {
+          return()
+        }
+
+        # Must be a named list
+        nms <- names(value)
+        if (is.null(nms) || any(nms == "") || any(is.na(nms))) {
+          return(
+            "must be a named list where names are parameter names for the agent function." # nolint: line_length_linter.
+          )
+        }
+
+        # Check for duplicate names
+        if (anyDuplicated(nms)) {
+          return("parameter names (list names) must be unique.")
+        }
+
+        # Validate each entry
+        for (i in seq_along(value)) {
+          nm <- nms[[i]]
+          entry <- value[[i]]
+
+          # Each entry must be a list
+          if (!is.list(entry)) {
+            return(sprintf(
+              "entry %s must be a list with at least 'state' field.",
+              sQuote(nm)
+            ))
+          }
+
+          # Required: state
+          if (is.null(entry$state)) {
+            return(sprintf(
+              "entry %s missing required 'state' field.",
+              sQuote(nm)
+            ))
+          }
+          if (
+            !is.character(entry$state) ||
+              length(entry$state) != 1 ||
+              is.na(entry$state) ||
+              !nzchar(trimws(entry$state))
+          ) {
+            return(sprintf(
+              "entry %s: 'state' must be a single non-blank character string.",
+              sQuote(nm)
+            ))
+          }
+
+          # Optional: field (default "result")
+          if (!is.null(entry$field)) {
+            if (
+              !is.character(entry$field) ||
+                length(entry$field) != 1 ||
+                !entry$field %in% c("result", "description")
+            ) {
+              return(sprintf(
+                "entry %s: 'field' must be 'result' or 'description'.",
+                sQuote(nm)
+              ))
+            }
+          }
+
+          # Optional: stage (NULL = same stage)
+          if (!is.null(entry$stage)) {
+            if (
+              !is.character(entry$stage) ||
+                length(entry$stage) != 1 ||
+                is.na(entry$stage) ||
+                !nzchar(trimws(entry$stage))
+            ) {
+              return(sprintf(
+                "entry %s: 'stage' must be a single non-blank character string or NULL.", # nolint: line_length_linter.
+                sQuote(nm)
+              ))
+            }
+          }
+
+          # Check for unknown fields
+          known_fields <- c("state", "field", "stage")
+          unknown <- setdiff(names(entry), known_fields)
+          if (length(unknown) > 0) {
+            return(sprintf(
+              "entry %s has unknown fields: %s. Allowed: %s",
+              sQuote(nm),
+              paste(sQuote(unknown), collapse = ", "),
+              paste(sQuote(known_fields), collapse = ", ")
+            ))
+          }
+        }
+
+        return()
+      }
+    )
+  ),
+  constructor = function(..., .list = list()) {
+    deps <- c(list(...), as.list(.list))
+    S7::new_object(S7::S7_object(), deps = deps)
+  }
+)
+
+# as.list method for serialization
+S7::method(as.list, StateDeps) <- function(x, ...) {
+  # Normalize entries: add defaults for serialization clarity
+  lapply(x@deps, function(entry) {
+    re <- list(
+      state = entry$state,
+      field = entry$field %||% "result"
+    )
+    re$stage <- entry$stage  # NULL is fine, won't appear in YAML
+    re
+  })
+}
+
+# format method for printing
+S7::method(format, StateDeps) <- function(x, ...) {
+  if (length(x@deps) == 0) {
+    return("StateDeps: (empty)")
+  }
+  lines <- vapply(names(x@deps), function(nm) {
+    entry <- x@deps[[nm]]
+    stage_str <- if (is.null(entry$stage)) ".same." else entry$stage
+    sprintf(
+      "  %s <- %s@%s (stage: %s)",
+      nm,
+      entry$state,
+      entry$field %||% "result",
+      stage_str
+    )
+  }, character(1))
+  paste(c("StateDeps:", lines), collapse = "\n")
+}
+
+
+# ---------------------------------------------------------------------------
 # DESIGN LOGIC: Two-Tier Policy System
 # ---------------------------------------------------------------------------
 # This file defines the immutable policy layer (Tier 1) of the package
@@ -264,8 +510,15 @@ MasterPolicy <- S7::new_class(
 #'   execution (default empty vector)
 #' @param accessibility character, context accessibility level for the agent.
 #'   Controls what context data the agent can read. One of \code{"all"}
-#'   (full access), \code{"logs"} (logs only), or \code{"none"} (no access).
+#'   (full access), \code{"logs"} (logs only), \code{"none"} (no access), or
+#'   \code{"explicit"} (use \code{depends_on} to specify inputs; if
+#'   \code{depends_on} is empty, behaves like \code{"logs"}).
 #'   Default is \code{"all"}
+#' @param depends_on \code{StateDeps} object or named list specifying explicit
+#'   dependencies on prior state outputs. Each entry maps a parameter name to
+#'   a dependency: \code{list(param = list(state = "state_name", field =
+#'   "result", stage = NULL))}. Used with \code{accessibility = "explicit"}
+#'   for async execution. See \code{\link{StateDeps}} for format details
 #' @param max_retry integer, maximum total attempts (initial + retries) for
 #'   this state during stage execution (default 0, meaning single attempt).
 #'   The \code{max_retry} limit applies globally across all re-entries to this
@@ -386,13 +639,15 @@ StatePolicy <- S7::new_class(
     # What context the agent may access: this is a safe-check
     # in case the agent calls the other tools to read attachments
     # accessibility != "all" will lock them out
+    # "explicit" means use depends_on to specify inputs; if depends_on is
+    # empty, behaves like "logs"
     accessibility = S7::new_property(
       class = S7::class_character,
       validator = function(value) {
         if (length(value) != 1 || is.na(value)) {
           return("accessibility must be a single character value.")
         }
-        valid_choices <- c("all", "logs", "none")
+        valid_choices <- c("all", "logs", "none", "explicit")
         if (!value %in% valid_choices) {
           return(sprintf(
             "accessibility must be one of %s.",
@@ -452,6 +707,14 @@ StatePolicy <- S7::new_class(
     on_failure = S7::new_property(
       class = S7::class_character,
       default = NA_character_
+    ),
+
+    # Explicit dependencies for async execution
+    # Named list mapping parameter names to prior state outputs
+    # See StateDeps for format details
+    depends_on = S7::new_property(
+      class = StateDeps,
+      default = StateDeps()
     )
   ),
   validator = function(self) {
@@ -636,6 +899,78 @@ Manifest <- S7::new_class(
       }
     }
 
+    # Validate explicit dependencies (depends_on)
+    # 1. Check for duplicate state names (required for unambiguous dependency resolution)
+    state_names <- vapply(self@states, function(s) s@name, character(1))
+    if (anyDuplicated(state_names)) {
+      dups <- unique(state_names[duplicated(state_names)])
+      return(sprintf(
+        "stat policies in manifest must have unique names. Duplicates found: %s",
+        paste(sQuote(dups), collapse = ", ")
+      ))
+    }
+
+    # Map names to policy objects for O(1) lookup
+    state_map <- stats::setNames(self@states, state_names)
+    stages <- self@master@stages
+
+    for (state in self@states) {
+      deps <- state@depends_on@deps
+      if (length(deps) == 0) next
+
+      # Resolve strictly by index in master@stages
+      idx_current <- match(state@stage, stages)
+
+      for (param_nm in names(deps)) {
+        entry <- deps[[param_nm]]
+        target_name <- entry$state
+
+        # Check 1: Existence
+        if (!target_name %in% state_names) {
+          return(sprintf(
+            "state %s depends on non-existent state %s (parameter %s).",
+            sQuote(state@name), sQuote(target_name), sQuote(param_nm)
+          ))
+        }
+
+        target_state <- state_map[[target_name]]
+        idx_target <- match(target_state@stage, stages)
+
+        # Check 2: Stage Mismatch (if specified)
+        if (!is.null(entry$stage)) {
+          if (entry$stage != target_state@stage) {
+            return(sprintf(
+              "state %s expects dependency %s to be in stage %s, but it is in %s.",
+              sQuote(state@name),
+              sQuote(target_name),
+              sQuote(entry$stage),
+              sQuote(target_state@stage)
+            ))
+          }
+        }
+
+        # Check 3: Execution Order
+        # Target must run strictly before current state
+        if (idx_target > idx_current) {
+          return(sprintf(
+            "invalid future dependency: state %s (stage %s) depends on %s (stage %s).", # nolint: line_length_linter.
+            sQuote(state@name), state@stage,
+            sQuote(target_name), target_state@stage
+          ))
+        } else if (idx_target == idx_current) {
+          # Same stage: Target must have HIGHER priority
+          if (target_state@priority <= state@priority) {
+            return(sprintf(
+              "invalid same-stage dependency: state %s depends on %s, but dependency priority (%d) is not higher than dependent priority (%d).", # nolint: line_length_linter.
+              sQuote(state@name), sQuote(target_name),
+              target_state@priority, state@priority
+            ))
+          }
+        }
+        # Implicitly: if idx_target < idx_current, it's valid (past stage)
+      }
+    }
+
     return()
   }
 )
@@ -781,6 +1116,14 @@ manifest_read <- function(file, ...) {
       state$resources <- character(0L)
     } else {
       state$resources <- as.character(state$resources)
+    }
+    # Fix depends_on field: YAML may read empty/missing as NULL,
+    # convert to StateDeps object
+    if (is.null(state$depends_on) || length(state$depends_on) == 0) {
+      state$depends_on <- StateDeps()
+    } else {
+      # YAML reads as named list - convert to StateDeps
+      state$depends_on <- StateDeps(.list = state$depends_on)
     }
     do.call(StatePolicy, state)
   })
