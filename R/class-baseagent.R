@@ -10,32 +10,41 @@ NULL
 #'   user-defined function with metadata (id, description) and result
 #'   formatting. Agents are the execution units in the Runtime Layer
 #'   (Tier 2) that implement the logic defined in \code{StatePolicy}
+#'
 #'   objects from the Policy Layer (Tier 1).
 #' @details
 #' ## Agent Function Signature
 #'
 #' The wrapped function must have the following signature:
 #' \preformatted{
-#' function(self, policy, context, ...) {
+#' function(runtime, ...) {
 #'   # Agent implementation
+#'   # runtime$agent - the Agent object itself
+#'   # runtime$policy - the StatePolicy being executed
+#'
+#'   # runtime$context - the Context for logging
+#'   # runtime$logger() - shorthand for logging
 #'   # Return value will be logged to context via @describe
 #' }
 #' }
 #'
 #' **Required arguments:**
-#' - \code{self}: Reference to the agent object itself
-#' - \code{policy}: The \code{StatePolicy} object being executed
-#' - \code{context}: The \code{Context} object for logging and state access
+#' - \code{runtime}: An \code{AgentRuntime} object containing:
+#'   - \code{runtime$agent}: Reference to the agent object itself
+#'   - \code{runtime$policy}: The \code{StatePolicy} object being executed
+#'   - \code{runtime$context}: The \code{Context} object for logging
+#'   - \code{runtime$logger()}: Method to log messages
 #' - \code{...}: Additional arguments (optional)
 #'
 #' ## Agent Execution Flow
 #'
 #' When a \code{Scheduler} executes a state:
 #' 1. Looks up the agent by \code{StatePolicy@@agent_id}
-#' 2. Calls the agent function with \code{(self, policy, context)}
-#' 3. Captures the return value
-#' 4. Uses \code{describe} function to format result for logging
-#' 5. Logs formatted result to \code{Context}
+#' 2. Creates an \code{AgentRuntime} with agent, policy, and context
+#' 3. Calls the agent function with \code{(runtime)}
+#' 4. Captures the return value
+#' 5. Uses \code{describe} function to format result for logging
+#' 6. Logs formatted result to \code{Context}
 #'
 #' ## Result Description
 #'
@@ -58,7 +67,7 @@ NULL
 #' writing code or executing the tools).
 #'
 #' @param .data function, the agent implementation with signature
-#'   \code{function(self, policy, context, ...)}
+#'   \code{function(runtime, ...)}
 #' @param id character, unique identifier for the agent (letters, digits,
 #'   underscores, dashes only)
 #' @param description character, human-readable description of what the
@@ -72,8 +81,8 @@ NULL
 #'
 #' # Basic agent
 #' simple_agent <- Agent(
-#'   function(self, policy, context) {
-#'     context$logger("Executing simple task")
+#'   function(runtime) {
+#'     runtime$logger("Executing simple task")
 #'     return("Task completed")
 #'   },
 #'   id = "simple_agent",
@@ -83,7 +92,7 @@ NULL
 #'
 #' # Agent with custom result formatting function
 #' analysis_agent <- Agent(
-#'   function(self, policy, context) {
+#'   function(runtime) {
 #'     result <- list(
 #'       status = "success",
 #'       items_processed = 42,
@@ -184,14 +193,8 @@ Agent <- S7::new_class(
   ),
   validator = function(self) {
     nms <- names(formals(self))
-    if (length(nms) < 1 || nms[[1]] != "self") {
-      return("The first argument of the agent function should be `self`")
-    }
-    if (length(nms) < 2 || nms[[2]] != "policy") {
-      return("The second argument of the agent function should be `policy`")
-    }
-    if (length(nms) < 3 || nms[[3]] != "context") {
-      return("The third argument of the agent function should be `context`")
+    if (length(nms) < 1 || nms[[1]] != "runtime") {
+      return("The first argument of the agent function must be `runtime`")
     }
   }
 )

@@ -4,13 +4,18 @@
 \alias{mcptool_instantiate}
 \title{Instantiate from RAVE \verb{MCP} tool definition}
 \usage{
-mcptool_instantiate(tool, ...)
+mcptool_instantiate(tool, ..., runtime = NULL)
 }
 \arguments{
 \item{tool}{An object of class \code{tricobbler_mcp_tool} (loaded via
 \code{\link{mcptool_read}} or \code{\link{mcptool_load_all}}).}
 
 \item{...}{Additional arguments passed to \code{\link[ellmer]{tool}}.}
+
+\item{runtime}{An \code{\link{AgentRuntime}} object or \code{NULL}
+(default). When provided, MCP tools that declare a \code{.runtime}
+parameter will receive the runtime automatically via closure capture.
+This enables async-safe execution without relying on global state.}
 }
 \value{
 An \code{\link[ellmer]{ToolDef}} object ready to be registered

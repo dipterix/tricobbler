@@ -15,6 +15,9 @@
 #'   for text output when using \code{\link{mcp_describe}}.
 #'   Default is \code{NULL} (no change).
 #'   Controls verbosity of fallback text formatting. Typical range: 50-200.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return List containing:
 #' \describe{
@@ -31,11 +34,14 @@
 #' @keywords mcp-tool mcp-category-configuration
 #' @noRd
 mcp_tool_config_set_outputs <- function(
-    tricobbler.mcp_describe.max_size = NULL # nolint: object_name_linter.
+    tricobbler.mcp_describe.max_size = NULL, # nolint: object_name_linter.
+    .runtime = NULL
 ) {
   updated <- list()
   settings <- list()
-  ctx <- get_active_context()
+
+  # Get context from runtime (may be NULL)
+  ctx <- if (!is.null(.runtime)) .runtime$context else NULL
 
   # Update tricobbler.mcp_describe.max_size if provided
   if (!is.null(tricobbler.mcp_describe.max_size)) {
@@ -52,16 +58,19 @@ mcp_tool_config_set_outputs <- function(
         error = "`tricobbler.mcp_describe.max_size` must be a single positive integer" # nolint: line_length_linter.
       ))
     }
-    ctx$cache$set(
-      "tricobbler.mcp_describe.max_size",
-      tricobbler.mcp_describe.max_size
-    )
-    updated <- c(updated, "tricobbler.mcp_describe.max_size")
+    if (!is.null(ctx)) {
+      ctx$cache$set(
+        "tricobbler.mcp_describe.max_size",
+        tricobbler.mcp_describe.max_size
+      )
+      updated <- c(updated, "tricobbler.mcp_describe.max_size")
+    }
   }
-  settings$tricobbler.mcp_describe.max_size <- ctx$cache$get(
-    "tricobbler.mcp_describe.max_size",
+  settings$tricobbler.mcp_describe.max_size <- if (!is.null(ctx)) {
+    ctx$cache$get("tricobbler.mcp_describe.max_size", 100L)
+  } else {
     100L
-  )
+  }
 
   # Build response
   message <- if (length(updated) > 0) {

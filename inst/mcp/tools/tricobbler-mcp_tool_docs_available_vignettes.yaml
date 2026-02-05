@@ -49,11 +49,34 @@ implementation_example: |
   #> [1] "data.table"
   #> 
   #> $vignettes
-  #>                     name                                  title    package
-  #> 1 datatable-benchmarking Benchmarking data.table (source, html) data.table
-  #>  [ reached 'max' / getOption("max.print") -- omitted 11 rows ]
+  #>                                             name
+  #> 1                         datatable-benchmarking
+  #> 2                              datatable-reshape
+  #> 3                     datatable-fread-and-fwrite
+  #> 4                                  datatable-faq
+  #> 5                            datatable-importing
+  #> 6                                datatable-intro
+  #> 7                                datatable-joins
+  #> 8                     datatable-keys-fast-subset
+  #> 9                          datatable-programming
+  #> 10                 datatable-reference-semantics
+  #> 11 datatable-secondary-indices-and-auto-indexing
+  #> 12                            datatable-sd-usage
+  #>                                                         title    package
+  #> 1                      Benchmarking data.table (source, html) data.table
+  #> 2        Efficient reshaping using data.tables (source, html) data.table
+  #> 3                     Fast Read and Fast Write (source, html) data.table
+  #> 4  Frequently Asked Questions about data.table (source, html) data.table
+  #> 5                         Importing data.table (source, html) data.table
+  #> 6                   Introduction to data.table (source, html) data.table
+  #> 7                          Joins in data.table (source, html) data.table
+  #> 8     Keys and fast binary search based subset (source, html) data.table
+  #> 9                    Programming on data.table (source, html) data.table
+  #> 10                         Reference semantics (source, html) data.table
+  #> 11         Secondary indices and auto indexing (source, html) data.table
+  #> 12                 Using .SD for Data Analysis (source, html) data.table
   #> 
   #> $count
   #> [1] 12
   #>
-execution_time: 0.002
+execution_time: 0.003

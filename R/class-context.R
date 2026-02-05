@@ -195,14 +195,11 @@ AgentContext <- R6::R6Class(
     #'    output without styling.
     logger = function(
       ...,
-      caller = get_globals("active_agent"),
+      caller,
       level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
       verbose = c("cli", "base", "none")
     ) {
-      # identify the role based on caller
-      if (is.null(caller)) {
-        caller <- dynGet("self")
-      }
+      force(caller)
       if (identical(caller, private$.scheduler)) {
         role <- "scheduler"
         level <- "TRACE"
@@ -211,6 +208,9 @@ AgentContext <- R6::R6Class(
         if (length(level) > 1) {
           level <- match.arg(level)
         }
+      } else if (inherits(caller, "TricobblerAgentRuntime")) {
+        role <- sprintf("runtime %s", caller$execution_id)
+        level <- match.arg(level)
       } else {
         if (!S7::S7_inherits(caller, class = Agent)) {
           stop("The caller must be an `tricobbler::Agent`")
@@ -302,23 +302,6 @@ AgentContext <- R6::R6Class(
           cat(str_wrapped, sep = "\n")
         }
       }
-    },
-
-    #' @description Execute expression with this context activated
-    #' @param expr expression, the expression to evaluate with the
-    #'   context active
-    #' @param quoted logical, whether \code{expr} is already quoted
-    #' @param env environment in which to evaluate the expression
-    with_activated = function(expr, quoted = FALSE, env = parent.frame()) {
-      if (!quoted) {
-        expr <- substitute(expr)
-      }
-      with_globals(
-        list(active_context = self),
-        expr = expr,
-        quoted = TRUE,
-        env = env
-      )
     },
 
     #' @description Save agent output with metadata
@@ -759,19 +742,4 @@ default_context <- local({
     impl
   }
 })
-
-#' Get the Active Context
-#'
-#' @description
-#' Retrieves the currently active \code{AgentContext} from the global state.
-#' If no context is explicitly activated, returns a default context that is
-#' automatically initialized.
-#'
-#' @return An \code{AgentContext} object representing the current execution
-#'   context.
-#'
-#' @export
-get_active_context <- function() {
-  get_globals("active_context", missing = default_context(), simplify = TRUE)
-}
 

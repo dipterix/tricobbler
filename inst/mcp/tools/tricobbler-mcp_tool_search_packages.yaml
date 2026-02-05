@@ -70,4 +70,4 @@ implementation_example: |
   #> $message
   #> [1] "No packages found matching query: tricobbler"
   #>
-execution_time: 0.5
+execution_time: 0.542

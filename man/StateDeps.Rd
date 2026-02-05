@@ -12,7 +12,55 @@ used by \code{StatePolicy@depends_on}. Each entry maps a parameter name
 to a prior state's output field.
 }
 \details{
+\subsection{Dependency Entry Format}{
 
+Each entry in a \code{StateDeps} object is a named list element where:
+\itemize{
+\item \strong{Name}: The parameter name passed to the agent function
+\item \strong{state}: (required) Name of the state to depend on
+\item \strong{field}: (optional) What to extract - \code{"result"}
+(default) or \code{"description"}
+\item \strong{stage}: (optional) Stage of the dependency. If \code{NULL}
+or omitted, the dependency must be in the same stage with higher
+priority. If specified, must be an earlier stage in the workflow
+}
+}
+
+\subsection{Same-Stage vs Cross-Stage Dependencies}{
+
+\itemize{
+\item \strong{Same-stage} (stage = NULL): The dependent state must have
+higher priority (lower number = runs later). This ensures the dependency
+executes before the dependent within parallel priority groups
+\item \strong{Cross-stage} (stage = "earlier_stage"): The dependency is
+in a previous stage. Since stages execute sequentially, the dependency
+is guaranteed to complete before the dependent stage begins
+}
+}
+
+\subsection{Validation Rules (Property-Level)}{
+
+The property-level validator checks structural correctness:
+\itemize{
+\item Must be a named list (names become parameter names)
+\item Each entry must be a list with required \code{state} field
+\item \code{state} must be a single non-blank character string
+\item \code{field} (if present) must be \code{"result"} or
+\code{"description"}
+\item \code{stage} (if present) must be a single character string or NULL
+\item Parameter names must be valid R identifiers
+}
+}
+
+\subsection{Cross-Validation (Manifest-Level)}{
+
+Additional validation is performed at the \code{Manifest} level to check:
+\itemize{
+\item Referenced states exist in the manifest
+\item Same-stage dependencies have higher priority
+\item Cross-stage dependencies reference earlier stages
+}
+}
 }
 \examples{
 # Same-stage dependencies (state must have higher priority)

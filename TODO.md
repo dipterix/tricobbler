@@ -89,83 +89,257 @@ states:
 
 ---
 
-## Phase 2: Globals Isolation
+## Phase 2: Globals Isolation [Done]
 
 **Why:** Current globals (`active_context`, `active_agent`, `active_policy`) in `R/aaa.R` are shared across all agents. With parallel execution, concurrent agents overwrite each other's globals, causing MCP tools to receive wrong context.
 
-### 2.1 Create ExecutionContext Wrapper
+### 2.1 Create AgentRuntime Class
 
-**Location:** New file `R/class-execution-context.R` or add to `R/class-context.R`
+**Location:** `R/class-runtime.R`
 
-**Steps:**
-1. Create lightweight R6 class to hold per-execution state:
+**Implementation:**
+1. Created `AgentRuntime` R6 class with per-execution state:
    ```r
-   ExecutionContext <- R6::R6Class(
+   AgentRuntime <- R6::R6Class(
+     private = list(
+       .agent = NULL,        # Current Agent (who)
+       .context = NULL,      # AgentContext (where)
+       .policy = NULL,       # StatePolicy (what)
+       .execution_id = NULL  # Unique ID for this execution
+     ),
+     active = list(
+       agent = function() { private$.agent },
+       context = function() { private$.context },
+       policy = function() { private$.policy },
+       execution_id = function() { private$.execution_id }
+     ),
      public = list(
-       context = NULL,      # AgentContext (shared)
-       agent = NULL,        # Current Agent
-       policy = NULL,       # Current StatePolicy
-       execution_id = NULL  # Unique ID for this execution
+       logger = function(...) { ... },  # Convenience method
+       run = function(attempt) { ... },       # Sync execution
+       run_async = function(attempt) { ... }  # Async execution
      )
    )
    ```
-2. This object is passed explicitly to agent functions, not stored in globals
+2. Runtime is instantiated per-execution in Scheduler and passed to agents
+3. Encapsulates execution logic with `run()` and `run_async()` methods using `coro::async`/`await`
 
-### 2.2 Update MCP Tools for Explicit Context
+### 2.2 Update MCP Tools for Explicit Runtime
 
-**Location:** `R/mcp-tooldef-config.R`, `R/mcp-tooldef-package.R`, `R/mcp-tools.R`
+**Location:** `R/mcp-tooldef-config.R`, `R/mcp-tooldef-context.R`, `R/mcp-tools.R`
 
-**Steps:**
-1. Add optional `.exec_ctx` parameter to all MCP tools:
+**Implementation:**
+1. Added `.runtime` parameter to all MCP tools:
    ```r
-   mcp_tool_context_logs_tail <- function(max_lines, skip_lines, .exec_ctx = NULL) {
-     ctx <- if (!is.null(.exec_ctx)) .exec_ctx$context else get_active_context()
+   mcp_tool_context_logs_tail <- function(max_lines, skip_lines, .runtime = NULL) {
+     ctx <- if (!is.null(.runtime)) .runtime$context else NULL
      # ...
    }
    ```
-2. Tools continue working with globals for backward compatibility (sync mode)
-3. In async mode, scheduler passes `ExecutionContext` explicitly
+2. `mcptool_instantiate()` detects `.runtime` parameter via `formals()` inspection
+3. Runtime is injected via closure capture at tool instantiation time:
+   ```r
+   mcptool_instantiate <- function(tool, ..., runtime = NULL) {
+     has_runtime_param <- ".runtime" %in% names(formals(impl))
+     wrapper_fun <- function() {
+       if (has_runtime_param && !is.null(runtime)) {
+         call[[".runtime"]] <- runtime
+       }
+       # ...
+     }
+   }
+   ```
+4. Removed globals infrastructure (`set_globals`, `get_globals`, `get_active_context`)
 
-### 2.3 Update Agent Wrappers
+### 2.3 Update Agent Function Signature
 
 **Location:** `R/class-baseagent.R`
 
-**Steps:**
-1. Modify `as_agent()` wrappers to accept `exec_ctx` parameter
-2. Pass `exec_ctx` to MCP tools when provided
-3. For Chat agents: use `exec_ctx$policy` instead of `get_globals("active_policy")`
+**Implementation:**
+1. Agent functions now require `runtime` as the first parameter:
+   ```r
+   function(runtime, ...) {
+     # runtime$agent - the Agent object itself
+     # runtime$policy - the StatePolicy being executed
+     # runtime$context - the Context for logging
+     # runtime$logger() - shorthand for logging
+   }
+   ```
+2. Validator enforces `runtime` as first argument name
+3. Scheduler creates runtime and calls `runtime$run()`, records results via `do.call()`
 
 ---
 
-## Phase 3: Thread-Safety
+## Phase 3: Per-Runtime Logging & Atomic Attachments
 
-**Why:** Parallel agents write to shared Context storage. Without synchronization, file writes can corrupt index or interleave log lines.
+**Why:** Instead of file locking (unnecessary since R promises/coro are single-threaded), we redesign `AgentRuntime` to own its execution lifecycle completely. Each runtime gets its own log file and attachment, enabling crash inspection and clean separation of concerns.
 
-### 3.1 Add File Locking to Context
+**Key insight:** One `AgentRuntime` = one execution attempt = one attachment. The runtime ID becomes the attachment ID.
 
-**Location:** `R/class-context.R`
+### 3.1 Move `attempt` to AgentRuntime Initializer
 
-**Dependency:** Add `filelock` to DESCRIPTION Imports
+**Location:** `R/class-runtime.R`
 
-**Steps:**
-1. In `record_result()` (around line 401):
-   - Acquire lock on index file before read-modify-write
-   - Use `filelock::lock()` with timeout
-   - Release lock in `on.exit()`
-2. In `logger()` (around line 282):
-   - Lock log file during append
-   - Consider using atomic single-line writes as alternative
+**Current:** Scheduler tracks attempt count and passes to `runtime$run(attempt)`
 
-### 3.2 Context Cache Thread-Safety
-
-**Location:** `R/class-context.R`
+**New:** Runtime receives `attempt` at construction, generates `execution_id` immediately
 
 **Steps:**
-1. Option A (Simple): Disable cache in async mode
+1. Update `AgentRuntime$new()` signature:
    ```r
-   if (async_mode) private$.cache <- NULL
+   initialize = function(agent, context, policy, attempt = 0L) {
+     private$.agent <- agent
+     private$.context <- context
+     private$.policy <- policy
+     private$.attempt <- attempt
+     private$.start_time <- Sys.time()
+     private$.execution_id <- sprintf(
+       "%s_%s_%s_%d",
+       policy@stage,
+       policy@name,
+       format(private$.start_time, "%Y%m%d%H%M%OS3"),
+       attempt
+     )
+     # Create per-runtime log file immediately
+     private$.log_path <- file.path(
+       context$attachment_folder,
+       paste0(private$.execution_id, ".log")
+     )
+     file.create(private$.log_path)
+   }
    ```
-2. Option B (Later): Use database backend for shared cache
+2. Remove `attempt` parameter from `run()` and `run_async()`
+3. Update Scheduler to create new runtime per retry attempt
+
+### 3.2 Add Per-Runtime Log File
+
+**Location:** `R/class-runtime.R`
+
+**Rationale:** Each runtime writes to its own `.log` file using append mode (`a+`). No cross-process conflicts even with mirai/future workers, since each worker has its own runtime instance.
+
+**Steps:**
+1. Add private fields:
+   ```r
+   private = list(
+     .log_path = NULL,      # Path to {execution_id}.log
+     .start_time = NULL,    # Sys.time() at creation
+     .attempt = NULL        # Attempt number
+   )
+   ```
+2. Add `$log(...)` method (replaces current `$logger()`):
+   ```r
+   log = function(..., level = "INFO") {
+     timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%OS3")
+     msg <- paste0("[", timestamp, "] [", level, "] ", paste(..., collapse = ""))
+     cat(msg, "\n", file = private$.log_path, append = TRUE)
+   }
+   ```
+3. Add `$get_logs()` method:
+   ```r
+   get_logs = function() {
+     if (file.exists(private$.log_path)) {
+       readLines(private$.log_path)
+     } else {
+       character(0)
+     }
+   }
+   ```
+
+### 3.3 Add Timing Capture & Result Finalization
+
+**Location:** `R/class-runtime.R`
+
+**Steps:**
+1. Modify `run()` and `run_async()` to capture timing:
+   ```r
+   run = function() {
+     # ... existing execution logic ...
+     duration_secs <- as.numeric(
+       difftime(Sys.time(), private$.start_time, units = "secs")
+     )
+     # Include timing in result_list
+     list(
+       result = result,
+       succeed = succeed,
+       stage = private$.policy@stage,
+       state = private$.policy@name,
+       agent_id = private$.policy@agent_id,
+       current_attempt = private$.attempt,
+       start_time = private$.start_time,
+       duration_secs = duration_secs,
+       execution_id = private$.execution_id
+     )
+   }
+   ```
+2. Add `$finalize(result_list)` method that:
+   - Appends final summary line to log: `[COMPLETE] duration=X.Xs status=success/failed`
+   - Saves `.rds` attachment file
+   - Calls `context$record_result()` to update index
+   ```r
+   finalize = function(result_list) {
+     # Log completion
+     status <- if (result_list$succeed) "success" else "failed"
+     self$log(
+       sprintf("duration=%.3fs status=%s", result_list$duration_secs, status),
+       level = "COMPLETE"
+     )
+     # Save attachment
+     rds_path <- file.path(
+       private$.context$attachment_folder,
+       paste0(private$.execution_id, ".rds")
+     )
+     saveRDS(result_list, rds_path)
+     # Update index (only after .rds exists)
+     private$.context$record_result(result_list)
+   }
+   ```
+
+### 3.4 Simplify AgentContext
+
+**Location:** `R/class-context.R`
+
+**Steps:**
+1. Keep `$logger()` for scheduler-level logs only (main thread)
+2. Simplify `record_result()` to only update index (runtime handles file creation)
+3. Add inspection methods:
+   ```r
+   list_incomplete = function() {
+     # Find .log files without matching .rds (crashed/in-progress runs)
+     logs <- list.files(self$attachment_folder, pattern = "\\.log$")
+     rds <- list.files(self$attachment_folder, pattern = "\\.rds$")
+     log_ids <- sub("\\.log$", "", logs)
+     rds_ids <- sub("\\.rds$", "", rds)
+     setdiff(log_ids, rds_ids)
+   }
+   
+   get_runtime_log = function(execution_id) {
+     log_path <- file.path(self$attachment_folder, paste0(execution_id, ".log"))
+     if (file.exists(log_path)) readLines(log_path) else NULL
+   }
+   ```
+
+### 3.5 Update Scheduler for New Runtime Lifecycle
+
+**Location:** `R/class-scheduler.R`
+
+**Steps:**
+1. Create fresh `AgentRuntime` per attempt:
+   ```r
+   for (attempt in seq_len(max_retries)) {
+     runtime <- AgentRuntime$new(agent, context, policy, attempt = attempt - 1L)
+     result_list <- runtime$run()
+     runtime$finalize(result_list)
+     if (result_list$succeed) break
+   }
+   ```
+2. Remove attempt tracking from scheduler (runtime owns it)
+
+### Benefits
+
+1. **Crash inspection:** If agent crashes mid-execution, `.log` file exists without `.rds` — can inspect what happened
+2. **No file locking needed:** Each runtime writes only to its own files
+3. **Deferred main-thread writes:** Index update happens after promise resolution in main process
+4. **Self-contained execution:** Runtime ID = attachment ID, simplifies mental model
+5. **Worker process safe:** mirai/future workers can log to their own `.log` files without conflict
 
 ---
 

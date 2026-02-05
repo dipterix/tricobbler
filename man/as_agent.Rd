@@ -41,8 +41,8 @@ specifications, and package function references.
 \examples{
 
 # From a simple function
-my_func <- function(self, policy, context) {
-  context$logger("Hello from my agent!")
+my_func <- function(runtime) {
+  runtime$logger("Hello from my agent!")
   return("done")
 }
 agent <- as_agent(my_func)

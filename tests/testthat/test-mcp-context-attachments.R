@@ -111,19 +111,41 @@ create_test_context_with_attachment <- function() {
   ctx <- AgentContext$new(path = test_path)
   ctx$init_resources()
 
-  # Record an attachment so we have something to test with
-  ctx$with_activated({
-    ctx$record_result(
-      result = list(value = 42, name = "test"),
-      stage = "teststage",
-      state = "teststate",
-      agent_id = "testagent",
-      current_attempt = 1L,
-      description = "Test attachment for MCP tool testing"
-    )
-  })
+  # Record an attachment (no with_activated needed)
+  ctx$record_result(
+    result = list(value = 42, name = "test"),
+    stage = "teststage",
+    state = "teststate",
+    agent_id = "testagent",
+    current_attempt = 1L,
+    description = "Test attachment for MCP tool testing"
+  )
 
   ctx
+}
+
+# Helper to create a test runtime for MCP tool testing
+# Creates a minimal runtime with a mock agent and policy
+create_test_runtime <- function(context, accessibility = "all") {
+  # Create a minimal test agent
+  test_agent <- Agent(
+    function(runtime) "test",
+    id = "test_agent",
+    description = "Test agent for unit tests"
+  )
+  # Create a minimal test policy with specified accessibility
+  test_policy <- StatePolicy(
+    name = "test_policy",
+    stage = "test",
+    agent_id = "test_agent",
+    accessibility = accessibility
+  )
+  # Create and return runtime
+  AgentRuntime$new(
+    agent = test_agent,
+    context = context,
+    policy = test_policy
+  )
 }
 
 
@@ -139,10 +161,9 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    # Execute tool within activated context (default accessibility = "logs")
-    result <- context$with_activated({
-      mcp_tool_context_attachment_list()
-    })
+    # Execute tool with runtime (default accessibility = "all")
+    runtime <- create_test_runtime(context)
+    result <- mcp_tool_context_attachment_list(.runtime = runtime)
 
     # Verify result is JSON
     expect_s3_class(result, "json")
@@ -170,10 +191,9 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    # Execute without active_policy (defaults to "logs" accessibility)
-    result <- context$with_activated({
-      mcp_tool_context_attachment_list()
-    })
+    # Execute with runtime that has "logs" accessibility
+    runtime <- create_test_runtime(context, accessibility = "logs")
+    result <- mcp_tool_context_attachment_list(.runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -195,10 +215,9 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    # Execute with default accessibility (logs)
-    result <- context$with_activated({
-      mcp_tool_context_attachment_list()
-    })
+    # Execute with runtime that has "logs" accessibility
+    runtime <- create_test_runtime(context, accessibility = "logs")
+    result <- mcp_tool_context_attachment_list(.runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -230,20 +249,9 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    # Create a policy with "all" accessibility
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with full access",
-      agent_id = "test_agent",
-      accessibility = "all"
-    )
-
-    # Execute with "all" accessibility policy
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_attachment_list()
-    )
+    # Execute with runtime that has "all" accessibility
+    runtime <- create_test_runtime(context, accessibility = "all")
+    result <- mcp_tool_context_attachment_list(.runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -270,10 +278,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    # Execute tool within activated context
-    result <- context$with_activated({
-      mcp_tool_context_attachment_exists(attachment_id = attachment_id)
-    })
+    # Execute tool with runtime
+    runtime <- create_test_runtime(context)
+    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
 
     # Verify result is JSON
     expect_s3_class(result, "json")
@@ -307,10 +314,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    # Execute without active_policy (defaults to "logs" accessibility)
-    result <- context$with_activated({
-      mcp_tool_context_attachment_exists(attachment_id = attachment_id)
-    })
+    # Execute with runtime that has "logs" accessibility
+    runtime <- create_test_runtime(context, accessibility = "logs")
+    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -331,10 +337,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    # Execute with default accessibility (logs)
-    result <- context$with_activated({
-      mcp_tool_context_attachment_exists(attachment_id = attachment_id)
-    })
+    # Execute with runtime that has "logs" accessibility
+    runtime <- create_test_runtime(context, accessibility = "logs")
+    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -364,18 +369,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with full access",
-      agent_id = "test_agent",
-      accessibility = "all"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_attachment_exists(attachment_id = attachment_id)
-    )
+    # Execute with runtime that has "all" accessibility
+    runtime <- create_test_runtime(context, accessibility = "all")
+    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -399,10 +395,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    # Execute without active_policy (defaults to "logs" accessibility)
-    result <- context$with_activated({
-      mcp_tool_context_attachment_get(attachment_id = attachment_id)
-    })
+    # Execute with runtime that has "logs" accessibility
+    runtime <- create_test_runtime(context, accessibility = "logs")
+    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -424,18 +419,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with full access",
-      agent_id = "test_agent",
-      accessibility = "all"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_attachment_get(attachment_id = attachment_id)
-    )
+    # Execute with runtime that has "all" accessibility
+    runtime <- create_test_runtime(context, accessibility = "all")
+    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
 
     expect_s3_class(result, "json")
 
@@ -463,18 +449,9 @@ test_that(
     attachments <- context$list_attachments()
     attachment_id <- attachments$filename[1]
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with no access",
-      agent_id = "test_agent",
-      accessibility = "none"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_attachment_get(attachment_id = attachment_id)
-    )
+    # Execute with runtime that has "none" accessibility
+    runtime <- create_test_runtime(context, accessibility = "none")
+    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -495,24 +472,13 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    # Add a log entry
-    context$with_activated({
-      context$logger("Test log entry", caller = context, level = "INFO",
-                     verbose = "none")
-    })
+    # Add a log entry (no with_activated needed)
+    context$logger("Test log entry", caller = context, level = "INFO",
+                   verbose = "none")
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with no access",
-      agent_id = "test_agent",
-      accessibility = "none"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_logs_head()
-    )
+    # Execute with runtime that has "none" accessibility
+    runtime <- create_test_runtime(context, accessibility = "none")
+    result <- mcp_tool_context_logs_head(.runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -528,23 +494,13 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    context$with_activated({
-      context$logger("Test log entry", caller = context, level = "INFO",
-                     verbose = "none")
-    })
+    # Add a log entry (no with_activated needed)
+    context$logger("Test log entry", caller = context, level = "INFO",
+                   verbose = "none")
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with no access",
-      agent_id = "test_agent",
-      accessibility = "none"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_logs_tail()
-    )
+    # Execute with runtime that has "none" accessibility
+    runtime <- create_test_runtime(context, accessibility = "none")
+    result <- mcp_tool_context_logs_tail(.runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -559,23 +515,13 @@ test_that(
     context <- create_test_context_with_attachment()
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-    context$with_activated({
-      context$logger("Test log entry", caller = context, level = "INFO",
-                     verbose = "none")
-    })
+    # Add a log entry (no with_activated needed)
+    context$logger("Test log entry", caller = context, level = "INFO",
+                   verbose = "none")
 
-    policy <- StatePolicy(
-      name = "test_state",
-      stage = "test",
-      description = "Test state with no access",
-      agent_id = "test_agent",
-      accessibility = "none"
-    )
-
-    result <- with_globals(
-      named_list = list(active_context = context, active_policy = policy),
-      expr = mcp_tool_context_logs_search(pattern = "test")
-    )
+    # Execute with runtime that has "none" accessibility
+    runtime <- create_test_runtime(context, accessibility = "none")
+    result <- mcp_tool_context_logs_search(pattern = "test", .runtime = runtime)
 
     parsed <- jsonlite::fromJSON(as.character(result))
 

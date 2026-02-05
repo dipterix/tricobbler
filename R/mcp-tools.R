@@ -2222,19 +2222,23 @@ mcptool_path <- function(tool_name, tools_dir = "../tools") {
 #'
 #' @param tool An object of class \code{tricobbler_mcp_tool} (loaded via
 #'   \code{\link{mcptool_read}} or \code{\link{mcptool_load_all}}).
+#' @param runtime An \code{\link{AgentRuntime}} object or \code{NULL}
+#'   (default). When provided, MCP tools that declare a \code{.runtime}
+#'   parameter will receive the runtime automatically via closure capture.
+#'   This enables async-safe execution without relying on global state.
 #' @param ... Additional arguments passed to \code{\link[ellmer]{tool}}.
 #'
 #' @return An \code{\link[ellmer]{ToolDef}} object ready to be registered
 #'  with a chat session.
 #'
 #' @export
-mcptool_instantiate <- function(tool, ...) {
+mcptool_instantiate <- function(tool, ..., runtime = NULL) {
 
   if (!inherits(tool, "tricobbler_mcp_tool") && is.list(tool)) {
     tool_list <- list()
     for (sub_tool in tool) {
       stopifnot(inherits(sub_tool, "tricobbler_mcp_tool"))
-      tool_list[[sub_tool$name]] <- Recall(tool = sub_tool, ...)
+      tool_list[[sub_tool$name]] <- Recall(tool = sub_tool, ..., runtime = runtime) # nolint: line_length_linter.
     }
     return(tool_list)
   }
@@ -2255,15 +2259,24 @@ mcptool_instantiate <- function(tool, ...) {
   # obtain the function
   impl <- mcptool_seek_function(tool)
 
+  # Check if impl has .runtime parameter for injection
+  impl_fmls <- formals(impl)
+  has_runtime_param <- ".runtime" %in% names(impl_fmls)
+
   # wrap the function so the return is always JSON stringified
+  # runtime is captured in closure for async-safe access
   wrapper_fun <- function() {
     call <- match.call()
     call[[1]] <- quote(impl)
+    # Inject .runtime if the implementation accepts it
+    if (has_runtime_param && !is.null(runtime)) {
+      call[[".runtime"]] <- runtime
+    }
     res <- eval(call)
     res <- mcp_describe(res)
     res
   }
-  fmls <- formals(impl)
+  fmls <- impl_fmls
   fml_names <- names(fmls)
   if (length(fml_names)) {
     fmls <- fmls[!startsWith(fml_names, ".")]

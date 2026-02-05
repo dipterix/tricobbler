@@ -229,68 +229,23 @@ Scheduler <- R6::R6Class(
         succeed <- FALSE
         max_retry <- max(policy@max_retry, 0L)
 
+        # Create AgentRuntime for this execution
+        runtime <- AgentRuntime$new(
+          agent = agent,
+          context = context,
+          policy = policy
+        )
+
         # Execute agent once (agent handles transient retries
         # internally if needed)
-        result <- with_globals(
-          list(
-            active_context = context,
-            active_agent = agent,
-            active_policy = policy
-          ),
-          {
-            tryCatch(
-              {
-                self$context$logger(
-                  "starting state: ", state_name,
-                  " with agent ", agent@id,
-                  " (attempt ", init_retry_count, ")",
-                  caller = self
-                )
-                result <- agent(
-                  self = agent,
-                  policy = policy,
-                  context = self$context
-                )
-                succeed <- TRUE
-                result
-              },
-              error = function(e) {
-                print(e)
-                private$.last_error <- e
-                e
-              }
-            )
-          }
-        )
+        result_list <- runtime$run(init_retry_count)
 
         if (!identical(current_flag, private$.run_flag)) {
           stop("Scheduler flags changed. Abort current procedure.")
         }
 
-        result_description <- structure(list(), class = "missing")
-        if (is.function(agent@describe)) {
-          tryCatch(
-            {
-              result_description <- agent@describe(result)
-            },
-            error = function(e) {}
-          )
-        }
-
-        # Record the result
-        if (!succeed && inherits(result, "error")) {
-          class(result) <- c("tricobbler_state_error", class(result))
-        }
-
-        self$context$record_result(
-          result = result,
-          succeed = succeed,
-          stage = stage,
-          state = state_name,
-          agent_id = agent@id,
-          current_attempt = init_retry_count,
-          description = result_description
-        )
+        do.call(self$context$record_result, result_list)
+        succeed <- result_list$succeed
 
         # Determine next state based on execution outcome
         if (succeed) {

@@ -45,7 +45,6 @@ NULL
 #' \itemize{
 #'   \item \strong{Same-stage} (stage = NULL): The dependent state must have
 #'     higher priority (lower number = runs later). This ensures the dependency
-
 #'     executes before the dependent within parallel priority groups
 #'   \item \strong{Cross-stage} (stage = "earlier_stage"): The dependency is
 #'     in a previous stage. Since stages execute sequentially, the dependency
@@ -68,7 +67,7 @@ NULL
 #' ## Cross-Validation (Manifest-Level)
 #'
 #' Additional validation is performed at the \code{Manifest} level to check:
-#' \itemize
+#' \itemize{
 #'   \item Referenced states exist in the manifest
 #'   \item Same-stage dependencies have higher priority
 #'   \item Cross-stage dependencies reference earlier stages

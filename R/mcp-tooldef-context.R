@@ -1,31 +1,37 @@
 
-#' Check Context Accessibility from Active Policy
+# ---- Helper for runtime-based accessibility check ----------------------------
+
+#' Check Context Accessibility from Runtime Policy
 #'
 #' @description
 #' Internal helper to check if the current policy allows the requested
 #' access level. Returns the accessibility level or an error message.
 #'
+#' @param runtime AgentRuntime object or NULL
 #' @param required_level character, the minimum accessibility level required.
 #'   One of \code{"logs"} (logs only) or \code{"all"} (full access).
 #' @return A list with \code{allowed} (logical) and \code{level} (character)
 #'   if access is granted, or \code{allowed = FALSE} and \code{error}
 #'   (character) if denied.
 #' @noRd
-check_context_accessibility <- function(
+.check_runtime_accessibility <- function(
+    runtime,
     required_level = c("logs", "all")
 ) {
   required_level <- match.arg(required_level)
 
-  # Get active policy from globals, default to "logs" if missing
-  policy <- get_globals("active_policy", missing = NULL, simplify = TRUE)
+  # Get policy from runtime, default to "logs" if missing
 
-  if (is.null(policy)) {
-    # No active policy - use default accessibility "logs"
+  if (is.null(runtime) || is.null(runtime$policy)) {
     current_level <- "logs"
-  } else if (S7::S7_inherits(policy, StatePolicy)) {
-    current_level <- policy@accessibility
+  } else if (S7::S7_inherits(runtime$policy, StatePolicy)) {
+    current_level <- runtime$policy@accessibility
     # Validate accessibility value
-    if (!current_level %in% c("all", "logs", "none")) {
+    if (!current_level %in% c("all", "logs", "none", "explicit")) {
+      current_level <- "logs"
+    }
+    # explicit has same access as logs for tool purposes
+    if (current_level == "explicit") {
       current_level <- "logs"
     }
   } else {
@@ -77,6 +83,9 @@ check_context_accessibility <- function(
 #' @param levels Character vector, log levels to include. Defaults to all
 #'   levels: \code{TRACE}, \code{DEBUG}, \code{INFO}, \code{WARN},
 #'   \code{ERROR}, \code{FATAL}.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -93,13 +102,13 @@ check_context_accessibility <- function(
 mcp_tool_context_logs_head <- function(
     max_lines = 300L,
     skip_lines = 0L,
-
     pattern = NULL,
-    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"),
+    .runtime = NULL
 ) {
 
   # Check accessibility - logs require "logs" or "all"
-  access <- check_context_accessibility("logs")
+  access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
     return(jsonlite::toJSON(
       list(success = FALSE, error = access$error),
@@ -107,17 +116,17 @@ mcp_tool_context_logs_head <- function(
     ))
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(
@@ -178,6 +187,9 @@ mcp_tool_context_logs_head <- function(
 #' @param levels Character vector, log levels to include. Defaults to all
 #'   levels: \code{TRACE}, \code{DEBUG}, \code{INFO}, \code{WARN},
 #'   \code{ERROR}, \code{FATAL}.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -195,10 +207,11 @@ mcp_tool_context_logs_tail <- function(
     max_lines = 300L,
     skip_lines = 0L,
     pattern = NULL,
-    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"),
+    .runtime = NULL
 ) {
   # Check accessibility - logs require "logs" or "all"
-  access <- check_context_accessibility("logs")
+  access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
     return(jsonlite::toJSON(
       list(success = FALSE, error = access$error),
@@ -206,17 +219,17 @@ mcp_tool_context_logs_tail <- function(
     ))
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(
@@ -276,6 +289,9 @@ mcp_tool_context_logs_tail <- function(
 #' @param levels Character vector, log levels to include. Defaults to all
 #'   levels: \code{TRACE}, \code{DEBUG}, \code{INFO}, \code{WARN},
 #'   \code{ERROR}, \code{FATAL}.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -293,10 +309,11 @@ mcp_tool_context_logs_tail <- function(
 mcp_tool_context_logs_search <- function(
     pattern,
     max_lines = 1000L,
-    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+    levels = c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"),
+    .runtime = NULL
 ) {
   # Check accessibility - logs require "logs" or "all"
-  access <- check_context_accessibility("logs")
+  access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
     return(jsonlite::toJSON(
       list(success = FALSE, error = access$error),
@@ -316,17 +333,17 @@ mcp_tool_context_logs_search <- function(
     ))
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(
@@ -387,6 +404,9 @@ mcp_tool_context_logs_search <- function(
 #' @param reindex Logical, whether to reload the index from disk
 #'   (default \code{FALSE}). Set to \code{TRUE} if attachments may have been
 #'   modified externally.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -402,9 +422,12 @@ mcp_tool_context_logs_search <- function(
 #'
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
-mcp_tool_context_attachment_list <- function(reindex = FALSE) {
+mcp_tool_context_attachment_list <- function(
+    reindex = FALSE,
+    .runtime = NULL
+) {
   # Check accessibility - list works but note if content is restricted
-  access <- check_context_accessibility("logs")
+  access <- .check_runtime_accessibility(.runtime, "logs")
   access_note <- NULL
   if (access$allowed && access$level != "all") {
     access_note <- paste(
@@ -413,17 +436,17 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
     )
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(
@@ -496,6 +519,9 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
 #'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
 #'   \code{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -510,9 +536,12 @@ mcp_tool_context_attachment_list <- function(reindex = FALSE) {
 #'
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
-mcp_tool_context_attachment_exists <- function(attachment_id) {
+mcp_tool_context_attachment_exists <- function(
+    attachment_id,
+    .runtime = NULL
+) {
   # Check accessibility - exists check works but note if content is restricted
-  access <- check_context_accessibility("logs")
+  access <- .check_runtime_accessibility(.runtime, "logs")
   access_note <- NULL
   if (access$allowed && access$level != "all") {
     access_note <- paste(
@@ -534,17 +563,17 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
     ))
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(
@@ -603,6 +632,9 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
 #'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
 #'   \verb{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.
+#' @param .runtime AgentRuntime object (injected automatically by
+#'   \code{\link{mcptool_instantiate}} when tools are used within agent
+#'   execution). Should not be set manually.
 #'
 #' @return A list containing:
 #' \describe{
@@ -617,9 +649,12 @@ mcp_tool_context_attachment_exists <- function(attachment_id) {
 #'
 #' @keywords mcp-tool mcp-category-info mcp-output-json
 #' @noRd
-mcp_tool_context_attachment_get <- function(attachment_id) {
+mcp_tool_context_attachment_get <- function(
+    attachment_id,
+    .runtime = NULL
+) {
   # Check accessibility - attachments require "all"
-  access <- check_context_accessibility("all")
+  access <- .check_runtime_accessibility(.runtime, "all")
   if (!access$allowed) {
     return(jsonlite::toJSON(
       list(success = FALSE, error = access$error),
@@ -640,17 +675,17 @@ mcp_tool_context_attachment_get <- function(attachment_id) {
     ))
   }
 
-  context <- get_active_context()
-
-  if (is.null(context)) {
+  # Get context from runtime or return error
+  if (is.null(.runtime) || is.null(.runtime$context)) {
     return(jsonlite::toJSON(
       list(
         success = FALSE,
-        error = "No active context. Start a workflow execution first."
+        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
       ),
       auto_unbox = TRUE, pretty = FALSE
     ))
   }
+  context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
     return(jsonlite::toJSON(

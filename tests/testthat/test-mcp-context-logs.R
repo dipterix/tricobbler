@@ -97,6 +97,30 @@ create_test_context <- function() {
   ctx
 }
 
+# Helper to create a test runtime for MCP tool testing
+# Creates a minimal runtime with a mock agent and policy that allows full access
+create_test_runtime <- function(context, accessibility = "all") {
+  # Create a minimal test agent
+  test_agent <- Agent(
+    function(runtime) "test",
+    id = "test_agent",
+    description = "Test agent for unit tests"
+  )
+  # Create a minimal test policy with specified accessibility
+  test_policy <- StatePolicy(
+    name = "test_policy",
+    stage = "test",
+    agent_id = "test_agent",
+    accessibility = accessibility
+  )
+  # Create and return runtime
+  AgentRuntime$new(
+    agent = test_agent,
+    context = context,
+    policy = test_policy
+  )
+}
+
 test_that(
   "mcp_tool_context_logs_head output types match YAML spec exactly",
   {
@@ -106,18 +130,17 @@ test_that(
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Test message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log a test message (no with_activated needed, caller is explicit)
+  context$logger(
+    "Test message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool with .runtime parameter
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -167,31 +190,29 @@ expect_equal(yaml_spec$output_format, "json")
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Test message 1",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Test warning",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Test error",
-      caller = context,
-      level = "ERROR",
-      verbose = "none"
-    )
-  })
+  # Log test messages (no with_activated needed)
+  context$logger(
+    "Test message 1",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Test warning",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Test error",
+    caller = context,
+    level = "ERROR",
+    verbose = "none"
+  )
 
-  # Execute tool within activated context
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Execute tool with runtime
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   # Verify result has "json" class
   expect_s3_class(result, "json")
@@ -254,37 +275,35 @@ test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "First message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Second message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Third message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Fourth message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test messages (no with_activated needed)
+  context$logger(
+    "First message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Second message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Third message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Fourth message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  # Read only last 2 entries
-  result <- context$with_activated({
-    mcp_tool_context_logs_tail(max_lines = 2L)
-  })
+  # Create runtime and read only last 2 entries
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_tail(max_lines = 2L, .runtime = runtime)
 
   expect_s3_class(result, "json")
 
@@ -310,37 +329,35 @@ test_that("mcp_tool_context_logs_search returns JSON matching YAML spec", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Normal operation",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Warning about memory",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Critical error occurred",
-      caller = context,
-      level = "ERROR",
-      verbose = "none"
-    )
-    context$logger(
-      "Another normal log",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test messages (no with_activated needed)
+  context$logger(
+    "Normal operation",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Warning about memory",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Critical error occurred",
+    caller = context,
+    level = "ERROR",
+    verbose = "none"
+  )
+  context$logger(
+    "Another normal log",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  # Search for "error" pattern
-  result <- context$with_activated({
-    mcp_tool_context_logs_search(pattern = "error", max_lines = 100L)
-  })
+  # Create runtime and search for "error" pattern
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_search(pattern = "error", max_lines = 100L, .runtime = runtime)
 
   expect_s3_class(result, "json")
 
@@ -362,10 +379,9 @@ test_that("mcp_tool_context_logs_search validates required pattern parameter", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  # Call without pattern - should return error
-  result <- context$with_activated({
-    mcp_tool_context_logs_search()
-  })
+  # Create runtime and call without pattern - should return error
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_search(.runtime = runtime)
 
   expect_s3_class(result, "json")
 
@@ -400,26 +416,25 @@ test_that("ellmer tool instantiation preserves YAML spec metadata", {
 test_that("instantiated tool executes and returns valid JSON", {
   skip_if_not_installed("ellmer")
 
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-  tool <- mcptool_instantiate(yaml_spec)
-
-  # Create context and add logs
+  # Create context and add logs first (needed to create runtime)
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Ellmer test log",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test message (no with_activated needed)
+  context$logger(
+    "Ellmer test log",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  # Execute the tool (ToolDef is callable as a function) within context
-  result <- context$with_activated({
-    tool(max_lines = 10L)
-  })
+  # Create runtime and instantiate tool with runtime
+  runtime <- create_test_runtime(context)
+  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
+  tool <- mcptool_instantiate(yaml_spec, runtime = runtime)
+
+  # Execute the tool (ToolDef is callable as a function)
+  result <- tool(max_lines = 10L)
 
   # The wrapper should preserve the json class (since it inherits "json")
   # and mcp_describe.json should return it as-is
@@ -435,31 +450,29 @@ test_that("entries array elements have consistent structure", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  # Create multiple log entries with different levels
-  context$with_activated({
-    context$logger(
-      "Info message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Warning message",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Error message",
-      caller = context,
-      level = "ERROR",
-      verbose = "none"
-    )
-  })
+  # Create multiple log entries with different levels (no with_activated needed)
+  context$logger(
+    "Info message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Warning message",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Error message",
+    caller = context,
+    level = "ERROR",
+    verbose = "none"
+  )
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 100L)
-  })
+  # Create runtime and call tool
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 100L, .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -491,31 +504,29 @@ test_that("level filtering works correctly", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Info only",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Warning only",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Error only",
-      caller = context,
-      level = "ERROR",
-      verbose = "none"
-    )
-  })
+  # Log test messages (no with_activated needed)
+  context$logger(
+    "Info only",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Warning only",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Error only",
+    caller = context,
+    level = "ERROR",
+    verbose = "none"
+  )
 
-  # Filter to only ERROR level
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 100L, levels = "ERROR")
-  })
+  # Create runtime and filter to only ERROR level
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 100L, levels = "ERROR", .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -529,30 +540,29 @@ test_that("pattern filtering works correctly", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Processing file A",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Memory usage high",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Processing file B",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test messages (no with_activated needed)
+  context$logger(
+    "Processing file A",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Memory usage high",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Processing file B",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 100L, pattern = "Processing")
-  })
+  # Create runtime and call tool with pattern filter
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 100L, pattern = "Processing", .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -565,17 +575,15 @@ test_that("skip_lines pagination works", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger("Line 1", caller = context, level = "INFO", verbose = "none")
-    context$logger("Line 2", caller = context, level = "INFO", verbose = "none")
-    context$logger("Line 3", caller = context, level = "INFO", verbose = "none")
-    context$logger("Line 4", caller = context, level = "INFO", verbose = "none")
-  })
+  # Log test messages (no with_activated needed)
+  context$logger("Line 1", caller = context, level = "INFO", verbose = "none")
+  context$logger("Line 2", caller = context, level = "INFO", verbose = "none")
+  context$logger("Line 3", caller = context, level = "INFO", verbose = "none")
+  context$logger("Line 4", caller = context, level = "INFO", verbose = "none")
 
-  # Skip first 2 lines from head
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 100L, skip_lines = 2L)
-  })
+  # Create runtime and skip first 2 lines from head
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 100L, skip_lines = 2L, .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -591,9 +599,9 @@ test_that("empty log file returns valid empty response", {
 
   # Don't add any logs
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool on empty log
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   expect_s3_class(result, "json")
 
@@ -692,13 +700,12 @@ test_that("actual JSON output field types match YAML spec types", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger("Test", caller = context, level = "INFO", verbose = "none")
-  })
+  # Log test message (no with_activated needed)
+  context$logger("Test", caller = context, level = "INFO", verbose = "none")
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
   props <- yaml_spec$returns$properties
@@ -783,18 +790,17 @@ test_that("entries structure matches documented entry fields", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Test",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test message (no with_activated needed)
+  context$logger(
+    "Test",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -815,24 +821,20 @@ test_that(
   skip_if_not_installed("ellmer")
 
   # Create context with logs
-
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Test log entry",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test message (no with_activated needed)
+  context$logger(
+    "Test log entry",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-
-  # Get raw JSON output from tool
-  raw_result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and get raw JSON output from tool
+  runtime <- create_test_runtime(context)
+  raw_result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   # Verify it has json class (from jsonlite::toJSON)
   expect_s3_class(raw_result, "json")
@@ -856,38 +858,37 @@ test_that(
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  # Create varied log entries
-  context$with_activated({
-    context$logger(
-      "Info log",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-    context$logger(
-      "Warning log",
-      caller = context,
-      level = "WARN",
-      verbose = "none"
-    )
-    context$logger(
-      "Error log",
-      caller = context,
-      level = "ERROR",
-      verbose = "none"
-    )
-  })
+  # Create varied log entries (no with_activated needed)
+  context$logger(
+    "Info log",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+  context$logger(
+    "Warning log",
+    caller = context,
+    level = "WARN",
+    verbose = "none"
+  )
+  context$logger(
+    "Error log",
+    caller = context,
+    level = "ERROR",
+    verbose = "none"
+  )
+
+  # Create runtime for tool calls
+  runtime <- create_test_runtime(context)
 
   tools <- list(
-    head = function() mcp_tool_context_logs_head(max_lines = 10L),
-    tail = function() mcp_tool_context_logs_tail(max_lines = 10L),
-    search = function() mcp_tool_context_logs_search(pattern = "log")
+    head = function() mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime),
+    tail = function() mcp_tool_context_logs_tail(max_lines = 10L, .runtime = runtime),
+    search = function() mcp_tool_context_logs_search(pattern = "log", .runtime = runtime)
   )
 
   for (tool_name in names(tools)) {
-    raw_result <- context$with_activated({
-      tools[[tool_name]]()
-    })
+    raw_result <- tools[[tool_name]]()
 
     # Wrap in ContentToolResult like ellmer does
     content_result <- ellmer::ContentToolResult(value = raw_result)
@@ -912,25 +913,25 @@ test_that(
   {
   skip_if_not_installed("ellmer")
 
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-  tool <- mcptool_instantiate(yaml_spec)
-
+  # Create context first
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Ellmer integration test",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test message (no with_activated needed)
+  context$logger(
+    "Ellmer integration test",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
+
+  # Create runtime and instantiate tool with runtime
+  runtime <- create_test_runtime(context)
+  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
+  tool <- mcptool_instantiate(yaml_spec, runtime = runtime)
 
   # Execute through instantiated tool (simulates real usage)
-  result <- context$with_activated({
-    tool(max_lines = 10L)
-  })
+  result <- tool(max_lines = 10L)
 
   # Result should be a character with json class
   # (mcp_describe.json returns x as-is, preserving the json class)
@@ -981,18 +982,17 @@ test_that(
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger(
-      "Test message",
-      caller = context,
-      level = "INFO",
-      verbose = "none"
-    )
-  })
+  # Log test message (no with_activated needed)
+  context$logger(
+    "Test message",
+    caller = context,
+    level = "INFO",
+    verbose = "none"
+  )
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   # Verify JSON is compact (single line, no indentation)
   json_str <- as.character(result)
@@ -1010,14 +1010,13 @@ test_that("JSON arrays are serialized as rows not columns", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  context$with_activated({
-    context$logger("First", caller = context, level = "INFO", verbose = "none")
-    context$logger("Second", caller = context, level = "WARN", verbose = "none")
-  })
+  # Log test messages (no with_activated needed)
+  context$logger("First", caller = context, level = "INFO", verbose = "none")
+  context$logger("Second", caller = context, level = "WARN", verbose = "none")
 
-  result <- context$with_activated({
-    mcp_tool_context_logs_head(max_lines = 10L)
-  })
+  # Create runtime and call tool
+  runtime <- create_test_runtime(context)
+  result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
   # Parse JSON
   parsed <- jsonlite::fromJSON(as.character(result))

@@ -31,20 +31,22 @@
 mcp_describe <- S7::new_generic("mcp_describe", dispatch_args = "x")
 
 # Helper function to get max_print from context cache
+# TODO: get max_print from runtime$context$cache when runtime is available
 .mcp_get_max_print <- function() {
-  ctx <- get_active_context()
-  if (is.null(ctx)) {
-    return(getOption("tricobbler.mcp_describe.max_size", 100L))
-  }
-  max_print <- ctx$cache$get("tricobbler.mcp_describe.max_size", 100L)
-  if (
-    length(max_print) != 1 ||
-      !is.numeric(max_print) ||
-      !isTRUE(max_print > 0L)
-  ) {
-    max_print <- getOption("tricobbler.mcp_describe.max_size", 100L)
-  }
-  max_print
+  return(100L)
+  # ctx <- get_active_context()
+  # if (is.null(ctx)) {
+  #   return(getOption("tricobbler.mcp_describe.max_size", 100L))
+  # }
+  # max_print <- ctx$cache$get("tricobbler.mcp_describe.max_size", 100L)
+  # if (
+  #   length(max_print) != 1 ||
+  #     !is.numeric(max_print) ||
+  #     !isTRUE(max_print > 0L)
+  # ) {
+  #   max_print <- getOption("tricobbler.mcp_describe.max_size", 100L)
+  # }
+  # max_print
 }
 
 # Default method for any object

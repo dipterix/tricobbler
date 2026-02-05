@@ -48,12 +48,60 @@ implementation_example: |
   #> [1] "utils"
   #> 
   #> $topics
-  #>   topic                title
-  #> 1 BATCH Batch Execution of R
-  #> 2 BATCH Batch Execution of R
-  #>  [ reached 'max' / getOption("max.print") -- omitted 750 rows ]
+  #>          topic                                               title
+  #> 1        BATCH                                Batch Execution of R
+  #> 2        BATCH                                Batch Execution of R
+  #> 3        BATCH                                Batch Execution of R
+  #> 4      COMPILE         Compile Files for Use with R on Unix-alikes
+  #> 5      COMPILE         Compile Files for Use with R on Unix-alikes
+  #> 6      COMPILE         Compile Files for Use with R on Unix-alikes
+  #> 7  DLL.version               DLL Version Information on MS Windows
+  #> 8  DLL.version               DLL Version Information on MS Windows
+  #> 9  DLL.version               DLL Version Information on MS Windows
+  #> 10     INSTALL                             Install Add-on Packages
+  #> 11     INSTALL                             Install Add-on Packages
+  #> 12     INSTALL                             Install Add-on Packages
+  #> 13     INSTALL                             Install Add-on Packages
+  #> 14     INSTALL                             Install Add-on Packages
+  #> 15        LINK           Create Executable Programs on Unix-alikes
+  #> 16        LINK           Create Executable Programs on Unix-alikes
+  #> 17        LINK           Create Executable Programs on Unix-alikes
+  #> 18       build Utilities for Building and Checking Add-on Packages
+  #> 19       build Utilities for Building and Checking Add-on Packages
+  #> 20       build Utilities for Building and Checking Add-on Packages
+  #> 21       build Utilities for Building and Checking Add-on Packages
+  #> 22    Question                             Documentation Shortcuts
+  #> 23    Question                             Documentation Shortcuts
+  #> 24    Question                             Documentation Shortcuts
+  #> 25    Question                             Documentation Shortcuts
+  #> 26      REMOVE                              Remove Add-on Packages
+  #> 27      REMOVE                              Remove Add-on Packages
+  #> 28      REMOVE                              Remove Add-on Packages
+  #> 29       RHOME                                    R Home Directory
+  #> 30       RHOME                                    R Home Directory
+  #> 31       RHOME                                    R Home Directory
+  #> 32    RShowDoc              Show R Manuals and Other Documentation
+  #> 33    RShowDoc              Show R Manuals and Other Documentation
+  #> 34    RShowDoc              Show R Manuals and Other Documentation
+  #> 35 RSiteSearch    Search for Key Words or Phrases in Documentation
+  #> 36 RSiteSearch    Search for Key Words or Phrases in Documentation
+  #> 37 RSiteSearch    Search for Key Words or Phrases in Documentation
+  #> 38 RSiteSearch    Search for Key Words or Phrases in Documentation
+  #> 39    Rconsole                         R for Windows Configuration
+  #> 40    Rconsole                         R for Windows Configuration
+  #> 41    Rconsole                         R for Windows Configuration
+  #> 42    Rconsole                         R for Windows Configuration
+  #> 43    Rconsole                         R for Windows Configuration
+  #> 44    Rconsole                         R for Windows Configuration
+  #> 45    Rconsole                         R for Windows Configuration
+  #> 46    Rconsole                         R for Windows Configuration
+  #> 47       Rprof                   Enable Profiling of R's Execution
+  #> 48       Rprof                   Enable Profiling of R's Execution
+  #> 49       Rprof                   Enable Profiling of R's Execution
+  #> 50    Rprofmem                  Enable Profiling of R's Memory Use
+  #>  [ reached 'max' / getOption("max.print") -- omitted 702 rows ]
   #> 
   #> $count
   #> [1] 752
   #>
-execution_time: 0.007
+execution_time: 0.008

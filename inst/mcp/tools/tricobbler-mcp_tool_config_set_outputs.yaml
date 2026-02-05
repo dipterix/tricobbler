@@ -16,6 +16,8 @@ parameters:
       description: '. Maximum number of lines for text output when using mcp_describe.
         Default is NULL (no change). Controls verbosity of fallback text formatting.
         Typical range: 50-200.'
+  required:
+  - tricobbler.mcp_describe.max_size
 category: configuration
 returns:
   type: object

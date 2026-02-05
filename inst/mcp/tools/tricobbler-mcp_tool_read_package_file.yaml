@@ -104,4 +104,4 @@ implementation_example: |
   #> [2] ""                                                                                                                                        
   #> [3] "This document describes the YAML format specification for RAVE MCP (Model Context Protocol) tools generated from roxygen2 documentation."
   #>
-execution_time: 0.035
+execution_time: 0.087

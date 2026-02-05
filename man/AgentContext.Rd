@@ -55,7 +55,6 @@ directory (read-only)}
 \item \href{#method-TricobblerAgentContext-new}{\code{AgentContext$new()}}
 \item \href{#method-TricobblerAgentContext-init_resources}{\code{AgentContext$init_resources()}}
 \item \href{#method-TricobblerAgentContext-logger}{\code{AgentContext$logger()}}
-\item \href{#method-TricobblerAgentContext-with_activated}{\code{AgentContext$with_activated()}}
 \item \href{#method-TricobblerAgentContext-record_result}{\code{AgentContext$record_result()}}
 \item \href{#method-TricobblerAgentContext-last_results}{\code{AgentContext$last_results()}}
 \item \href{#method-TricobblerAgentContext-get_attachment}{\code{AgentContext$get_attachment()}}
@@ -122,7 +121,7 @@ Write timestamped messages to log file
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$logger(
   ...,
-  caller = get_globals("active_agent"),
+  caller,
   level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
   verbose = c("cli", "base", "none")
 )}\if{html}{\out{</div>}}
@@ -145,28 +144,6 @@ falls back to \code{'base'}. When logical \code{FALSE} or
 character \code{'none'}, the logs will not be printed out.
 Use \code{'base'} to force plain \code{cat()}/\code{message()}
 output without styling.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TricobblerAgentContext-with_activated"></a>}}
-\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-with_activated}{}}}
-\subsection{Method \code{with_activated()}}{
-Execute expression with this context activated
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$with_activated(expr, quoted = FALSE, env = parent.frame())}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{expr}}{expression, the expression to evaluate with the
-context active}
-
-\item{\code{quoted}}{logical, whether \code{expr} is already quoted}
-
-\item{\code{env}}{environment in which to evaluate the expression}
 }
 \if{html}{\out{</div>}}
 }
