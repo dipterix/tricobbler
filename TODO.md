@@ -15,7 +15,7 @@ This document outlines the implementation plan for async/parallel execution supp
 
 ---
 
-## Phase 1: Foundation - Explicit Dependencies
+## Phase 1: Foundation - Explicit Dependencies [Done]
 
 **Why:** Current `last_results(1)` returns chronologically last result. With parallel execution, result order is non-deterministic. Agents must explicitly declare which states they depend on.
 

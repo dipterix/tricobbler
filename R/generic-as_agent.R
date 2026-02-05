@@ -75,13 +75,20 @@ S7::method(as_agent, S7::new_S3_class("Chat")) <- function(
   as_agent_from_chat(chat = x, id = id, description = description, describe = describe, ...)
 }
 
-S7::method(as_agent, S7::new_S3_class("tricobbler_mcp_tool")) <- function(x,
-                                                                          id = NULL,
-                                                                          description = NULL,
-                                                                          describe = mcp_describe,
-                                                                          ...) {
-
-  as_agent_from_mcp_tool(tool = x, id = id, description = description, describe = describe, ...)
+S7::method(as_agent, S7::new_S3_class("tricobbler_mcp_tool")) <- function(
+  x,
+  id = NULL,
+  description = NULL,
+  describe = mcp_describe,
+  ...
+) {
+  as_agent_from_mcp_tool(
+    tool = x,
+    id = id,
+    description = description,
+    describe = describe,
+    ...
+  )
 }
 
 S7::method(as_agent, S7::class_function) <- function(
@@ -98,21 +105,42 @@ S7::method(as_agent, S7::class_function) <- function(
     params <- as.list(policy@parameters)
     debug <- isTRUE(context$debug)
 
-    switch(
-      policy@accessibility,
-      "all" = {
-        # Obtain the last result
-        last_attachment <- context$last_results(items = 1, simplify = TRUE)
-        input <- c(list(last_attachment$result), as.list(params$args))
-      },
-      "logs" = {
-        last_attachment <- context$last_results(items = 1, simplify = TRUE)
-        input <- c(list(last_attachment$description), as.list(params$args))
-      },
-      {
-        input <- as.list(params$args)
+    # Determine input arguments based on accessibility policy
+    # "all" and "explicit": Use explicit dependencies defined in policy
+    # "logs" and "none": Use only static arguments (no dependencies)
+    
+    # 1. Start with static args
+    input <- as.list(params$args)
+    if (policy@accessibility %in% c("all", "explicit")) {
+
+      # 2. Iterate over dependencies
+      deps <- policy@depends_on@deps
+
+      for (param_name in names(deps)) {
+        dep_spec <- deps[[param_name]]
+
+        # 3. Resolve defaults
+        target_stage <- if (is.null(dep_spec$stage)) policy@stage else dep_spec$stage
+        target_field <- if (is.null(dep_spec$field)) "result" else dep_spec$field
+
+        # 4. Fetch attachment
+        attachment <- context$get_attachment_by_state(
+          state = dep_spec$state,
+          stage = target_stage
+        )
+
+        # 5. Fail-fast if missing
+        if (is.null(attachment)) {
+          stop(sprintf(
+            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            dep_spec$state, target_stage, param_name
+          ))
+        }
+
+        # 6. Extract and assign
+        input[[param_name]] <- attachment[[target_field]]
       }
-    )
+    }
 
     # Debug mode: log call info for inspection
     if (debug) {
@@ -230,6 +258,19 @@ as_agent_from_chat <- function(
           paste("  -", context_tools, collapse = "\n")
         )
       },
+      "explicit" = {
+        # Explicit access: same tools as logs (read logs, list attachments),
+        # but cannot read attachment content arbitrarily via tools.
+        context_banned <- mcptool_list("tricobbler", "context_attachment_get")
+        context_tools <- mcptool_list("tricobbler", "context")
+        context_tools <- context_tools[!context_tools %in% context_banned]
+        sys_prompt2 <- paste0(
+          "Context tools available (restricted access):\n",
+          "You can read execution logs and list attachments, but you cannot read arbitrary attachment content.\n",
+          "Specific attachments declared as dependencies will be provided in the user prompt.\n",
+          paste("  -", context_tools, collapse = "\n")
+        )
+      },
       {
         # None
         context_tools <- NULL
@@ -280,11 +321,67 @@ as_agent_from_chat <- function(
     }
 
     if (!is.null(return_type)) {
-      chat_impl <- function(...) {
-        chat$chat_structured(..., type = return_type)
+      chat_impl <- function(..., .list = list()) {
+        args <- c(as.list(.list), list(..., type = return_type))
+        do.call(chat$chat_structured, args)
       }
     } else {
-      chat_impl <- chat$chat
+      chat_impl <- function(..., .list = list()) {
+        args <- c(as.list(.list), list(...))
+        do.call(chat$chat, args)
+      }
+    }
+
+    # Prepare dependencies for prompt injection
+    dependency_attachments <- list()
+    if (policy@accessibility %in% c("explicit", "all")) {
+      deps <- policy@depends_on@deps
+
+      for (param_name in names(deps)) {
+        dep_spec <- deps[[param_name]]
+        
+        target_stage <- if (is.null(dep_spec$stage)) {
+          policy@stage
+        } else {
+          dep_spec$stage
+        }
+
+        target_field <- if (is.null(dep_spec$field)) {
+          "result"
+        } else {
+          dep_spec$field
+        }
+
+        attachment <- context$get_attachment_by_state(
+          state = dep_spec$state,
+          stage = target_stage
+        )
+
+        if (is.null(attachment)) {
+          stop(sprintf(
+            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            dep_spec$state, target_stage, param_name
+          ))
+        }
+
+        val <- attachment[[target_field]]
+        if (identical(target_field, "result")) {
+          val <- mcp_describe(val)
+        }
+        dependency_attachments[[length(dependency_attachments) + 1]] <- mcp_attach(
+          sprintf(
+            "Dependency Input: %s (from %s, field %s)",
+            param_name,
+            dep_spec$state,
+            target_field
+          ),
+          "",
+          "```",
+          val,
+          "```",
+          .header = sprintf("## Attachment ID: %s", attachment$id)
+        )
+      }
     }
 
     # Return the response
@@ -292,7 +389,8 @@ as_agent_from_chat <- function(
       log_content,
       mcp_attach(sprintf("Stage: %s --> State: %s", policy@stage, policy@name),
                  .header = "## Current Execution"),
-      mcp_attach(user_prompt, .header = "## Task")
+      mcp_attach(user_prompt, .header = "## Task"),
+      .list = dependency_attachments
     )
   }
 
@@ -341,21 +439,41 @@ as_agent_from_mcp_tool <- function(
     params <- as.list(policy@parameters)
     debug <- isTRUE(context$debug)
 
-    switch(
-      policy@accessibility,
-      "all" = {
-        # Obtain the last result
-        last_attachment <- context$last_results(items = 1, simplify = TRUE)
-        input <- c(list(last_attachment$result), as.list(params$args))
-      },
-      "logs" = {
-        last_attachment <- context$last_results(items = 1, simplify = TRUE)
-        input <- c(list(last_attachment$description), as.list(params$args))
-      },
-      {
-        input <- as.list(params$args)
+    # Determine input arguments based on accessibility policy
+    # "all" and "explicit": Use explicit dependencies defined in policy
+    # "logs" and "none": Use only static arguments (no dependencies)
+    # 1. Start with static args
+    input <- as.list(params$args)
+    if (policy@accessibility %in% c("all", "explicit")) {
+
+      # 2. Iterate over dependencies
+      deps <- policy@depends_on@deps
+
+      for (param_name in names(deps)) {
+        dep_spec <- deps[[param_name]]
+
+        # 3. Resolve defaults
+        target_stage <- if (is.null(dep_spec$stage)) policy@stage else dep_spec$stage
+        target_field <- if (is.null(dep_spec$field)) "result" else dep_spec$field
+
+        # 4. Fetch attachment
+        attachment <- context$get_attachment_by_state(
+          state = dep_spec$state,
+          stage = target_stage
+        )
+
+        # 5. Fail-fast if missing
+        if (is.null(attachment)) {
+          stop(sprintf(
+            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            dep_spec$state, target_stage, param_name
+          ))
+        }
+
+        # 6. Extract and assign
+        input[[param_name]] <- attachment[[target_field]]
       }
-    )
+    }
 
     # Debug mode: log call info for inspection
     if (debug) {

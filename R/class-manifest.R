@@ -138,6 +138,14 @@ Manifest <- S7::new_class(
       ))
     }
 
+    invalid_stages <- setdiff(state_stages, valid_stages)
+    if (length(invalid_stages) > 0) {
+      return(sprintf(
+        "StatePolicies reference stages not defined in MasterPolicy. Invalid stages: %s",
+        paste(sQuote(invalid_stages), collapse = ", ")
+      ))
+    }
+
     # CRITICAL: Validate priority uniqueness for critical states
     # If a state is critical, no other state with the same stage can share
     # its priority value.

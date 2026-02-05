@@ -357,6 +357,7 @@ AgentContext <- R6::R6Class(
         state = state,
         current_attempt = current_attempt,
         ...,
+        id = fname,
         ._timestamp = now
       )
 
