@@ -59,6 +59,7 @@ directory (read-only)}
 \item \href{#method-TricobblerAgentContext-record_result}{\code{AgentContext$record_result()}}
 \item \href{#method-TricobblerAgentContext-last_results}{\code{AgentContext$last_results()}}
 \item \href{#method-TricobblerAgentContext-get_attachment}{\code{AgentContext$get_attachment()}}
+\item \href{#method-TricobblerAgentContext-get_attachment_by_state}{\code{AgentContext$get_attachment_by_state()}}
 \item \href{#method-TricobblerAgentContext-list_attachments}{\code{AgentContext$list_attachments()}}
 \item \href{#method-TricobblerAgentContext-has_attachment}{\code{AgentContext$has_attachment()}}
 \item \href{#method-TricobblerAgentContext-read_logs}{\code{AgentContext$read_logs()}}
@@ -239,7 +240,27 @@ Retrieve a specific attachment by its identifier
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{attachment_id}}{character, the attachment identifier
-(filename from record_result)}
+(filename from record_result). Or a \code{StatePolicy} object to
+retrieve the latest attachment for that state.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-get_attachment_by_state"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-get_attachment_by_state}{}}}
+\subsection{Method \code{get_attachment_by_state()}}{
+Retrieve the latest attachment from a specific state
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_attachment_by_state(state, stage)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{state}}{character, the name of the state}
+
+\item{\code{stage}}{character, optional stage name to narrow down the search}
 }
 \if{html}{\out{</div>}}
 }

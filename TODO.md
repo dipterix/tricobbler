@@ -63,9 +63,14 @@ states:
 **Steps:**
 1. Update `accessibility` property validator to accept `"explicit"` value
 2. Modify `as_agent()` wrapper to handle `"explicit"` accessibility:
-   - Build inputs from `depends_on` mapping instead of `last_results()`
+   - Build inputs from `depends_on` mapping instead of `last_results()` (for deterministic agents such as functions or MCP tools)
+   - For AI agents, include the `depends_on` as its chat context (into user prompts, see item 3)
    - Use new `get_attachment_by_state()` method (see 1.3)
-3. Keep `"all"`, `"logs"`, `"none"` working for backward compatibility (deprecated for async mode)
+3. Keep `"all"`, `"logs"`, `"none"` working:
+   - "none": agent have no access to logs nor attachment; under this situation, `depends_on` only indicates that this agent should await for the dependents to finish, but cannot access their contents
+   - "logs": agent have access to logs and attachment list but not contents; under this situation, `depends_on` only indicates that this agent should await for the dependents to finish, but cannot access their contents
+   - "explicit": agent have access to logs, attachment list, but only with the attachments from `depends_on` list. The MCP tool to read attachments will not be provided. However, all the `depends_on` descriptions will be included in the user prompt
+   - "all": agent will be provided tools to access all logs and attachments, the user prompt also includes `depends_on` descriptions
 
 ### 1.3 Add `get_attachment_by_state()` to Context
 
@@ -74,8 +79,8 @@ states:
 **Steps:**
 1. Add new public method:
    ```r
-   get_attachment_by_state = function(state_name, stage = NULL) {
-     # Find attachment matching state (and optionally stage)
+   get_attachment_by_state = function(state, stage) {
+     # Find attachment matching state and stage
      # Return most recent match if multiple exist (retries)
    }
    ```
