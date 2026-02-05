@@ -236,7 +236,7 @@ test_that(
       stage = "test",
       description = "Test state with full access",
       agent_id = "test_agent",
-      accessbility = "all"
+      accessibility = "all"
     )
 
     # Execute with "all" accessibility policy
@@ -369,7 +369,7 @@ test_that(
       stage = "test",
       description = "Test state with full access",
       agent_id = "test_agent",
-      accessbility = "all"
+      accessibility = "all"
     )
 
     result <- with_globals(
@@ -429,7 +429,7 @@ test_that(
       stage = "test",
       description = "Test state with full access",
       agent_id = "test_agent",
-      accessbility = "all"
+      accessibility = "all"
     )
 
     result <- with_globals(
@@ -468,7 +468,7 @@ test_that(
       stage = "test",
       description = "Test state with no access",
       agent_id = "test_agent",
-      accessbility = "none"
+      accessibility = "none"
     )
 
     result <- with_globals(
@@ -506,7 +506,7 @@ test_that(
       stage = "test",
       description = "Test state with no access",
       agent_id = "test_agent",
-      accessbility = "none"
+      accessibility = "none"
     )
 
     result <- with_globals(
@@ -538,7 +538,7 @@ test_that(
       stage = "test",
       description = "Test state with no access",
       agent_id = "test_agent",
-      accessbility = "none"
+      accessibility = "none"
     )
 
     result <- with_globals(
@@ -569,7 +569,7 @@ test_that(
       stage = "test",
       description = "Test state with no access",
       agent_id = "test_agent",
-      accessbility = "none"
+      accessibility = "none"
     )
 
     result <- with_globals(

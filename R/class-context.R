@@ -96,6 +96,10 @@ AgentContext <- R6::R6Class(
     }
   ),
   public = list(
+
+    #' @field debug logical, whether to print out agent calls
+    debug = FALSE,
+
     #' @description Associate a scheduler with this context
     #' @param scheduler Scheduler object to associate
     set_scheduler = function(scheduler) {
@@ -192,7 +196,7 @@ AgentContext <- R6::R6Class(
     logger = function(
       ...,
       caller = get_globals("active_agent"),
-      level = c("INFO", "WARN", "ERROR", "FATAL"),
+      level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
       verbose = c("cli", "base", "none")
     ) {
       # identify the role based on caller
@@ -356,10 +360,14 @@ AgentContext <- R6::R6Class(
         ._timestamp = now
       )
 
-      attachment_path <- file.path(self$attachment_path, fname)
+      attachment_folder <- self$attachment_path
+      if (!dir.exists(attachment_folder)) {
+        dir.create(attachment_folder, showWarnings = FALSE, recursive = TRUE)
+      }
+      attachment_path <- file.path(attachment_folder, fname)
       saveRDS(attachment, attachment_path)
 
-      index_path <- file.path(self$attachment_path, "index")
+      index_path <- file.path(attachment_folder, "index")
       tf <- tempfile()
       on.exit({
         unlink(tf, force = TRUE)
@@ -737,7 +745,7 @@ check_context_accessibility <- function(
     # No active policy - use default accessibility "logs"
     current_level <- "logs"
   } else if (S7::S7_inherits(policy, StatePolicy)) {
-    current_level <- policy@accessbility
+    current_level <- policy@accessibility
     # Validate accessibility value
     if (!current_level %in% c("all", "logs", "none")) {
       current_level <- "logs"

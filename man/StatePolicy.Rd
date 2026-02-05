@@ -10,7 +10,7 @@ StatePolicy(
   stage = character(0),
   agent_id = character(0),
   resources = character(0),
-  accessbility = "all",
+  accessibility = "all",
   parameters = list(),
   max_retry = 0L,
   priority = 100L,
@@ -33,12 +33,13 @@ dashes}
 \item{resources}{character vector, tools that the agent may call during
 execution (default empty vector)}
 
-\item{accessbility}{character, context accessibility level for the agent.
+\item{accessibility}{character, context accessibility level for the agent.
 Controls what context data the agent can read. One of \code{"all"}
 (full access), \code{"logs"} (logs only), or \code{"none"} (no access).
 Default is \code{"all"}}
 
-\item{parameters}{list, optional state-specific parameters}
+\item{parameters}{list, state-specific parameters passed to the agent.
+See \\strong{Parameters for Different Agent Types} in Details}
 
 \item{max_retry}{integer, maximum total attempts (initial + retries) for
 this state during stage execution (default 0, meaning single attempt).
@@ -131,6 +132,45 @@ semantics)
 mature
 }
 }
+
+\subsection{Parameters for Different Agent Types}{
+
+The \code{parameters} list is interpreted differently based on the agent
+type created via \code{\link{as_agent}}:
+
+\strong{Deterministic Agents} (from functions or MCP tools):
+\itemize{
+\item \code{args}: list, function arguments passed via
+\code{do.call(fun, args)}. Kept separate from other parameters to
+avoid conflicts with functions that have their own reserved arguments
+}
+
+The \code{accessibility} property affects how inputs are constructed:
+\itemize{
+\item \code{"all"}: First argument is the previous agent's result
+(\code{last_attachment$result}), followed by \code{args}
+\item \code{"logs"}: First argument is the previous agent's description
+(\code{last_attachment$description}), followed by \code{args}
+\item \code{"none"}: Only \code{args} are passed (no context access)
+}
+
+\strong{Debug Mode}: Set \code{context$debug <- TRUE} at runtime to enable
+debug mode. In debug mode, agents print their calls/tools for inspection
+but run as no-op (returning debug information instead of executing).
+
+\strong{AI Agents} (from \pkg{ellmer} Chat objects):
+\itemize{
+\item \code{system_prompt}: character, additional system prompt appended
+to \code{@description}
+\item \code{user_prompt}: character, the user message to send to the LLM
+\item \code{keep_turns}: logical, if \code{TRUE}, retains conversation
+history across executions (default \code{FALSE})
+\item \code{return_type}: an \pkg{ellmer} type indicator (e.g.,
+\code{ellmer::type_object()}). When provided, triggers
+\code{chat$chat_structured(type = return_type)} for structured output.
+Can also be specified in YAML via \code{map_type_to_ellmer()}
+}
+}
 }
 \examples{
 
@@ -152,5 +192,34 @@ StatePolicy(
   priority = 900,
   critical = TRUE
 )
+
+# Deterministic agent with parameters
+StatePolicy(
+  name = "formatter",
+  stage = "executing",
+  description = "Format data to JSON",
+  agent_id = "json_formatter",
+  accessibility = "none",  # Only use args, no context
+  parameters = list(
+    args = list(x = list(a = 1, b = 2), pretty = TRUE)
+  )
+)
+
+# AI agent with structured output
+StatePolicy(
+  name = "planner",
+  stage = "planning",
+  description = "Break down the task into steps",
+  agent_id = "llm_planner",
+  parameters = list(
+    system_prompt = "You are a task planning expert.",
+    user_prompt = "Plan the following task: ...",
+    keep_turns = FALSE,
+    return_type = ellmer::type_object(
+      steps = ellmer::type_array(items = ellmer::type_string())
+    )
+  )
+)
+
 
 }

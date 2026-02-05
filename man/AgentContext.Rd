@@ -9,6 +9,13 @@ states. Provides logging, result storage, and attachment management during
 workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 \code{Scheduler}.
 }
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{debug}}{logical, whether to print out agent calls}
+}
+\if{html}{\out{</div>}}
+}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
@@ -115,7 +122,7 @@ Write timestamped messages to log file
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$logger(
   ...,
   caller = get_globals("active_agent"),
-  level = c("INFO", "WARN", "ERROR", "FATAL"),
+  level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
   verbose = c("cli", "base", "none")
 )}\if{html}{\out{</div>}}
 }

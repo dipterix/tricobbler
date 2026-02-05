@@ -21,7 +21,7 @@ NULL
 #    - STATES are concrete policy implementations (StatePolicy objects) that
 #      reference stages and add metadata (description, parameters).
 #    - Multiple states can share the same stage, enabling fallback chains.
-#    - Every stage MUST have at least one state (enforced by \code{Manifest} 
+#    - Every stage MUST have at least one state (enforced by \code{Manifest}
 #      validation).
 #
 # 2. Manifest as Validated Blueprint:
@@ -33,7 +33,7 @@ NULL
 #      which is then executed by the Scheduler in the Runtime layer.
 #
 # 3. Immutability via S7:
-#    - Policies are immutable to prevent accidental modification during 
+#    - Policies are immutable to prevent accidental modification during
 #      execution.
 #    - Once created, a policy serves as a stable reference for contracts.
 #    - Use S7 @ accessor (e.g., policy@name) not R6 $ accessor.
@@ -78,20 +78,20 @@ BasePolicy <- S7::new_class(
 )
 
 #' @title Master Workflow Policy Defining Stages and Version
-#' @description Concrete policy that defines the overall workflow version and 
+#' @description Concrete policy that defines the overall workflow version and
 #'   the set of allowed stages. Inherits from `BasePolicy`.
 #' @details
 #' ## Stages as Workflow Vocabulary
 #'
 #' The `stages` property defines the symbolic vocabulary of workflow phases
 #' (e.g., "triage", "planning", "executing"). These are macro-level phase names
-#' that must be implemented by at least one \code{StatePolicy} object in the 
+#' that must be implemented by at least one \code{StatePolicy} object in the
 #' \code{Manifest}.
 #'
 #' ## Stage Naming Conventions
 #'
 #' - Stages are automatically converted to lowercase for consistency
-#' - Must contain only letters (a-z), digits (0-9), underscores (_), or 
+#' - Must contain only letters (a-z), digits (0-9), underscores (_), or
 #'   dashes (-)
 #' - Must be unique (case-insensitive) within a workflow
 #' - Cannot be blank or NA
@@ -99,7 +99,7 @@ BasePolicy <- S7::new_class(
 #' ## Immutability
 #'
 #' \code{MasterPolicy} objects are immutable (S7 value semantics). Once created,
-#' they serve as a stable reference for \code{Contract} objects. Use the 
+#' they serve as a stable reference for \code{Contract} objects. Use the
 #' \code{@@} accessor to read properties (e.g., `policy@stages`).
 #'
 #' @param name Character. Name of the policy (non-blank).
@@ -208,10 +208,49 @@ MasterPolicy <- S7::new_class(
 #' 4. **Phased deployment**: Gradually shift priority as new implementations
 #'    mature
 #'
+#' ## Parameters for Different Agent Types
+#'
+#' The \code{parameters} list is interpreted differently based on the agent
+#' type created via \code{\link{as_agent}}:
+#'
+#' \strong{Deterministic Agents} (from functions or MCP tools):
+#' \itemize{
+#'   \item \code{args}: list, function arguments passed via
+#'     \code{do.call(fun, args)}. Kept separate from other parameters to
+#'     avoid conflicts with functions that have their own reserved arguments
+#' }
+#'
+#' The \code{accessibility} property affects how inputs are constructed:
+#' \itemize{
+#'   \item \code{"all"}: First argument is the previous agent's result
+#'     (\code{last_attachment$result}), followed by \code{args}
+#'   \item \code{"logs"}: First argument is the previous agent's description
+#'     (\code{last_attachment$description}), followed by \code{args}
+#'   \item \code{"none"}: Only \code{args} are passed (no context access)
+#' }
+#'
+#' \strong{Debug Mode}: Set \code{context$debug <- TRUE} at runtime to enable
+#' debug mode. In debug mode, agents print their calls/tools for inspection
+#' but run as no-op (returning debug information instead of executing).
+#'
+#' \strong{AI Agents} (from \pkg{ellmer} Chat objects):
+#' \itemize{
+#'   \item \code{system_prompt}: character, additional system prompt appended
+#'     to \code{@@description}
+#'   \item \code{user_prompt}: character, the user message to send to the LLM
+#'   \item \code{keep_turns}: logical, if \code{TRUE}, retains conversation
+#'     history across executions (default \code{FALSE})
+#'   \item \code{return_type}: an \pkg{ellmer} type indicator (e.g.,
+#'     \code{ellmer::type_object()}). When provided, triggers
+#'     \code{chat$chat_structured(type = return_type)} for structured output.
+#'     Can also be specified in YAML via \code{map_type_to_ellmer()}
+#' }
+#'
 #' @param name character, name of the state policy (non-blank)
 #' @param description character, human-readable description
 #' @param stage character, must be a non-blank single string
-#' @param parameters list, optional state-specific parameters
+#' @param parameters list, state-specific parameters passed to the agent.
+#'   See \\strong{Parameters for Different Agent Types} in Details
 #' @param priority integer, execution priority (0-999, default 100). Higher
 #'   values run first (999 = highest priority, 0 = lowest). Used when multiple
 #'   states share the same stage. NA or NULL are treated as 100
@@ -223,7 +262,7 @@ MasterPolicy <- S7::new_class(
 #'   dashes
 #' @param resources character vector, tools that the agent may call during
 #'   execution (default empty vector)
-#' @param accessbility character, context accessibility level for the agent.
+#' @param accessibility character, context accessibility level for the agent.
 #'   Controls what context data the agent can read. One of \code{"all"}
 #'   (full access), \code{"logs"} (logs only), or \code{"none"} (no access).
 #'   Default is \code{"all"}
@@ -266,6 +305,35 @@ MasterPolicy <- S7::new_class(
 #'   critical = TRUE
 #' )
 #'
+#' # Deterministic agent with parameters
+#' StatePolicy(
+#'   name = "formatter",
+#'   stage = "executing",
+#'   description = "Format data to JSON",
+#'   agent_id = "json_formatter",
+#'   accessibility = "none",  # Only use args, no context
+#'   parameters = list(
+#'     args = list(x = list(a = 1, b = 2), pretty = TRUE)
+#'   )
+#' )
+#'
+#' # AI agent with structured output
+#' StatePolicy(
+#'   name = "planner",
+#'   stage = "planning",
+#'   description = "Break down the task into steps",
+#'   agent_id = "llm_planner",
+#'   parameters = list(
+#'     system_prompt = "You are a task planning expert.",
+#'     user_prompt = "Plan the following task: ...",
+#'     keep_turns = FALSE,
+#'     return_type = ellmer::type_object(
+#'       steps = ellmer::type_array(items = ellmer::type_string())
+#'     )
+#'   )
+#' )
+#'
+#'
 #' @export
 StatePolicy <- S7::new_class(
   name = "StatePolicy",
@@ -303,7 +371,7 @@ StatePolicy <- S7::new_class(
         ) {
           return(
             "Agent ID must not be empty and must only contain letters, digits, underscores, or dashes" # nolint: line_length_linter.
-          ) 
+          )
         }
         return()
       }
@@ -317,14 +385,26 @@ StatePolicy <- S7::new_class(
 
     # What context the agent may access: this is a safe-check
     # in case the agent calls the other tools to read attachments
-    # accessbility != "all" will lock them out
-    # TODO: choices are "all", "logs", "none"
-    accessbility = S7::new_property(
+    # accessibility != "all" will lock them out
+    accessibility = S7::new_property(
       class = S7::class_character,
+      validator = function(value) {
+        if (length(value) != 1 || is.na(value)) {
+          return("accessibility must be a single character value.")
+        }
+        valid_choices <- c("all", "logs", "none")
+        if (!value %in% valid_choices) {
+          return(sprintf(
+            "accessibility must be one of %s.",
+            paste(sQuote(valid_choices), collapse = ", ")
+          ))
+        }
+        return()
+      },
       default = "all"
     ),
 
-    # Optional list of state-specific parameters (e.g., timeout, retries, or 
+    # Optional list of state-specific parameters (e.g., timeout, retries, or
     # other constraints)
     parameters = S7::new_property(class = S7::class_list),
     max_retry = S7::new_property(class = S7::class_integer, default = 0L),
@@ -617,9 +697,9 @@ S7::method(format, Manifest) <- function(x, ...) {
 #'
 #' \code{manifest_write()} serializes a \code{Manifest} object to a YAML file.
 #'
-#' \code{manifest_read()} reads a YAML file back into a validated 
-#' \code{Manifest} object, reconstructing the \code{MasterPolicy} and 
-#' \code{StatePolicy} objects and enforcing all validation rules (e.g., 
+#' \code{manifest_read()} reads a YAML file back into a validated
+#' \code{Manifest} object, reconstructing the \code{MasterPolicy} and
+#' \code{StatePolicy} objects and enforcing all validation rules (e.g.,
 #' every stage must have a corresponding state).
 #' @param x a \code{Manifest} object to serialize (for \code{manifest_write})
 #' @param file Character. Path to the YAML file (input for `manifest_read`,
