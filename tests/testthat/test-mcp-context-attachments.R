@@ -112,7 +112,7 @@ create_test_context_with_attachment <- function() {
   ctx$init_resources()
 
   # Record an attachment (no with_activated needed)
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = list(value = 42, name = "test"),
     stage = "teststage",
     state = "teststate",

@@ -169,7 +169,7 @@ states:
 
 ---
 
-## Phase 3: Per-Runtime Logging & Atomic Attachments
+## Phase 3: Per-Runtime Logging & Atomic Attachments [Done]
 
 **Why:** Instead of file locking (unnecessary since R promises/coro are single-threaded), we redesign `AgentRuntime` to own its execution lifecycle completely. Each runtime gets its own log file and attachment, enabling crash inspection and clean separation of concerns.
 

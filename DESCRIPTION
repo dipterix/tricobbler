@@ -52,6 +52,7 @@ Collate:
     'class-scheduler.R'
     'generic-as_agent.R'
     'helper-ellmer_types.R'
+    'helper-logger.R'
     'mcp-attach.R'
     'mcp-tooldef-config.R'
     'mcp-tooldef-context.R'

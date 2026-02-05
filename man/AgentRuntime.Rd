@@ -42,8 +42,8 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 }
 }
 }
-\section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
 \item{\code{agent}}{Agent object, the agent being executed (who)}
 
@@ -51,7 +51,12 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 
 \item{\code{policy}}{StatePolicy object, the policy being executed (what)}
 
-\item{\code{execution_id}}{character, unique identifier for this execution}
+\item{\code{attempt}}{integer, retry count if failed}
+
+\item{\code{attachment_id}}{character, attachment prefix}
+
+\item{\code{id}}{character, short identifier for this execution to show
+in the context logs}
 }
 \if{html}{\out{</div>}}
 }
@@ -60,6 +65,8 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 \itemize{
 \item \href{#method-TricobblerAgentRuntime-new}{\code{AgentRuntime$new()}}
 \item \href{#method-TricobblerAgentRuntime-logger}{\code{AgentRuntime$logger()}}
+\item \href{#method-TricobblerAgentRuntime-run_async}{\code{AgentRuntime$run_async()}}
+\item \href{#method-TricobblerAgentRuntime-run}{\code{AgentRuntime$run()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -68,7 +75,7 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 \subsection{Method \code{new()}}{
 Initialize a new runtime environment
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$new(agent, context, policy, execution_id = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$new(agent, context, policy, attempt = 0L)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -79,9 +86,6 @@ Initialize a new runtime environment
 \item{\code{context}}{AgentContext object for logging and storage}
 
 \item{\code{policy}}{StatePolicy object being executed}
-
-\item{\code{execution_id}}{character, unique execution identifier
-(auto-generated if \code{NULL})}
 }
 \if{html}{\out{</div>}}
 }
@@ -95,7 +99,9 @@ Log a message with the agent as caller
 \if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$logger(
   ...,
   level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
-  verbose = c("cli", "base", "none")
+  verbose = c("cli", "base", "none"),
+  public = TRUE,
+  role = NA_character_
 )}\if{html}{\out{</div>}}
 }
 
@@ -113,5 +119,23 @@ Log a message with the agent as caller
 \subsection{Returns}{
 NULL invisibly
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentRuntime-run_async"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run_async}{}}}
+\subsection{Method \code{run_async()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run_async()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentRuntime-run"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run}{}}}
+\subsection{Method \code{run()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run()}\if{html}{\out{</div>}}
+}
+
 }
 }

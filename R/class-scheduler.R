@@ -233,18 +233,18 @@ Scheduler <- R6::R6Class(
         runtime <- AgentRuntime$new(
           agent = agent,
           context = context,
-          policy = policy
+          policy = policy,
+          attempt = init_retry_count
         )
 
         # Execute agent once (agent handles transient retries
         # internally if needed)
-        result_list <- runtime$run(init_retry_count)
+        result_list <- runtime$run()
 
         if (!identical(current_flag, private$.run_flag)) {
           stop("Scheduler flags changed. Abort current procedure.")
         }
 
-        do.call(self$context$record_result, result_list)
         succeed <- result_list$succeed
 
         # Determine next state based on execution outcome

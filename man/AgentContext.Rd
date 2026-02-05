@@ -55,7 +55,7 @@ directory (read-only)}
 \item \href{#method-TricobblerAgentContext-new}{\code{AgentContext$new()}}
 \item \href{#method-TricobblerAgentContext-init_resources}{\code{AgentContext$init_resources()}}
 \item \href{#method-TricobblerAgentContext-logger}{\code{AgentContext$logger()}}
-\item \href{#method-TricobblerAgentContext-record_result}{\code{AgentContext$record_result()}}
+\item \href{#method-TricobblerAgentContext-record_attachment}{\code{AgentContext$record_attachment()}}
 \item \href{#method-TricobblerAgentContext-last_results}{\code{AgentContext$last_results()}}
 \item \href{#method-TricobblerAgentContext-get_attachment}{\code{AgentContext$get_attachment()}}
 \item \href{#method-TricobblerAgentContext-get_attachment_by_state}{\code{AgentContext$get_attachment_by_state()}}
@@ -149,41 +149,13 @@ output without styling.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TricobblerAgentContext-record_result"></a>}}
-\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-record_result}{}}}
-\subsection{Method \code{record_result()}}{
-Save agent output with metadata
+\if{html}{\out{<a id="method-TricobblerAgentContext-record_attachment"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-record_attachment}{}}}
+\subsection{Method \code{record_attachment()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$record_result(
-  result,
-  stage,
-  state,
-  agent_id,
-  current_attempt,
-  description,
-  ...
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$record_attachment(runtime, succeed)}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{result}}{object, the result from agent execution}
-
-\item{\code{stage}}{character, stage name}
-
-\item{\code{state}}{character, state name}
-
-\item{\code{agent_id}}{character, agent identifier}
-
-\item{\code{current_attempt}}{integer, attempt number}
-
-\item{\code{description}}{character, human-readable result description}
-
-\item{\code{...}}{additional metadata to store}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-last_results"></a>}}

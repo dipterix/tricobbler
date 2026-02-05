@@ -172,8 +172,9 @@ AgentContext <- R6::R6Class(
             "stage",
             "state",
             "agent_id",
-            "current_attempt",
-            "filename"
+            "attempt",
+            "attachment_id",
+            "succeed"
           )
         )
         private$.results <- tbl[rev(seq_len(nrow(tbl))), ]
@@ -181,7 +182,7 @@ AgentContext <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Write timestamped messages to log file
+    #' @description Write time-stamped messages to log file
     #' @param ... character, message components to paste together
     #' @param caller object, the caller (scheduler, context, or agent)
     #' @param level character, log level (INFO, WARN, ERROR, FATAL)
@@ -201,15 +202,15 @@ AgentContext <- R6::R6Class(
     ) {
       force(caller)
       if (identical(caller, private$.scheduler)) {
-        role <- "scheduler"
+        role <- "Scheduler"
         level <- "TRACE"
       } else if (identical(caller, self)) {
-        role <- "context"
+        role <- "Context"
         if (length(level) > 1) {
           level <- match.arg(level)
         }
       } else if (inherits(caller, "TricobblerAgentRuntime")) {
-        role <- sprintf("runtime %s", caller$execution_id)
+        role <- sprintf("Runtime %s", caller$id)
         level <- match.arg(level)
       } else {
         if (!S7::S7_inherits(caller, class = Agent)) {
@@ -225,150 +226,36 @@ AgentContext <- R6::R6Class(
         verbose <- match.arg(verbose)
       }
 
-      prefix <- sprintf(
-        "%s %s [%s]: ",
-        level,
-        format(Sys.time(), "%H:%M:%S"),
-        role
-      )
-      str <- paste(c(...), collapse = "")
-      str <- gsub("[\b\r]", "", str)
-      str <- strsplit(str, "\n")[[1]]
-      str <- paste0(prefix, str, collapse = "\n")
-      # write to file with UTF-8 encoding
-      logger_path <- self$logger_path
-      if (file.exists(logger_path)) {
-        con <- file(logger_path, open = "a", encoding = "UTF-8")
-        on.exit(close(con), add = TRUE)
-        cat(str, sep = "\n", file = con)
-      }
-
-      # Console output based on verbose setting
-      if (verbose == "none") {
-        return(invisible(NULL))
-      }
-
-      str_wrapped <- strwrap(
-        strsplit(str, "\n")[[1]],
-        width = getOption("width") - 1L,
-        exdent = 4L
-      )
-      str_wrapped <- paste(str_wrapped, collapse = "\n")
-
-      # Use cli if requested, available, and console supports ANSI colors
-      use_cli <- verbose == "cli" &&
-        package_installed("cli") &&
-        call_pkg_fun(
-          "cli",
-          "num_ansi_colors",
-          .if_missing = "none",
-          .missing_default = 1L
-        ) >
-          1L
-
-      if (use_cli) {
-        # Use cli for colored output
-        cli_style <- switch(
-          level,
-          "TRACE" = "col_grey",
-          "DEBUG" = "col_silver",
-          "INFO" = "col_blue",
-          "WARN" = "col_yellow",
-          "ERROR" = "col_red",
-          "FATAL" = "col_magenta",
-          NULL
-        )
-        if (!is.null(cli_style)) {
-          styled_str <- call_pkg_fun(
-            "cli",
-            cli_style,
-            str_wrapped,
-            .if_missing = "none",
-            .missing_default = str_wrapped
-          )
-        } else {
-          styled_str <- str_wrapped
-        }
-        if (level %in% c("WARN", "ERROR", "FATAL")) {
-          message(styled_str)
-        } else {
-          cat(styled_str, sep = "\n")
-        }
-      } else {
-        # Base: use cat/message without styling
-        if (level %in% c("WARN", "ERROR", "FATAL")) {
-          message(str_wrapped)
-        } else {
-          cat(str_wrapped, sep = "\n")
-        }
-      }
+      log_to_file(..., path = self$logger_path, role = role, level = level, verbose = verbose)
     },
 
-    #' @description Save agent output with metadata
-    #' @param result object, the result from agent execution
-    #' @param stage character, stage name
-    #' @param state character, state name
-    #' @param agent_id character, agent identifier
-    #' @param current_attempt integer, attempt number
-    #' @param description character, human-readable result description
-    #' @param ... additional metadata to store
-    record_result = function(
-      result, stage, state, agent_id, current_attempt, description, ...) {
+    record_attachment = function(runtime, succeed) {
 
-      now <- Sys.time()
-      dt <- format(now, "%y%m%dT%H%M%S")
-      fname <- sprintf(
-        "[%s][%s][%s]_%s_%d",
-        stage,
-        state,
-        agent_id,
-        dt,
-        current_attempt
-      )
-
-      if (!length(description) && inherits(description, "missing")) {
-        description <- NULL
-      } else {
-        description <- paste(description, collapse = "")
-      }
-
-      attachment <- list(
-        result = result,
-        description = description,
-        agent_id = agent_id,
-        stage = stage,
-        state = state,
-        current_attempt = current_attempt,
-        ...,
-        id = fname,
-        ._timestamp = now
+      # data to record
+      row <- data.frame(
+        stage = runtime$policy@stage,
+        state = runtime$policy@name,
+        agent_id = runtime$agent@id,
+        attempt = runtime$attempt,
+        filename = runtime$attachment_id,
+        succeed = isTRUE(succeed)
       )
 
       attachment_folder <- self$attachment_path
       if (!dir.exists(attachment_folder)) {
         dir.create(attachment_folder, showWarnings = FALSE, recursive = TRUE)
       }
-      attachment_path <- file.path(attachment_folder, fname)
-      saveRDS(attachment, attachment_path)
-
       index_path <- file.path(attachment_folder, "index")
       tf <- tempfile()
       on.exit({
         unlink(tf, force = TRUE)
       })
-
       if (file.exists(index_path)) {
         file.copy(index_path, to = tf, overwrite = TRUE, recursive = FALSE)
       } else {
         file.create(tf)
       }
-      row <- data.frame(
-        stage = stage,
-        state = state,
-        agent_id = agent_id,
-        current_attempt = current_attempt,
-        filename = fname
-      )
+
       write.table(
         row,
         file = tf,
@@ -377,28 +264,21 @@ AgentContext <- R6::R6Class(
         col.names = FALSE
       )
       file.copy(from = tf, to = index_path, overwrite = TRUE, recursive = FALSE)
+
       private$.results <- rbind(row, private$.results)
 
-      if (inherits(result, "tricobbler_state_error")) {
-        level <- "ERROR"
-        prefix <- "Following error"
-      } else {
-        level <- "INFO"
-        prefix <- "Following result"
-      }
-      if (!length(description)) {
-        description <- "(Agent fail to describe the result. Please retrieve the raw output via the identifier)" # nolint: line_length_linter.
-      }
       self$logger(
         sprintf(
-          "%s recorded: Agent=%s, stage=%s, state=%s, attempt=%d, identifier=%s\n%s", # nolint: line_length_linter.
-          prefix, agent_id, stage, state, current_attempt, fname, description
+          "Attachment recorded, identifier=%s, error=%s",
+          runtime$attachment_id, ifelse(succeed, "no", "yes")
         ),
         caller = self,
-        level = level
+        level = "TRACE"
       )
-      invisible(fname)
+
+      invisible(self)
     },
+
 
     #' @description Retrieve the most recent result(s)
     #' @param items integer, number of results to retrieve
@@ -412,7 +292,7 @@ AgentContext <- R6::R6Class(
       fnames <- private$.results$filename[seq_len(items)]
       attachment_root <- self$attachment_path
       ret <- lapply(fnames, function(fname) {
-        attachment_path <- file.path(attachment_root, fname)
+        attachment_path <- file.path(attachment_root, paste0(fname, ".rds"))
         if (file.exists(attachment_path)) {
           return(readRDS(attachment_path))
         }
@@ -459,7 +339,7 @@ AgentContext <- R6::R6Class(
         )
       }
 
-      attachment_path <- file.path(self$attachment_path, attachment_id)
+      attachment_path <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
       if (file.exists(attachment_path)) {
         return(readRDS(attachment_path))
       }
@@ -522,7 +402,7 @@ AgentContext <- R6::R6Class(
       # The dataframe is ordered most-recent first
       fname <- matches$filename[[1]]
 
-      attachment_path <- file.path(self$attachment_path, fname)
+      attachment_path <- file.path(self$attachment_path, paste0(fname, ".rds"))
       if (file.exists(attachment_path)) {
         return(readRDS(attachment_path))
       }
@@ -550,8 +430,9 @@ AgentContext <- R6::R6Class(
               "stage",
               "state",
               "agent_id",
-              "current_attempt",
-              "filename"
+              "attempt",
+              "filename",
+              "succeed"
             )
           )
           private$.results <- tbl[rev(seq_len(nrow(tbl))), ]
@@ -585,7 +466,7 @@ AgentContext <- R6::R6Class(
       if (!grepl(pattern, attachment_id)) {
         return(FALSE)
       }
-      attachment_path <- file.path(self$attachment_path, attachment_id)
+      attachment_path <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
       file.exists(attachment_path)
     },
 

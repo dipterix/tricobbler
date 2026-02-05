@@ -63,7 +63,7 @@ test_that("has_attachment returns TRUE for existing attachments", {
   ctx <- create_test_context()
 
   # Create a real attachment
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = list(value = 42),
     stage = "teststage",
     state = "teststate",
@@ -143,7 +143,7 @@ test_that("get_attachment retrieves existing attachments", {
 
   # Create a real attachment
   test_result <- list(value = 42, name = "test")
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = test_result,
     stage = "mystage",
     state = "mystate",
@@ -171,16 +171,16 @@ test_that("attachment regex accepts valid identifier formats", {
   ctx <- create_test_context()
 
   # Create attachments with various valid characters
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "test1",
     stage = "stage-with-dash",
     state = "state_with_underscore",
-    agent_id = "agent.with.dots",
+    agent_id = "agent_with_underscore",
     current_attempt = 1L,
     description = "Test 1"
   )
 
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "test2",
     stage = "UPPERCASE",
     state = "MixedCase",

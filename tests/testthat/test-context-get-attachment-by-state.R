@@ -6,7 +6,7 @@ test_that("get_attachment_by_state retrieves correct attachment", {
   
   # Record some results
   # State A, attempt 1
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "result_A1",
     stage = "stage1",
     state = "stateA",
@@ -16,7 +16,7 @@ test_that("get_attachment_by_state retrieves correct attachment", {
   )
   
   # State A, attempt 2 (retry)
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "result_A2",
     stage = "stage1",
     state = "stateA",
@@ -26,7 +26,7 @@ test_that("get_attachment_by_state retrieves correct attachment", {
   )
   
   # State B
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "result_B",
     stage = "stage1",
     state = "stateB",
@@ -36,7 +36,7 @@ test_that("get_attachment_by_state retrieves correct attachment", {
   )
   
   # State A in stage 2 (same state name, different stage)
-  ctx$record_result(
+  record_dummy_result(ctx,
     result = "result_A_stage2",
     stage = "stage2",
     state = "stateA",
