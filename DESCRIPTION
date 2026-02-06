@@ -28,6 +28,7 @@ Imports:
     pkgsearch,
     promises,
     R6 (>= 2.6.1),
+    RSQLite (>= 2.3.0),
     S7 (>= 0.2.1),
     yaml (>= 2.3.12)
 Suggests: 
@@ -40,6 +41,7 @@ Language: en-US
 Collate: 
     'aaa.R'
     'basic-properties.R'
+    'class-attachment-index.R'
     'class-s7base.R'
     'mcp-describe.R'
     'class-baseagent.R'

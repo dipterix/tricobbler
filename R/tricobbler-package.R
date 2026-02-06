@@ -8,6 +8,7 @@
 #' @importFrom utils str
 #' @importFrom coro await
 #' @importFrom coro async
+#' @importFrom RSQLite SQLite
 NULL
 
 ## usethis namespace: start

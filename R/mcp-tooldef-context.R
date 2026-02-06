@@ -414,7 +414,7 @@ mcp_tool_context_logs_search <- function(
 #'   \item{context_id}{Character, the context identifier}
 #'   \item{count}{Integer, number of attachments found}
 #'   \item{attachments}{List of attachment metadata, each with \code{stage},
-#'     \code{state}, \code{agent_id}, \code{current_attempt}, \code{filename}}
+#'     \code{state}, \code{agent_id}, \code{attempt}, \code{attachment_id}}
 #'   \item{note}{Character, present when accessibility is not \code{"all"},
 #'     indicating the agent cannot read attachment content}
 #'   \item{error}{Character, error message if success is \code{FALSE}}
@@ -466,8 +466,8 @@ mcp_tool_context_attachment_list <- function(
           stage = character(0),
           state = character(0),
           agent_id = character(0),
-          current_attempt = integer(0),
-          filename = character(0),
+          attempt = integer(0),
+          attachment_id = character(0),
           stringsAsFactors = FALSE
         )
         count <- 0L
@@ -516,7 +516,7 @@ mcp_tool_context_attachment_list <- function(
 #' attachment content.
 #'
 #' @param attachment_id Character, the attachment identifier. This is the
-#'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
+#'   \code{attachment_id} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
 #'   \code{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.
 #' @param .runtime AgentRuntime object (injected automatically by
@@ -629,7 +629,7 @@ mcp_tool_context_attachment_exists <- function(
 #' Returns an error if accessibility is \code{"logs"} or \code{"none"}.
 #'
 #' @param attachment_id Character, the attachment identifier. This is the
-#'   \code{filename} value from \code{mcp_tool_context_attachment_list} or
+#'   \code{attachment_id} value from \code{mcp_tool_context_attachment_list} or
 #'   the \code{identifier} logged when a result is recorded. Format:
 #'   \verb{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.
 #' @param .runtime AgentRuntime object (injected automatically by
@@ -643,7 +643,7 @@ mcp_tool_context_attachment_exists <- function(
 #'   \item{attachment_id}{Character, the queried attachment identifier}
 #'   \item{attachment}{List, the attachment data including \code{result},
 #'     \code{description}, \code{stage}, \code{state}, \code{agent_id},
-#'     \code{current_attempt}, and \code{._timestamp}}
+#'     \code{current_attempt}, and \code{timestamp}}
 #'   \item{error}{Character, error message if success is \code{FALSE}}
 #' }
 #'

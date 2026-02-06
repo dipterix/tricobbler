@@ -276,7 +276,7 @@ test_that(
 
     # Get an attachment ID to test with
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute tool with runtime
     runtime <- create_test_runtime(context)
@@ -312,7 +312,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
@@ -335,7 +335,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
@@ -367,7 +367,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "all" accessibility
     runtime <- create_test_runtime(context, accessibility = "all")
@@ -393,7 +393,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
@@ -417,7 +417,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "all" accessibility
     runtime <- create_test_runtime(context, accessibility = "all")
@@ -447,7 +447,7 @@ test_that(
     on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
     attachments <- context$list_attachments()
-    attachment_id <- attachments$filename[1]
+    attachment_id <- attachments$attachment_id[1]
 
     # Execute with runtime that has "none" accessibility
     runtime <- create_test_runtime(context, accessibility = "none")

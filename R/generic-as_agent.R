@@ -18,8 +18,9 @@
 #' @param x Object to convert. Can be:
 #'   \itemize{
 #'     \item An \code{Agent} object (returned as-is)
-#'     \item An ellmer \code{Chat} object (creates an LLM-backed agent)
-#'     \item A function with signature \code{function(self, policy, context)}
+#'     \item An \pkg{ellmer} \code{Chat} object (creates an LLM-backed agent)
+#'     \item A function with signature \code{function(runtime)}, where
+#'           `runtime` is an `AgentRuntime` object
 #'     \item A character string referencing a package function
 #'       (\code{"pkg::fun"})
 #'     \item An MCP tool definition (class \code{tricobbler_mcp_tool})
@@ -99,16 +100,20 @@ S7::method(as_agent, S7::class_function) <- function(
     ...) {
 
   id <- as.character(id)
+  force(x)
 
-  wrapper_fun <- function(self, policy, context) {
+  wrapper_fun <- function(runtime) {
     # Extract parameters from policy if available
+    policy <- runtime$policy
+    context <- runtime$context
+
     params <- as.list(policy@parameters)
     debug <- isTRUE(context$debug)
 
     # Determine input arguments based on accessibility policy
     # "all" and "explicit": Use explicit dependencies defined in policy
     # "logs" and "none": Use only static arguments (no dependencies)
-    
+
     # 1. Start with static args
     input <- as.list(params$args)
     if (policy@accessibility %in% c("all", "explicit")) {
@@ -224,7 +229,12 @@ as_agent_from_chat <- function(
     description <- sprintf("LLM agent powered by %s", model)
   }
 
-  agent_fun <- function(self, policy, context, ...) {
+  agent_fun <- function(runtime, ...) {
+
+    policy <- runtime$policy
+    context <- runtime$context
+    is_async <- identical(runtime$status, "running (async)")
+
     # Extract AI agent parameters from policy@parameters
     params <- as.list(policy@parameters)
     system_prompt <- paste(params$system_prompt %||% policy@description, collapse = "\n")
@@ -323,12 +333,21 @@ as_agent_from_chat <- function(
     if (!is.null(return_type)) {
       chat_impl <- function(..., .list = list()) {
         args <- c(as.list(.list), list(..., type = return_type))
-        do.call(chat$chat_structured, args)
+        if (is_async) {
+          do.call(chat$chat_structured_async, args)
+        } else {
+          do.call(chat$chat_structured, args)
+        }
       }
     } else {
       chat_impl <- function(..., .list = list()) {
         args <- c(as.list(.list), list(...))
-        do.call(chat$chat, args)
+
+        if (is_async) {
+          do.call(chat$chat_async, args)
+        } else {
+          do.call(chat$chat, args)
+        }
       }
     }
 
@@ -339,7 +358,7 @@ as_agent_from_chat <- function(
 
       for (param_name in names(deps)) {
         dep_spec <- deps[[param_name]]
-        
+
         target_stage <- if (is.null(dep_spec$stage)) {
           policy@stage
         } else {
@@ -434,7 +453,11 @@ as_agent_from_mcp_tool <- function(
   # Get the underlying function
   impl <- mcptool_seek_function(tool)
 
-  agent_fun <- function(self, policy, context, ...) {
+  agent_fun <- function(runtime, ...) {
+
+    policy <- runtime$policy
+    context <- runtime$context
+
     # Extract parameters from policy if available
     params <- as.list(policy@parameters)
     debug <- isTRUE(context$debug)

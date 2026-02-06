@@ -171,175 +171,123 @@ states:
 
 ## Phase 3: Per-Runtime Logging & Atomic Attachments [Done]
 
-**Why:** Instead of file locking (unnecessary since R promises/coro are single-threaded), we redesign `AgentRuntime` to own its execution lifecycle completely. Each runtime gets its own log file and attachment, enabling crash inspection and clean separation of concerns.
+**Why:** Each `AgentRuntime` owns its execution lifecycle completely—one runtime = one attempt = one attachment. Per-runtime log files enable crash inspection and clean separation of concerns without file locking (unnecessary since R promises/coro are single-threaded).
 
-**Key insight:** One `AgentRuntime` = one execution attempt = one attachment. The runtime ID becomes the attachment ID.
+**Key insight:** One `AgentRuntime` = one execution attempt = one attachment. The `attachment_id` (format `[stage][state][agent_id]_YYMMDDTHHMMSS_{attempt}`) is the primary key across log files, `.rds` attachments, and the SQLite index.
 
-### 3.1 Move `attempt` to AgentRuntime Initializer
-
-**Location:** `R/class-runtime.R`
-
-**Current:** Scheduler tracks attempt count and passes to `runtime$run(attempt)`
-
-**New:** Runtime receives `attempt` at construction, generates `execution_id` immediately
-
-**Steps:**
-1. Update `AgentRuntime$new()` signature:
-   ```r
-   initialize = function(agent, context, policy, attempt = 0L) {
-     private$.agent <- agent
-     private$.context <- context
-     private$.policy <- policy
-     private$.attempt <- attempt
-     private$.start_time <- Sys.time()
-     private$.execution_id <- sprintf(
-       "%s_%s_%s_%d",
-       policy@stage,
-       policy@name,
-       format(private$.start_time, "%Y%m%d%H%M%OS3"),
-       attempt
-     )
-     # Create per-runtime log file immediately
-     private$.log_path <- file.path(
-       context$attachment_folder,
-       paste0(private$.execution_id, ".log")
-     )
-     file.create(private$.log_path)
-   }
-   ```
-2. Remove `attempt` parameter from `run()` and `run_async()`
-3. Update Scheduler to create new runtime per retry attempt
-
-### 3.2 Add Per-Runtime Log File
+### 3.1 Move `attempt` to AgentRuntime Initializer [Done]
 
 **Location:** `R/class-runtime.R`
 
-**Rationale:** Each runtime writes to its own `.log` file using append mode (`a+`). No cross-process conflicts even with mirai/future workers, since each worker has its own runtime instance.
-
-**Steps:**
-1. Add private fields:
+**Implementation:**
+1. `AgentRuntime$new(agent, context, policy, attempt = 0L)` — attempt is validated and stored at construction
+2. `attachment_id` is generated immediately in the constructor:
    ```r
-   private = list(
-     .log_path = NULL,      # Path to {execution_id}.log
-     .start_time = NULL,    # Sys.time() at creation
-     .attempt = NULL        # Attempt number
+   private$.attachment_id <- sprintf(
+     "[%s][%s][%s]_%s_%d",
+     policy@stage, policy@name, agent@id,
+     format(now, "%y%m%dT%H%M%S"), attempt
    )
    ```
-2. Add `$log(...)` method (replaces current `$logger()`):
-   ```r
-   log = function(..., level = "INFO") {
-     timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%OS3")
-     msg <- paste0("[", timestamp, "] [", level, "] ", paste(..., collapse = ""))
-     cat(msg, "\n", file = private$.log_path, append = TRUE)
-   }
-   ```
-3. Add `$get_logs()` method:
-   ```r
-   get_logs = function() {
-     if (file.exists(private$.log_path)) {
-       readLines(private$.log_path)
-     } else {
-       character(0)
-     }
-   }
-   ```
+3. Runtime registers itself in `AttachmentIndex` with status `"init"` at construction
+4. `run()` and `run_async()` take no arguments — attempt is already known
+5. Scheduler creates a fresh `AgentRuntime` per retry attempt, passing the cumulative retry count
 
-### 3.3 Add Timing Capture & Result Finalization
+### 3.2 Per-Runtime Log File [Done]
 
 **Location:** `R/class-runtime.R`
 
-**Steps:**
-1. Modify `run()` and `run_async()` to capture timing:
-   ```r
-   run = function() {
-     # ... existing execution logic ...
-     duration_secs <- as.numeric(
-       difftime(Sys.time(), private$.start_time, units = "secs")
-     )
-     # Include timing in result_list
-     list(
-       result = result,
-       succeed = succeed,
-       stage = private$.policy@stage,
-       state = private$.policy@name,
-       agent_id = private$.policy@agent_id,
-       current_attempt = private$.attempt,
-       start_time = private$.start_time,
-       duration_secs = duration_secs,
-       execution_id = private$.execution_id
-     )
-   }
-   ```
-2. Add `$finalize(result_list)` method that:
-   - Appends final summary line to log: `[COMPLETE] duration=X.Xs status=success/failed`
-   - Saves `.rds` attachment file
-   - Calls `context$record_result()` to update index
-   ```r
-   finalize = function(result_list) {
-     # Log completion
-     status <- if (result_list$succeed) "success" else "failed"
-     self$log(
-       sprintf("duration=%.3fs status=%s", result_list$duration_secs, status),
-       level = "COMPLETE"
-     )
-     # Save attachment
-     rds_path <- file.path(
-       private$.context$attachment_folder,
-       paste0(private$.execution_id, ".rds")
-     )
-     saveRDS(result_list, rds_path)
-     # Update index (only after .rds exists)
-     private$.context$record_result(result_list)
-   }
-   ```
+**Implementation:**
+1. `$logger(...)` writes to `{attachment_path}/{attachment_id}.log` via `log_to_file()`, and optionally mirrors to the main context log when running in the main process (`Sys.getpid()` check)
+2. `$logger()` supports `level`, `verbose`, `public`, and `role` parameters — reuses the shared `log_to_file()` helper from `R/helper-logger.R`
+3. No separate `$get_logs()` on runtime — context provides `$get_runtime_log(attachment_id)` instead
 
-### 3.4 Simplify AgentContext
+### 3.3 Timing Capture & Result Recording [Done]
+
+**Location:** `R/class-runtime.R`
+
+**Implementation:**
+1. `private$.create_run_impl()` captures `time_started <- Sys.time()` at execution start and passes `started` and `duration` to `.record_result()`
+2. `private$.record_result(result, succeed, ...)` handles all result finalization:
+   - Calls `agent@describe(result)` for human-readable description
+   - Saves `.rds` attachment to `{attachment_path}/{attachment_id}.rds`
+   - Logs result summary: `Status=finished` or `Status=errored`
+   - Calls `context$record_attachment(runtime, succeed)` to update index
+3. Index status transitions: `init` → `running` (at execution start) → `finished`/`errored` (at result recording)
+
+### 3.4 SQLite-Backed AttachmentIndex [Done]
+
+**Location:** `R/class-attachment-index.R` (new file)
+
+**Implementation:** `AttachmentIndex` R6 class backed by RSQLite, replacing the previous text-based `.results` data.frame in `AgentContext`.
+
+1. **Schema:**
+   ```sql
+   CREATE TABLE attachment_index (
+     attachment_id TEXT PRIMARY KEY,
+     stage         TEXT NOT NULL,
+     state         TEXT NOT NULL,
+     agent_id      TEXT NOT NULL,
+     attempt       INTEGER NOT NULL DEFAULT 0,
+     status        TEXT NOT NULL DEFAULT 'init',
+     succeed       INTEGER,
+     created_at    REAL NOT NULL,
+     updated_at    REAL NOT NULL
+   )
+   ```
+   Indexes on `(state, stage)` and `(status)` for common queries.
+
+2. **Connection lifecycle:** Open/close per operation via `private$.with_db(callback)` — negligible overhead for ~3-15 writes per scheduler run, and safe against connection leaks.
+
+3. **Backend abstraction:** All SQLite calls are isolated in `$.with_db()` and `$.init_db()`. To swap to duckdb or another backend, only these two private methods need modification.
+
+4. **Public API:**
+   - `$register(attachment_id, stage, state, agent_id, attempt)` — INSERT OR REPLACE with status `"init"`
+   - `$update_status(attachment_id, status)` — set status to any of `init/running/finished/errored/skipped`
+   - `$mark_finished(attachment_id, succeed)` — convenience: sets status + succeed flag
+   - `$get(attachment_id)` — single-row lookup
+   - `$list(status = NULL)` — all entries, most recent first, optional status filter
+   - `$query(state, stage, status)` — filter by state/stage/status
+   - `$list_incomplete(timeout_secs = NULL)` — entries with status `init` or `running`, optionally past a timeout
+   - `$exists(attachment_id)` — fast existence check
+   - `$get_db_path()` — returns the SQLite file path
+
+5. **Status lifecycle:** `init` → `running` → `finished` | `errored` (and `skipped` reserved for future use)
+
+### 3.5 Simplified AgentContext [Done]
 
 **Location:** `R/class-context.R`
 
-**Steps:**
-1. Keep `$logger()` for scheduler-level logs only (main thread)
-2. Simplify `record_result()` to only update index (runtime handles file creation)
-3. Add inspection methods:
-   ```r
-   list_incomplete = function() {
-     # Find .log files without matching .rds (crashed/in-progress runs)
-     logs <- list.files(self$attachment_folder, pattern = "\\.log$")
-     rds <- list.files(self$attachment_folder, pattern = "\\.rds$")
-     log_ids <- sub("\\.log$", "", logs)
-     rds_ids <- sub("\\.rds$", "", rds)
-     setdiff(log_ids, rds_ids)
-   }
-   
-   get_runtime_log = function(execution_id) {
-     log_path <- file.path(self$attachment_folder, paste0(execution_id, ".log"))
-     if (file.exists(log_path)) readLines(log_path) else NULL
-   }
-   ```
+**Implementation:**
+1. `private$.results` (data.frame) replaced with `private$.index` (AttachmentIndex)
+2. `init_resources()` creates `AttachmentIndex$new(db_path)` at `{attachment_path}/index.sqlite`
+3. `$index` active binding exposes the index (read-only)
+4. `record_attachment(runtime, succeed)` delegates to `index$mark_finished()` — logs `status=finished` or `status=errored`
+5. `last_results()`, `get_attachment()`, `get_attachment_by_state()`, `list_attachments()` all query the index
+6. New `$list_incomplete(timeout_secs)` — delegates to `index$list_incomplete()`
+7. New `$get_runtime_log(attachment_id)` — reads `{attachment_path}/{attachment_id}.log`
 
-### 3.5 Update Scheduler for New Runtime Lifecycle
+### 3.6 Scheduler Integration [Done]
 
 **Location:** `R/class-scheduler.R`
 
-**Steps:**
-1. Create fresh `AgentRuntime` per attempt:
-   ```r
-   for (attempt in seq_len(max_retries)) {
-     runtime <- AgentRuntime$new(agent, context, policy, attempt = attempt - 1L)
-     result_list <- runtime$run()
-     runtime$finalize(result_list)
-     if (result_list$succeed) break
-   }
-   ```
-2. Remove attempt tracking from scheduler (runtime owns it)
+**Implementation:**
+1. Creates fresh `AgentRuntime$new(agent, context, policy, attempt = init_retry_count)` per attempt
+2. Calls `runtime$run()` which internally handles the full lifecycle (init → running → record result → update index)
+3. Retry logic remains in scheduler (`retry_map` tracks cumulative failure count per state)
+4. Fixed bare `context` → `self$context` reference bug
 
-### Benefits
+### 3.7 Bug Fixes Applied
 
-1. **Crash inspection:** If agent crashes mid-execution, `.log` file exists without `.rds` — can inspect what happened
-2. **No file locking needed:** Each runtime writes only to its own files
-3. **Deferred main-thread writes:** Index update happens after promise resolution in main process
-4. **Self-contained execution:** Runtime ID = attachment ID, simplifies mental model
-5. **Worker process safe:** mirai/future workers can log to their own `.log` files without conflict
+1. **Column name mismatch:** `init_resources()` used `attachment_id` but `record_attachment()` used `filename` — fixed by SQLite schema where column names are defined once
+2. **MCP fallback mismatch:** Empty fallback data.frame used `current_attempt` but actual data used `attempt` — fixed by consistent schema
+3. **Test references:** All `$filename` references in tests updated to `$attachment_id`
+4. **RSQLite added to DESCRIPTION Imports**, `@importFrom RSQLite SQLite` added to namespace
+
+### Dependencies Added
+
+- `RSQLite (>= 2.3.0)` in DESCRIPTION Imports
+- `R/class-attachment-index.R` added to Collate (before `class-context.R`)
 
 ---
 
@@ -352,9 +300,8 @@ states:
 **Steps:**
 1. Add to Imports:
    ```
-   coro (>= 1.0.4),
-   promises (>= 1.2.0),
-   later (>= 1.3.0)
+   coro,
+   promises
    ```
 
 ### 4.2 Implement Priority-Grouped Execution

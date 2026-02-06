@@ -18,7 +18,7 @@ AgentContext <- R6::R6Class(
 
     # ID of the context, created automatically
     .id = NULL,
-    .results = NULL,
+    .index = NULL,
 
     .is_default = FALSE,
 
@@ -93,6 +93,12 @@ AgentContext <- R6::R6Class(
     #' (read-only)
     attachment_path = function() {
       file.path(self$store_path, "attachments")
+    },
+
+    #' @field index AttachmentIndex, the attachment index (read-only).
+    #'   Available after \code{init_resources()} is called.
+    index = function() {
+      private$.index
     }
   ),
   public = list(
@@ -134,7 +140,7 @@ AgentContext <- R6::R6Class(
       }
 
       private$.cache <- fastmap::fastmap()
-      private$.results <- fastmap::fastqueue()
+      private$.index <- NULL
 
       if (!dir.exists(path)) {
         dir.create(path, recursive = TRUE)
@@ -160,25 +166,10 @@ AgentContext <- R6::R6Class(
       dir.create(self$attachment_path, showWarnings = FALSE, recursive = TRUE)
       file.create(self$logger_path, showWarnings = FALSE)
 
-      # reload result index
-      private$.results <- NULL
+      # Initialize attachment index (SQLite-backed)
+      db_path <- file.path(self$attachment_path, "index.sqlite")
+      private$.index <- AttachmentIndex$new(db_path)
 
-      index_path <- file.path(self$attachment_path, "index")
-      if (file.exists(index_path)) {
-        tbl <- read.table(
-          index_path,
-          header = FALSE,
-          col.names = c(
-            "stage",
-            "state",
-            "agent_id",
-            "attempt",
-            "attachment_id",
-            "succeed"
-          )
-        )
-        private$.results <- tbl[rev(seq_len(nrow(tbl))), ]
-      }
       invisible(self)
     },
 
@@ -230,47 +221,15 @@ AgentContext <- R6::R6Class(
     },
 
     record_attachment = function(runtime, succeed) {
-
-      # data to record
-      row <- data.frame(
-        stage = runtime$policy@stage,
-        state = runtime$policy@name,
-        agent_id = runtime$agent@id,
-        attempt = runtime$attempt,
-        filename = runtime$attachment_id,
-        succeed = isTRUE(succeed)
+      private$.index$mark_finished(
+        attachment_id = runtime$attachment_id,
+        succeed = succeed
       )
-
-      attachment_folder <- self$attachment_path
-      if (!dir.exists(attachment_folder)) {
-        dir.create(attachment_folder, showWarnings = FALSE, recursive = TRUE)
-      }
-      index_path <- file.path(attachment_folder, "index")
-      tf <- tempfile()
-      on.exit({
-        unlink(tf, force = TRUE)
-      })
-      if (file.exists(index_path)) {
-        file.copy(index_path, to = tf, overwrite = TRUE, recursive = FALSE)
-      } else {
-        file.create(tf)
-      }
-
-      write.table(
-        row,
-        file = tf,
-        append = TRUE,
-        row.names = FALSE,
-        col.names = FALSE
-      )
-      file.copy(from = tf, to = index_path, overwrite = TRUE, recursive = FALSE)
-
-      private$.results <- rbind(row, private$.results)
 
       self$logger(
         sprintf(
-          "Attachment recorded, identifier=%s, error=%s",
-          runtime$attachment_id, ifelse(succeed, "no", "yes")
+          "Attachment recorded, identifier=%s, status=%s",
+          runtime$attachment_id, if (succeed) "finished" else "errored"
         ),
         caller = self,
         level = "TRACE"
@@ -284,17 +243,18 @@ AgentContext <- R6::R6Class(
     #' @param items integer, number of results to retrieve
     #' @param simplify logical, return single result if items == 1
     last_results = function(items = 1, simplify = length(items) == 1) {
-      if (!is.data.frame(private$.results) || !nrow(private$.results)) {
+      idx <- private$.index$list()
+      if (!is.data.frame(idx) || !nrow(idx)) {
         return(NULL)
       }
-      n <- nrow(private$.results)
+      n <- nrow(idx)
       items <- min(items, n)
-      fnames <- private$.results$filename[seq_len(items)]
+      fnames <- idx$attachment_id[seq_len(items)]
       attachment_root <- self$attachment_path
       ret <- lapply(fnames, function(fname) {
-        attachment_path <- file.path(attachment_root, paste0(fname, ".rds"))
-        if (file.exists(attachment_path)) {
-          return(readRDS(attachment_path))
+        fpath <- file.path(attachment_root, paste0(fname, ".rds"))
+        if (file.exists(fpath)) {
+          return(readRDS(fpath))
         }
         return(NULL)
       })
@@ -339,19 +299,12 @@ AgentContext <- R6::R6Class(
         )
       }
 
-      attachment_path <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
-      if (file.exists(attachment_path)) {
-        return(readRDS(attachment_path))
+      fpath <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
+      if (file.exists(fpath)) {
+        return(readRDS(fpath))
       }
 
-      idx <- private$.results
-      if (!is.data.frame(idx) || !nrow(idx) || !"filename" %in% names(idx)) {
-        idx <- self$list_attachments(reindex = TRUE)
-      }
-
-      in_history <- is.data.frame(idx) &&
-        nrow(idx) &&
-        attachment_id %in% idx$filename
+      in_history <- private$.index$exists(attachment_id)
       if (in_history) {
         stop(
           "AgentContext$get_attachment(): Attachment '",
@@ -377,34 +330,21 @@ AgentContext <- R6::R6Class(
         stop("AgentContext$get_attachment_by_state(): `state` is required.")
       }
       if (missing(stage) || length(stage) != 1 || !nzchar(stage)) {
-        stop("AgentContext$get_attachment_by_state(): `stage` is required for data privacy/integrity.")
+        stop("AgentContext$get_attachment_by_state(): `stage` is required for data privacy/integrity.") # nolint: line_length_linter.
       }
 
-      idx <- private$.results
-      if (!is.data.frame(idx) || !nrow(idx)) {
+      matches <- private$.index$query(state = state, stage = stage)
+
+      if (!is.data.frame(matches) || nrow(matches) == 0L) {
         return(NULL)
       }
 
-      # Filter for state
-      mask <- idx$state == state
+      # Query returns most-recent first
+      fname <- matches$attachment_id[[1L]]
 
-      # Filter for stage if provided
-      if (!is.null(stage)) {
-        mask <- mask & (idx$stage == stage)
-      }
-
-      matches <- idx[mask, , drop = FALSE]
-
-      if (nrow(matches) == 0) {
-        return(NULL)
-      }
-
-      # The dataframe is ordered most-recent first
-      fname <- matches$filename[[1]]
-
-      attachment_path <- file.path(self$attachment_path, paste0(fname, ".rds"))
-      if (file.exists(attachment_path)) {
-        return(readRDS(attachment_path))
+      fpath <- file.path(self$attachment_path, paste0(fname, ".rds"))
+      if (file.exists(fpath)) {
+        return(readRDS(fpath))
       }
 
       stop(
@@ -416,41 +356,18 @@ AgentContext <- R6::R6Class(
     },
 
     #' @description List all available attachments
-    #' @param reindex logical, whether to reload the index from disk
-    #'    (default FALSE)
+    #' @param reindex logical, currently unused (index is always live);
+    #'   kept for backward compatibility
     list_attachments = function(reindex = FALSE) {
-      if (reindex) {
-        # Reload index from disk
-        index_path <- file.path(self$attachment_path, "index")
-        if (file.exists(index_path)) {
-          tbl <- read.table(
-            index_path,
-            header = FALSE,
-            col.names = c(
-              "stage",
-              "state",
-              "agent_id",
-              "attempt",
-              "filename",
-              "succeed"
-            )
-          )
-          private$.results <- tbl[rev(seq_len(nrow(tbl))), ]
-        } else {
-          private$.results <- NULL
-        }
-      }
-
-      if (!is.data.frame(private$.results) || nrow(private$.results) == 0) {
+      tbl <- private$.index$list()
+      if (!is.data.frame(tbl) || nrow(tbl) == 0L) {
         return(character(0L))
       }
-
-      return(private$.results)
+      tbl
     },
 
     #' @description Check if an attachment exists
     #' @param attachment_id character, the attachment identifier
-    #'   (filename from record_result)
     #' @return logical, TRUE if the attachment exists on disk, FALSE otherwise
     has_attachment = function(attachment_id) {
       if (
@@ -466,8 +383,33 @@ AgentContext <- R6::R6Class(
       if (!grepl(pattern, attachment_id)) {
         return(FALSE)
       }
-      attachment_path <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
-      file.exists(attachment_path)
+      fpath <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
+      file.exists(fpath)
+    },
+
+    #' @description Find incomplete executions (crashed or in-progress)
+    #' @param timeout_secs numeric or \code{NULL}, seconds after which
+    #'   init/running entries are considered incomplete. If \code{NULL},
+    #'   returns all init/running entries.
+    #' @return A data.frame of incomplete index entries
+    list_incomplete = function(timeout_secs = NULL) {
+      private$.index$list_incomplete(timeout_secs)
+    },
+
+    #' @description Read a specific runtime's per-execution log file
+    #' @param attachment_id character, the attachment identifier
+    #'   (which is also the runtime's log file prefix)
+    #' @return character vector of log lines, or \code{NULL} if not found
+    get_runtime_log = function(attachment_id) {
+      log_path <- file.path(
+        self$attachment_path,
+        paste0(attachment_id, ".log")
+      )
+      if (file.exists(log_path)) {
+        readLines(log_path)
+      } else {
+        NULL
+      }
     },
 
     #' @description Read and parse log file contents

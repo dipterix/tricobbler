@@ -77,7 +77,7 @@ test_that("has_attachment returns TRUE for existing attachments", {
   expect_true(is.data.frame(attachments))
   expect_gt(nrow(attachments), 0)
 
-  attachment_id <- attachments$filename[1]
+  attachment_id <- attachments$attachment_id[1]
   expect_true(ctx$has_attachment(attachment_id))
 })
 
@@ -154,7 +154,7 @@ test_that("get_attachment retrieves existing attachments", {
 
   # Get the attachment ID
   attachments <- ctx$list_attachments()
-  attachment_id <- attachments$filename[1]
+  attachment_id <- attachments$attachment_id[1]
 
   # Retrieve and verify
   retrieved <- ctx$get_attachment(attachment_id)
@@ -194,8 +194,8 @@ test_that("attachment regex accepts valid identifier formats", {
 
   # Both should be retrievable
   for (i in seq_len(nrow(attachments))) {
-    expect_true(ctx$has_attachment(attachments$filename[i]))
-    retrieved <- ctx$get_attachment(attachments$filename[i])
+    expect_true(ctx$has_attachment(attachments$attachment_id[i]))
+    retrieved <- ctx$get_attachment(attachments$attachment_id[i])
     expect_type(retrieved, "list")
   }
 })

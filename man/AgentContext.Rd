@@ -45,6 +45,9 @@ directory (read-only)}
 
 \item{\code{attachment_path}}{character, path to attachments directory
 (read-only)}
+
+\item{\code{index}}{AttachmentIndex, the attachment index (read-only).
+Available after \code{init_resources()} is called.}
 }
 \if{html}{\out{</div>}}
 }
@@ -61,6 +64,8 @@ directory (read-only)}
 \item \href{#method-TricobblerAgentContext-get_attachment_by_state}{\code{AgentContext$get_attachment_by_state()}}
 \item \href{#method-TricobblerAgentContext-list_attachments}{\code{AgentContext$list_attachments()}}
 \item \href{#method-TricobblerAgentContext-has_attachment}{\code{AgentContext$has_attachment()}}
+\item \href{#method-TricobblerAgentContext-list_incomplete}{\code{AgentContext$list_incomplete()}}
+\item \href{#method-TricobblerAgentContext-get_runtime_log}{\code{AgentContext$get_runtime_log()}}
 \item \href{#method-TricobblerAgentContext-read_logs}{\code{AgentContext$read_logs()}}
 }
 }
@@ -117,7 +122,7 @@ Create directory structure and initialize logging
 \if{html}{\out{<a id="method-TricobblerAgentContext-logger"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-logger}{}}}
 \subsection{Method \code{logger()}}{
-Write timestamped messages to log file
+Write time-stamped messages to log file
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$logger(
   ...,
@@ -226,8 +231,8 @@ List all available attachments
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{reindex}}{logical, whether to reload the index from disk
-(default FALSE)}
+\item{\code{reindex}}{logical, currently unused (index is always live);
+kept for backward compatibility}
 }
 \if{html}{\out{</div>}}
 }
@@ -244,13 +249,55 @@ Check if an attachment exists
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{attachment_id}}{character, the attachment identifier
-(filename from record_result)}
+\item{\code{attachment_id}}{character, the attachment identifier}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
 logical, TRUE if the attachment exists on disk, FALSE otherwise
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-list_incomplete"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-list_incomplete}{}}}
+\subsection{Method \code{list_incomplete()}}{
+Find incomplete executions (crashed or in-progress)
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$list_incomplete(timeout_secs = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{timeout_secs}}{numeric or \code{NULL}, seconds after which
+init/running entries are considered incomplete. If \code{NULL},
+returns all init/running entries.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A data.frame of incomplete index entries
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-get_runtime_log"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-get_runtime_log}{}}}
+\subsection{Method \code{get_runtime_log()}}{
+Read a specific runtime's per-execution log file
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_runtime_log(attachment_id)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{attachment_id}}{character, the attachment identifier
+(which is also the runtime's log file prefix)}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+character vector of log lines, or \code{NULL} if not found
 }
 }
 \if{html}{\out{<hr>}}

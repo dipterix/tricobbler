@@ -49,7 +49,7 @@ AgentRuntime <- R6::R6Class(
     .id = character(),
     .attachment_id = character(),
     .pid = NULL,
-    .started = FALSE,
+    .status = "idle",
 
     .record_result = function(result, succeed, ...) {
       fname <- sprintf("%s.rds", private$.attachment_id)
@@ -103,14 +103,14 @@ AgentRuntime <- R6::R6Class(
         description <- "(Agent fail to describe the result. Please retrieve the raw output via the identifier)" # nolint: line_length_linter.
       }
 
-      succeed_str <- ifelse(succeed, "yes", "no")
+      status <- if (succeed) "finished" else "errored"
 
       # Show the results
       self$logger(
         sprintf(
-          "%s saved: Agent=%s, Stage=%s, State=%s, Attempt=%d, Success=%s, Attachment=%s\n%s",  # nolint: line_length_linter.
+          "%s saved: Agent=%s, Stage=%s, State=%s, Attempt=%d, Status=%s, Attachment=%s\n%s",  # nolint: line_length_linter.
           prefix, private$.agent@id, private$.policy@stage,
-          private$.policy@name, private$.attempt, succeed_str,
+          private$.policy@name, private$.attempt, status,
           self$attachment_id, description
         ),
         role = sprintf("Runtime %s", self$id), level = level
@@ -138,9 +138,17 @@ AgentRuntime <- R6::R6Class(
 
       # async part
       impl <- function() {
-
-        private$.started <- TRUE
+        if (now) {
+          private$.status <- "running"
+        } else {
+          private$.status <- "running (async)"
+        }
         time_started <- Sys.time()
+
+        # Update index status to 'running'
+        private$.context$index$update_status(
+          private$.attachment_id, "running"
+        )
 
         self$logger(
           sprintf(
@@ -151,16 +159,25 @@ AgentRuntime <- R6::R6Class(
 
         result <- tryCatch(
           {
-            if (now) {
-              result <- agent(runtime = self)
-            } else {
-              result <- await(agent(runtime = self))
+            result <- agent(runtime = self)
+            if (!now) {
+              # check if result is a promise
+              is_promise <- promises::is.promise(result)
+              if (!is_promise && promises::is.promising(result)) {
+                result <- promises::as.promise(result)
+                is_promise <- TRUE
+              }
+              if (is_promise) {
+                result <- await(result)
+              }
             }
             succeed <- TRUE
+            private$.status <- "finished"
             result
           },
           error = function(e) {
             private$.last_error <- e
+            private$.status <- "errored"
             e
           }
         )
@@ -185,10 +202,10 @@ AgentRuntime <- R6::R6Class(
     #' @field agent Agent object, the agent being executed (who)
     agent = function() { private$.agent },
 
-    #' @field context AgentContext object, the execution context (where)
+    #' @field context `AgentContext` object, the execution context (where)
     context = function() { private$.context },
 
-    #' @field policy StatePolicy object, the policy being executed (what)
+    #' @field policy `StatePolicy` object, the policy being executed (what)
     policy = function() { private$.policy },
 
     #' @field attempt integer, retry count if failed
@@ -199,7 +216,9 @@ AgentRuntime <- R6::R6Class(
 
     #' @field id character, short identifier for this execution to show
     #'   in the context logs
-    id = function() { private$.id }
+    id = function() { private$.id },
+
+    status = function() { private$.status }
   ),
   public = list(
 
@@ -231,6 +250,15 @@ AgentRuntime <- R6::R6Class(
       )
 
       private$.id <- substr(digest::digest(list(private$.attachment_id, now)), 1L, 6L)
+
+      # Register in the attachment index as 'init'
+      private$.context$index$register(
+        attachment_id = private$.attachment_id,
+        stage = policy@stage,
+        state = policy@name,
+        agent_id = agent@id,
+        attempt = attempt
+      )
 
       self$logger(
         sprintf("Runtime initialized, attachment ID: `%s`", self$attachment_id),

@@ -232,7 +232,7 @@ Scheduler <- R6::R6Class(
         # Create AgentRuntime for this execution
         runtime <- AgentRuntime$new(
           agent = agent,
-          context = context,
+          context = self$context,
           policy = policy,
           attempt = init_retry_count
         )
