@@ -46,20 +46,21 @@ ordering when multiple states share the same stage.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">StatePolicy</span><span class="op">(</span></span>
-<span>  name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
-<span>  description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
-<span>  stage <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
-<span>  agent_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
-<span>  resources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
-<span>  accessbility <span class="op">=</span> <span class="st">"all"</span>,</span>
-<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  max_retry <span class="op">=</span> <span class="fl">0L</span>,</span>
-<span>  priority <span class="op">=</span> <span class="fl">100L</span>,</span>
-<span>  critical <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  final <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  on_failure <span class="op">=</span> <span class="cn">NA_character_</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre><code>StatePolicy(
+  name = character(0),
+  description = character(0),
+  stage = character(0),
+  agent_id = character(0),
+  resources = character(0),
+  accessibility = "all",
+  parameters = list(),
+  max_retry = 0L,
+  priority = 100L,
+  critical = FALSE,
+  final = FALSE,
+  on_failure = NA_character_,
+  depends_on = &lt;object&gt;
+)</code></pre></div>
     </div>
 
     <div class="section level2">
@@ -89,15 +90,18 @@ dashes</p></dd>
 execution (default empty vector)</p></dd>
 
 
-<dt id="arg-accessbility">accessbility<a class="anchor" aria-label="anchor" href="#arg-accessbility"></a></dt>
+<dt id="arg-accessibility">accessibility<a class="anchor" aria-label="anchor" href="#arg-accessibility"></a></dt>
 <dd><p>character, context accessibility level for the agent.
 Controls what context data the agent can read. One of <code>"all"</code>
-(full access), <code>"logs"</code> (logs only), or <code>"none"</code> (no access).
+(full access), <code>"logs"</code> (logs only), <code>"none"</code> (no access), or
+<code>"explicit"</code> (use <code>depends_on</code> to specify inputs; if
+<code>depends_on</code> is empty, behaves like <code>"logs"</code>).
 Default is <code>"all"</code></p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>
-<dd><p>list, optional state-specific parameters</p></dd>
+<dd><p>list, state-specific parameters passed to the agent.
+See \strongParameters for Different Agent Types in Details</p></dd>
 
 
 <dt id="arg-max-retry">max_retry<a class="anchor" aria-label="anchor" href="#arg-max-retry"></a></dt>
@@ -137,6 +141,14 @@ infinite loops: if this state is re-entered and total attempts exceed
 validation loops (<code>on_failure = "executor"</code>), alternative strategies
 (<code>on_failure = "slower_alternative"</code>), or repair chains
 (<code>on_failure = "repair_step"</code>)</p></dd>
+
+
+<dt id="arg-depends-on">depends_on<a class="anchor" aria-label="anchor" href="#arg-depends-on"></a></dt>
+<dd><p><code>StateDeps</code> object or named list specifying explicit
+dependencies on prior state outputs. Each entry maps a parameter name to
+a dependency: <code>list(param = list(state = "state_name", field =
+  "result", stage = NULL))</code>. Used with <code>accessibility = "explicit"</code>
+for async execution. See <code><a href="StateDeps.html">StateDeps</a></code> for format details</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -195,6 +207,34 @@ semantics)</p></li>
 mature</p></li>
 </ol></div>
 
+<div class="section">
+<h3 id="parameters-for-different-agent-types">Parameters for Different Agent Types<a class="anchor" aria-label="anchor" href="#parameters-for-different-agent-types"></a></h3>
+
+
+<p>The <code>parameters</code> list is interpreted differently based on the agent
+type created via <code><a href="as_agent.html">as_agent</a></code>:</p>
+<p><strong>Deterministic Agents</strong> (from functions or MCP tools):</p><ul><li><p><code>args</code>: list, function arguments passed via
+<code>do.call(fun, args)</code>. Kept separate from other parameters to
+avoid conflicts with functions that have their own reserved arguments</p></li>
+</ul><p>The <code>accessibility</code> property affects how inputs are constructed:</p><ul><li><p><code>"all"</code>: First argument is the previous agent's result
+(<code>last_attachment$result</code>), followed by <code>args</code></p></li>
+<li><p><code>"logs"</code>: First argument is the previous agent's description
+(<code>last_attachment$description</code>), followed by <code>args</code></p></li>
+<li><p><code>"none"</code>: Only <code>args</code> are passed (no context access)</p></li>
+</ul><p><strong>Debug Mode</strong>: Set <code>context$debug &lt;- TRUE</code> at runtime to enable
+debug mode. In debug mode, agents print their calls/tools for inspection
+but run as no-op (returning debug information instead of executing).</p>
+<p><strong>AI Agents</strong> (from <span class="pkg">ellmer</span> Chat objects):</p><ul><li><p><code>system_prompt</code>: character, additional system prompt appended
+to <code>@description</code></p></li>
+<li><p><code>user_prompt</code>: character, the user message to send to the LLM</p></li>
+<li><p><code>keep_turns</code>: logical, if <code>TRUE</code>, retains conversation
+history across executions (default <code>FALSE</code>)</p></li>
+<li><p><code>return_type</code>: an <span class="pkg">ellmer</span> type indicator (e.g.,
+<code><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">ellmer::type_object()</a></code>). When provided, triggers
+<code>chat$chat_structured(type = return_type)</code> for structured output.
+Can also be specified in YAML via <code><a href="map_type_to_ellmer.html">map_type_to_ellmer()</a></code></p></li>
+</ul></div>
+
     </div>
 
     <div class="section level2">
@@ -222,6 +262,39 @@ mature</p></li>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> StatePolicy (S7 class) - `validator` (executing)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> critical validation step</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Deterministic agent with parameters</span></span></span>
+<span class="r-in"><span><span class="fu">StatePolicy</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  name <span class="op">=</span> <span class="st">"formatter"</span>,</span></span>
+<span class="r-in"><span>  stage <span class="op">=</span> <span class="st">"executing"</span>,</span></span>
+<span class="r-in"><span>  description <span class="op">=</span> <span class="st">"Format data to JSON"</span>,</span></span>
+<span class="r-in"><span>  agent_id <span class="op">=</span> <span class="st">"json_formatter"</span>,</span></span>
+<span class="r-in"><span>  accessibility <span class="op">=</span> <span class="st">"none"</span>,  <span class="co"># Only use args, no context</span></span></span>
+<span class="r-in"><span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">1</span>, b <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>, pretty <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> StatePolicy (S7 class) - `formatter` (executing)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Format data to JSON</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># AI agent with structured output</span></span></span>
+<span class="r-in"><span><span class="fu">StatePolicy</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  name <span class="op">=</span> <span class="st">"planner"</span>,</span></span>
+<span class="r-in"><span>  stage <span class="op">=</span> <span class="st">"planning"</span>,</span></span>
+<span class="r-in"><span>  description <span class="op">=</span> <span class="st">"Break down the task into steps"</span>,</span></span>
+<span class="r-in"><span>  agent_id <span class="op">=</span> <span class="st">"llm_planner"</span>,</span></span>
+<span class="r-in"><span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    system_prompt <span class="op">=</span> <span class="st">"You are a task planning expert."</span>,</span></span>
+<span class="r-in"><span>    user_prompt <span class="op">=</span> <span class="st">"Plan the following task: ..."</span>,</span></span>
+<span class="r-in"><span>    keep_turns <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
+<span class="r-in"><span>    return_type <span class="op">=</span> <span class="fu">ellmer</span><span class="fu">::</span><span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_object</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      steps <span class="op">=</span> <span class="fu">ellmer</span><span class="fu">::</span><span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_array</a></span><span class="op">(</span>items <span class="op">=</span> <span class="fu">ellmer</span><span class="fu">::</span><span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_string</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>    <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> StatePolicy (S7 class) - `planner` (planning)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Break down the task into steps</span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

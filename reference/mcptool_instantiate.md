@@ -7,7 +7,7 @@ package.
 ## Usage
 
 ``` r
-mcptool_instantiate(tool, ...)
+mcptool_instantiate(tool, ..., runtime = NULL)
 ```
 
 ## Arguments
@@ -23,6 +23,15 @@ mcptool_instantiate(tool, ...)
 
   Additional arguments passed to
   [`tool`](https://ellmer.tidyverse.org/reference/tool.html).
+
+- runtime:
+
+  An
+  [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
+  object or `NULL` (default). When provided, MCP tools that declare a
+  `.runtime` parameter will receive the runtime automatically via
+  closure capture. This enables async-safe execution without relying on
+  global state.
 
 ## Value
 

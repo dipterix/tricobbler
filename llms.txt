@@ -37,6 +37,12 @@ library(tricobbler)
 - [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
   : Execution Context for Workflow State Management
 
+- [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
+  : Agent Runtime Environment for State Execution
+
+- [`AttachmentIndex`](http://dipterix.org/tricobbler/reference/AttachmentIndex.md)
+  : Attachment Index for Workflow Result Tracking
+
 - [`Manifest()`](http://dipterix.org/tricobbler/reference/Manifest.md) :
   Validated Container Linking Master Policy to State Policies
 
@@ -46,15 +52,18 @@ library(tricobbler)
 - [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md) :
   Workflow Execution Scheduler
 
-- [`StatePolicy()`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+- [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
   : State-Level Policy Implementation for Workflow Stages
 
-- [`get_active_context()`](http://dipterix.org/tricobbler/reference/get_active_context.md)
-  : Get the Active Context
+- [`as_agent()`](http://dipterix.org/tricobbler/reference/as_agent.md) :
+  Convert Objects to Agent
 
 - [`manifest_write()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
   [`manifest_read()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
   : Read or Write Manifest from or to a YAML File
+
+- [`map_type_to_ellmer()`](http://dipterix.org/tricobbler/reference/map_type_to_ellmer.md)
+  : Convert Type Definitions to ellmer Type Indicators
 
 - [`mcp_attach()`](http://dipterix.org/tricobbler/reference/mcp_attach.md)
   : Attach Context to Chat Messages

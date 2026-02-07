@@ -1,15 +1,18 @@
 # Describe an R object for use in `MCP` tools
 
-A generic function used to describe an R object in a way that can be
+An S7 generic function used to describe an R object in a way that can be
 safely serialized to JSON and sent to `MCP` clients. Unlike direct
 serialization, this function handles special objects (environments,
 external pointers, large objects) by generating human-readable
 descriptions.
 
+The maximum print size is controlled by the context cache setting
+`tricobbler.mcp_describe.max_size` (default: 100 lines).
+
 ## Usage
 
 ``` r
-mcp_describe(x, ..., max_print = 100)
+mcp_describe(x, ...)
 ```
 
 ## Arguments
@@ -23,14 +26,12 @@ mcp_describe(x, ..., max_print = 100)
   Additional arguments passed down to underlying methods. Unused
   arguments are silently ignored.
 
-- max_print:
-
-  Maximum number of items to print for long objects. Default is 100.
-
 ## Value
 
 A character vector of lines describing the object. If the object is a
-simple scalar, may return a single-element character vector.
+simple scalar, may return a single-element character vector. For
+[`ellmer::Content`](https://ellmer.tidyverse.org/reference/Content.html)
+objects, returns the object as-is.
 
 ## Examples
 

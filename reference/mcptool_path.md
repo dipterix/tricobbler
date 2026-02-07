@@ -136,7 +136,7 @@ attr(tool_path, "mcp_definition")
 #> [1] "# Example output from calling the tool\ntricobbler:::mcp_tool_search_packages(\"tricobbler\")\n#\n#> $success\n#> [1] TRUE\n#> \n#> $query\n#> [1] \"tricobbler\"\n#> \n#> $packages\n#> [1] package     version     title       description date        maintainer \n#> <0 rows> (or 0-length row.names)\n#> \n#> $count\n#> [1] 0\n#> \n#> $returned\n#> [1] 0\n#> \n#> $message\n#> [1] \"No packages found matching query: tricobbler\"\n#>\n"
 #> 
 #> $execution_time
-#> [1] 0.5
+#> [1] 0.542
 #> 
 #> attr(,"class")
 #> [1] "tricobbler_mcp_tool" "list"               

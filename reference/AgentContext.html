@@ -46,6 +46,14 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 
     <div class="section level2">
+    <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
+    <p></p><div class="r6-fields"><dl><dt><code>debug</code></dt>
+<dd><p>logical, whether to print out agent calls</p></dd>
+
+
+</dl><p></p></div>
+    </div>
+    <div class="section level2">
     <h2 id="active-bindings">Active bindings<a class="anchor" aria-label="anchor" href="#active-bindings"></a></h2>
     <p></p><div class="r6-active-bindings"><dl><dt><code>id</code></dt>
 <dd><p>character, unique identifier for this context (read-only)</p></dd>
@@ -94,6 +102,11 @@ directory (read-only)</p></dd>
 (read-only)</p></dd>
 
 
+<dt><code>index</code></dt>
+<dd><p>AttachmentIndex, the attachment index (read-only).
+Available after <code>init_resources()</code> is called.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -106,12 +119,14 @@ directory (read-only)</p></dd>
 <li><p><a href="#method-TricobblerAgentContext-new"><code>AgentContext$new()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-init_resources"><code>AgentContext$init_resources()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-logger"><code>AgentContext$logger()</code></a></p></li>
-<li><p><a href="#method-TricobblerAgentContext-with_activated"><code>AgentContext$with_activated()</code></a></p></li>
-<li><p><a href="#method-TricobblerAgentContext-record_result"><code>AgentContext$record_result()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-record_attachment"><code>AgentContext$record_attachment()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-last_results"><code>AgentContext$last_results()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-get_attachment"><code>AgentContext$get_attachment()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-get_attachment_by_state"><code>AgentContext$get_attachment_by_state()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-list_attachments"><code>AgentContext$list_attachments()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-has_attachment"><code>AgentContext$has_attachment()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-list_incomplete"><code>AgentContext$list_incomplete()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-get_runtime_log"><code>AgentContext$get_runtime_log()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-read_logs"><code>AgentContext$read_logs()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TricobblerAgentContext-set_scheduler"></a><div class="section">
 <h3 id="method-set-scheduler-">Method <code>set_scheduler()</code><a class="anchor" aria-label="anchor" href="#method-set-scheduler-"></a></h3>
@@ -162,12 +177,12 @@ directory (read-only)</p></dd>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-logger"></a><div class="section">
 <h3 id="method-logger-">Method <code>logger()</code><a class="anchor" aria-label="anchor" href="#method-logger-"></a></h3>
-<p>Write timestamped messages to log file</p><div class="section">
+<p>Write time-stamped messages to log file</p><div class="section">
 <h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">logger</span><span class="op">(</span></span>
 <span>  <span class="va">...</span>,</span>
-<span>  caller <span class="op">=</span> <span class="fu">get_globals</span><span class="op">(</span><span class="st">"active_agent"</span><span class="op">)</span>,</span>
-<span>  level <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"INFO"</span>, <span class="st">"WARN"</span>, <span class="st">"ERROR"</span>, <span class="st">"FATAL"</span><span class="op">)</span>,</span>
+<span>  <span class="va">caller</span>,</span>
+<span>  level <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"INFO"</span>, <span class="st">"TRACE"</span>, <span class="st">"DEBUG"</span>, <span class="st">"WARN"</span>, <span class="st">"ERROR"</span>, <span class="st">"FATAL"</span><span class="op">)</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"cli"</span>, <span class="st">"base"</span>, <span class="st">"none"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
@@ -200,88 +215,24 @@ output without styling.</p></dd>
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-TricobblerAgentContext-with_activated"></a><div class="section">
-<h3 id="method-with-activated-">Method <code>with_activated()</code><a class="anchor" aria-label="anchor" href="#method-with-activated-"></a></h3>
-<p>Execute expression with this context activated</p><div class="section">
+</div><p></p><hr><a id="method-TricobblerAgentContext-record_attachment"></a><div class="section">
+<h3 id="method-record-attachment-">Method <code>record_attachment()</code><a class="anchor" aria-label="anchor" href="#method-record-attachment-"></a></h3>
+
+<div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">with_activated</span><span class="op">(</span><span class="va">expr</span>, quoted <span class="op">=</span> <span class="cn">FALSE</span>, env <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">record_attachment</span><span class="op">(</span><span class="va">runtime</span>, <span class="va">succeed</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
-<div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>expr</code></dt>
-<dd><p>expression, the expression to evaluate with the
-context active</p></dd>
-
-
-<dt><code>quoted</code></dt>
-<dd><p>logical, whether <code>expr</code> is already quoted</p></dd>
-
-
-<dt><code>env</code></dt>
-<dd><p>environment in which to evaluate the expression</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div><p></p><hr><a id="method-TricobblerAgentContext-record_result"></a><div class="section">
-<h3 id="method-record-result-">Method <code>record_result()</code><a class="anchor" aria-label="anchor" href="#method-record-result-"></a></h3>
-<p>Save agent output with metadata</p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">record_result</span><span class="op">(</span></span>
-<span>  <span class="va">result</span>,</span>
-<span>  <span class="va">stage</span>,</span>
-<span>  <span class="va">state</span>,</span>
-<span>  <span class="va">agent_id</span>,</span>
-<span>  <span class="va">current_attempt</span>,</span>
-<span>  <span class="va">description</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>result</code></dt>
-<dd><p>object, the result from agent execution</p></dd>
-
-
-<dt><code>stage</code></dt>
-<dd><p>character, stage name</p></dd>
-
-
-<dt><code>state</code></dt>
-<dd><p>character, state name</p></dd>
-
-
-<dt><code>agent_id</code></dt>
-<dd><p>character, agent identifier</p></dd>
-
-
-<dt><code>current_attempt</code></dt>
-<dd><p>integer, attempt number</p></dd>
-
-
-<dt><code>description</code></dt>
-<dd><p>character, human-readable result description</p></dd>
-
-
-<dt><code>...</code></dt>
-<dd><p>additional metadata to store</p></dd>
-
-
-</dl><p></p></div>
-</div>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-last_results"></a><div class="section">
 <h3 id="method-last-results-">Method <code>last_results()</code><a class="anchor" aria-label="anchor" href="#method-last-results-"></a></h3>
 <p>Retrieve the most recent result(s)</p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">last_results</span><span class="op">(</span>items <span class="op">=</span> <span class="fl">1</span>, simplify <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">items</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>items</code></dt>
 <dd><p>integer, number of results to retrieve</p></dd>
 
@@ -296,15 +247,36 @@ context active</p></dd>
 </div><p></p><hr><a id="method-TricobblerAgentContext-get_attachment"></a><div class="section">
 <h3 id="method-get-attachment-">Method <code>get_attachment()</code><a class="anchor" aria-label="anchor" href="#method-get-attachment-"></a></h3>
 <p>Retrieve a specific attachment by its identifier</p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">get_attachment</span><span class="op">(</span><span class="va">attachment_id</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
-(filename from record_result)</p></dd>
+(filename from record_result). Or a <code>StatePolicy</code> object to
+retrieve the latest attachment for that state.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-get_attachment_by_state"></a><div class="section">
+<h3 id="method-get-attachment-by-state-">Method <code>get_attachment_by_state()</code><a class="anchor" aria-label="anchor" href="#method-get-attachment-by-state-"></a></h3>
+<p>Retrieve the latest attachment from a specific state</p><div class="section">
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">get_attachment_by_state</span><span class="op">(</span><span class="va">state</span>, <span class="va">stage</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>state</code></dt>
+<dd><p>character, the name of the state</p></dd>
+
+
+<dt><code>stage</code></dt>
+<dd><p>character, optional stage name to narrow down the search</p></dd>
 
 
 </dl><p></p></div>
@@ -318,10 +290,10 @@ context active</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>reindex</code></dt>
-<dd><p>logical, whether to reload the index from disk
-(default FALSE)</p></dd>
+<dd><p>logical, currently unused (index is always live);
+kept for backward compatibility</p></dd>
 
 
 </dl><p></p></div>
@@ -335,10 +307,9 @@ context active</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
-<dd><p>character, the attachment identifier
-(filename from record_result)</p></dd>
+<dd><p>character, the attachment identifier</p></dd>
 
 
 </dl><p></p></div>
@@ -348,10 +319,53 @@ context active</p></dd>
 <p>logical, TRUE if the attachment exists on disk, FALSE otherwise</p>
 </div>
 
+</div><p></p><hr><a id="method-TricobblerAgentContext-list_incomplete"></a><div class="section">
+<h3 id="method-list-incomplete-">Method <code>list_incomplete()</code><a class="anchor" aria-label="anchor" href="#method-list-incomplete-"></a></h3>
+<p>Find incomplete executions (crashed or in-progress)</p><div class="section">
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">list_incomplete</span><span class="op">(</span>timeout_secs <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>timeout_secs</code></dt>
+<dd><p>numeric or <code>NULL</code>, seconds after which
+init/running entries are considered incomplete. If <code>NULL</code>,
+returns all init/running entries.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<p>A data.frame of incomplete index entries</p>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-get_runtime_log"></a><div class="section">
+<h3 id="method-get-runtime-log-">Method <code>get_runtime_log()</code><a class="anchor" aria-label="anchor" href="#method-get-runtime-log-"></a></h3>
+<p>Read a specific runtime's per-execution log file</p><div class="section">
+<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">get_runtime_log</span><span class="op">(</span><span class="va">attachment_id</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
+<dd><p>character, the attachment identifier
+(which is also the runtime's log file prefix)</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<p>character vector of log lines, or <code>NULL</code> if not found</p>
+</div>
+
 </div><p></p><hr><a id="method-TricobblerAgentContext-read_logs"></a><div class="section">
 <h3 id="method-read-logs-">Method <code>read_logs()</code><a class="anchor" aria-label="anchor" href="#method-read-logs-"></a></h3>
 <p>Read and parse log file contents</p><div class="section">
-<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">read_logs</span><span class="op">(</span></span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tail"</span>, <span class="st">"head"</span><span class="op">)</span>,</span>
 <span>  skip_lines <span class="op">=</span> <span class="fl">0L</span>,</span>
@@ -362,7 +376,7 @@ context active</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>method</code></dt>
 <dd><p>character, read from "tail" (end) or "head" (beginning)</p></dd>
 
@@ -390,7 +404,7 @@ otherwise skipping the last several lines; default is <code>0L</code>
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
 <p>data.frame with columns: line_no, level, time, caller, content.
 Returns empty data.frame if file missing or no matches.</p>
 </div>

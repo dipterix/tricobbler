@@ -4,7 +4,9 @@ Creates an executable agent that can be registered with a `Scheduler` to
 execute state-specific logic. The agent wraps a user-defined function
 with metadata (id, description) and result formatting. Agents are the
 execution units in the Runtime Layer (Tier 2) that implement the logic
-defined in `StatePolicy` objects from the Policy Layer (Tier 1).
+defined in `StatePolicy`
+
+objects from the Policy Layer (Tier 1).
 
 ## Usage
 
@@ -22,7 +24,7 @@ Agent(
 - .data:
 
   function, the agent implementation with signature
-  `function(self, policy, context, ...)`
+  `function(runtime, ...)`
 
 - id:
 
@@ -50,18 +52,27 @@ An `Agent` object (S7 class inheriting from `function`)
 
 The wrapped function must have the following signature:
 
-    function(self, policy, context, ...) {
+    function(runtime, ...) {
       # Agent implementation
+      # runtime$agent - the Agent object itself
+      # runtime$policy - the StatePolicy being executed
+
+      # runtime$context - the Context for logging
+      # runtime$logger() - shorthand for logging
       # Return value will be logged to context via @describe
     }
 
 **Required arguments:**
 
-- `self`: Reference to the agent object itself
+- `runtime`: An `AgentRuntime` object containing:
 
-- `policy`: The `StatePolicy` object being executed
+  - `runtime$agent`: Reference to the agent object itself
 
-- `context`: The `Context` object for logging and state access
+  - `runtime$policy`: The `StatePolicy` object being executed
+
+  - `runtime$context`: The `Context` object for logging
+
+  - `runtime$logger()`: Method to log messages
 
 - `...`: Additional arguments (optional)
 
@@ -71,13 +82,15 @@ When a `Scheduler` executes a state:
 
 1.  Looks up the agent by `StatePolicy@agent_id`
 
-2.  Calls the agent function with `(self, policy, context)`
+2.  Creates an `AgentRuntime` with agent, policy, and context
 
-3.  Captures the return value
+3.  Calls the agent function with `(runtime)`
 
-4.  Uses `describe` function to format result for logging
+4.  Captures the return value
 
-5.  Logs formatted result to `Context`
+5.  Uses `describe` function to format result for logging
+
+6.  Logs formatted result to `Context`
 
 ### Result Description
 
@@ -106,8 +119,8 @@ as writing code or executing the tools).
 
 # Basic agent
 simple_agent <- Agent(
-  function(self, policy, context) {
-    context$logger("Executing simple task")
+  function(runtime) {
+    runtime$logger("Executing simple task")
     return("Task completed")
   },
   id = "simple_agent",
@@ -117,7 +130,7 @@ simple_agent <- Agent(
 
 # Agent with custom result formatting function
 analysis_agent <- Agent(
-  function(self, policy, context) {
+  function(runtime) {
     result <- list(
       status = "success",
       items_processed = 42,

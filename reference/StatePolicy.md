@@ -7,22 +7,21 @@ ordering when multiple states share the same stage.
 
 ## Usage
 
-``` r
-StatePolicy(
-  name = character(0),
-  description = character(0),
-  stage = character(0),
-  agent_id = character(0),
-  resources = character(0),
-  accessbility = "all",
-  parameters = list(),
-  max_retry = 0L,
-  priority = 100L,
-  critical = FALSE,
-  final = FALSE,
-  on_failure = NA_character_
-)
-```
+    StatePolicy(
+      name = character(0),
+      description = character(0),
+      stage = character(0),
+      agent_id = character(0),
+      resources = character(0),
+      accessibility = "all",
+      parameters = list(),
+      max_retry = 0L,
+      priority = 100L,
+      critical = FALSE,
+      final = FALSE,
+      on_failure = NA_character_,
+      depends_on = <object>
+    )
 
 ## Arguments
 
@@ -48,15 +47,18 @@ StatePolicy(
   character vector, tools that the agent may call during execution
   (default empty vector)
 
-- accessbility:
+- accessibility:
 
   character, context accessibility level for the agent. Controls what
   context data the agent can read. One of `"all"` (full access),
-  `"logs"` (logs only), or `"none"` (no access). Default is `"all"`
+  `"logs"` (logs only), `"none"` (no access), or `"explicit"` (use
+  `depends_on` to specify inputs; if `depends_on` is empty, behaves like
+  `"logs"`). Default is `"all"`
 
 - parameters:
 
-  list, optional state-specific parameters
+  list, state-specific parameters passed to the agent. See
+  \strongParameters for Different Agent Types in Details
 
 - max_retry:
 
@@ -96,6 +98,15 @@ StatePolicy(
   (`on_failure = "executor"`), alternative strategies
   (`on_failure = "slower_alternative"`), or repair chains
   (`on_failure = "repair_step"`)
+
+- depends_on:
+
+  `StateDeps` object or named list specifying explicit dependencies on
+  prior state outputs. Each entry maps a parameter name to a dependency:
+  `list(param = list(state = "state_name", field = "result", stage = NULL))`.
+  Used with `accessibility = "explicit"` for async execution. See
+  [`StateDeps`](http://dipterix.org/tricobbler/reference/StateDeps.md)
+  for format details
 
 ## Details
 
@@ -161,6 +172,48 @@ Create multiple `StatePolicy` objects for the same stage when you need:
 4.  **Phased deployment**: Gradually shift priority as new
     implementations mature
 
+### Parameters for Different Agent Types
+
+The `parameters` list is interpreted differently based on the agent type
+created via
+[`as_agent`](http://dipterix.org/tricobbler/reference/as_agent.md):
+
+**Deterministic Agents** (from functions or MCP tools):
+
+- `args`: list, function arguments passed via `do.call(fun, args)`. Kept
+  separate from other parameters to avoid conflicts with functions that
+  have their own reserved arguments
+
+The `accessibility` property affects how inputs are constructed:
+
+- `"all"`: First argument is the previous agent's result
+  (`last_attachment$result`), followed by `args`
+
+- `"logs"`: First argument is the previous agent's description
+  (`last_attachment$description`), followed by `args`
+
+- `"none"`: Only `args` are passed (no context access)
+
+**Debug Mode**: Set `context$debug <- TRUE` at runtime to enable debug
+mode. In debug mode, agents print their calls/tools for inspection but
+run as no-op (returning debug information instead of executing).
+
+**AI Agents** (from ellmer Chat objects):
+
+- `system_prompt`: character, additional system prompt appended to
+  `@description`
+
+- `user_prompt`: character, the user message to send to the LLM
+
+- `keep_turns`: logical, if `TRUE`, retains conversation history across
+  executions (default `FALSE`)
+
+- `return_type`: an ellmer type indicator (e.g.,
+  [`ellmer::type_object()`](https://ellmer.tidyverse.org/reference/type_boolean.html)).
+  When provided, triggers `chat$chat_structured(type = return_type)` for
+  structured output. Can also be specified in YAML via
+  [`map_type_to_ellmer()`](http://dipterix.org/tricobbler/reference/map_type_to_ellmer.md)
+
 ## Examples
 
 ``` r
@@ -186,4 +239,37 @@ StatePolicy(
 )
 #> StatePolicy (S7 class) - `validator` (executing)
 #> critical validation step
+
+# Deterministic agent with parameters
+StatePolicy(
+  name = "formatter",
+  stage = "executing",
+  description = "Format data to JSON",
+  agent_id = "json_formatter",
+  accessibility = "none",  # Only use args, no context
+  parameters = list(
+    args = list(x = list(a = 1, b = 2), pretty = TRUE)
+  )
+)
+#> StatePolicy (S7 class) - `formatter` (executing)
+#> Format data to JSON
+
+# AI agent with structured output
+StatePolicy(
+  name = "planner",
+  stage = "planning",
+  description = "Break down the task into steps",
+  agent_id = "llm_planner",
+  parameters = list(
+    system_prompt = "You are a task planning expert.",
+    user_prompt = "Plan the following task: ...",
+    keep_turns = FALSE,
+    return_type = ellmer::type_object(
+      steps = ellmer::type_array(items = ellmer::type_string())
+    )
+  )
+)
+#> StatePolicy (S7 class) - `planner` (planning)
+#> Break down the task into steps
+
 ```

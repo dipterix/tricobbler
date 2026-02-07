@@ -5,6 +5,12 @@ Provides logging, result storage, and attachment management during
 workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 `Scheduler`.
 
+## Public fields
+
+- `debug`:
+
+  logical, whether to print out agent calls
+
 ## Active bindings
 
 - `id`:
@@ -48,6 +54,11 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
   character, path to attachments directory (read-only)
 
+- `index`:
+
+  AttachmentIndex, the attachment index (read-only). Available after
+  `init_resources()` is called.
+
 ## Methods
 
 ### Public methods
@@ -60,17 +71,21 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - [`AgentContext$logger()`](#method-TricobblerAgentContext-logger)
 
-- [`AgentContext$with_activated()`](#method-TricobblerAgentContext-with_activated)
-
-- [`AgentContext$record_result()`](#method-TricobblerAgentContext-record_result)
+- [`AgentContext$record_attachment()`](#method-TricobblerAgentContext-record_attachment)
 
 - [`AgentContext$last_results()`](#method-TricobblerAgentContext-last_results)
 
 - [`AgentContext$get_attachment()`](#method-TricobblerAgentContext-get_attachment)
 
+- [`AgentContext$get_attachment_by_state()`](#method-TricobblerAgentContext-get_attachment_by_state)
+
 - [`AgentContext$list_attachments()`](#method-TricobblerAgentContext-list_attachments)
 
 - [`AgentContext$has_attachment()`](#method-TricobblerAgentContext-has_attachment)
+
+- [`AgentContext$list_incomplete()`](#method-TricobblerAgentContext-list_incomplete)
+
+- [`AgentContext$get_runtime_log()`](#method-TricobblerAgentContext-get_runtime_log)
 
 - [`AgentContext$read_logs()`](#method-TricobblerAgentContext-read_logs)
 
@@ -127,14 +142,14 @@ Create directory structure and initialize logging
 
 ### Method `logger()`
 
-Write timestamped messages to log file
+Write time-stamped messages to log file
 
 #### Usage
 
     AgentContext$logger(
       ...,
-      caller = get_globals("active_agent"),
-      level = c("INFO", "WARN", "ERROR", "FATAL"),
+      caller,
+      level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"),
       verbose = c("cli", "base", "none")
     )
 
@@ -165,75 +180,11 @@ Write timestamped messages to log file
 
 ------------------------------------------------------------------------
 
-### Method `with_activated()`
-
-Execute expression with this context activated
+### Method `record_attachment()`
 
 #### Usage
 
-    AgentContext$with_activated(expr, quoted = FALSE, env = parent.frame())
-
-#### Arguments
-
-- `expr`:
-
-  expression, the expression to evaluate with the context active
-
-- `quoted`:
-
-  logical, whether `expr` is already quoted
-
-- `env`:
-
-  environment in which to evaluate the expression
-
-------------------------------------------------------------------------
-
-### Method `record_result()`
-
-Save agent output with metadata
-
-#### Usage
-
-    AgentContext$record_result(
-      result,
-      stage,
-      state,
-      agent_id,
-      current_attempt,
-      description,
-      ...
-    )
-
-#### Arguments
-
-- `result`:
-
-  object, the result from agent execution
-
-- `stage`:
-
-  character, stage name
-
-- `state`:
-
-  character, state name
-
-- `agent_id`:
-
-  character, agent identifier
-
-- `current_attempt`:
-
-  integer, attempt number
-
-- `description`:
-
-  character, human-readable result description
-
-- `...`:
-
-  additional metadata to store
+    AgentContext$record_attachment(runtime, succeed)
 
 ------------------------------------------------------------------------
 
@@ -269,7 +220,29 @@ Retrieve a specific attachment by its identifier
 
 - `attachment_id`:
 
-  character, the attachment identifier (filename from record_result)
+  character, the attachment identifier (filename from record_result). Or
+  a `StatePolicy` object to retrieve the latest attachment for that
+  state.
+
+------------------------------------------------------------------------
+
+### Method `get_attachment_by_state()`
+
+Retrieve the latest attachment from a specific state
+
+#### Usage
+
+    AgentContext$get_attachment_by_state(state, stage)
+
+#### Arguments
+
+- `state`:
+
+  character, the name of the state
+
+- `stage`:
+
+  character, optional stage name to narrow down the search
 
 ------------------------------------------------------------------------
 
@@ -285,7 +258,8 @@ List all available attachments
 
 - `reindex`:
 
-  logical, whether to reload the index from disk (default FALSE)
+  logical, currently unused (index is always live); kept for backward
+  compatibility
 
 ------------------------------------------------------------------------
 
@@ -301,11 +275,53 @@ Check if an attachment exists
 
 - `attachment_id`:
 
-  character, the attachment identifier (filename from record_result)
+  character, the attachment identifier
 
 #### Returns
 
 logical, TRUE if the attachment exists on disk, FALSE otherwise
+
+------------------------------------------------------------------------
+
+### Method `list_incomplete()`
+
+Find incomplete executions (crashed or in-progress)
+
+#### Usage
+
+    AgentContext$list_incomplete(timeout_secs = NULL)
+
+#### Arguments
+
+- `timeout_secs`:
+
+  numeric or `NULL`, seconds after which init/running entries are
+  considered incomplete. If `NULL`, returns all init/running entries.
+
+#### Returns
+
+A data.frame of incomplete index entries
+
+------------------------------------------------------------------------
+
+### Method `get_runtime_log()`
+
+Read a specific runtime's per-execution log file
+
+#### Usage
+
+    AgentContext$get_runtime_log(attachment_id)
+
+#### Arguments
+
+- `attachment_id`:
+
+  character, the attachment identifier (which is also the runtime's log
+  file prefix)
+
+#### Returns
+
+character vector of log lines, or `NULL` if not found
 
 ------------------------------------------------------------------------
 
