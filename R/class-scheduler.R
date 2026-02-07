@@ -2,6 +2,7 @@
 #' @include class-s7base.R
 #' @include class-baseagent.R
 #' @include class-context.R
+#' @include class-event-dispatcher.R
 NULL
 
 
@@ -19,7 +20,8 @@ Scheduler <- R6::R6Class(
   cloneable = FALSE,
   private = list(
     .run_flag = NULL,
-    .last_error = NULL
+    .last_error = NULL,
+    .dispatcher = NULL
   ),
   public = list(
     # What: this must set before running the contract
@@ -76,10 +78,39 @@ Scheduler <- R6::R6Class(
       self$context <- context
       self$context$set_scheduler(self)
 
+      private$.dispatcher <- EventDispatcher$new()
+
       self$current_stage <- "ready"
       self$stage_started <- Sys.time()
 
       invisible(self)
+    },
+
+    #' @description Register a listener for a lifecycle event
+    #' @param type character, event type (e.g. \code{"suspend"},
+    #'   \code{"state_completed"}, \code{"stage_completed"},
+    #'   \code{"dispatch"})
+    #' @param handler function, callback receiving the condition object
+    #' @param id character or \code{NULL}, optional listener ID for
+    #'   replacement or removal; auto-generated via
+    #'   \code{digest::digest(handler)} when \code{NULL}
+    #' @param after logical, if \code{TRUE} (default) append the handler
+    #'   after existing handlers; if \code{FALSE} prepend it
+    #' @param auto_free logical, if \code{TRUE} the handler is
+    #'   automatically removed when the current \code{wrap()} scope
+    #'   exits (default: \code{FALSE})
+    #' @return character, the listener ID (invisibly)
+    on = function(type, handler, id = NULL, after = TRUE, auto_free = FALSE) {
+      private$.dispatcher$on(
+        type, handler, id = id,
+        after = after, auto_free = auto_free
+      )
+    },
+
+    #' @description Remove a registered lifecycle listener by ID
+    #' @param id character, the listener ID returned by \code{$on()}
+    off = function(id) {
+      private$.dispatcher$off(id)
     },
 
     #' @description Verify that all required agents are registered
@@ -144,7 +175,19 @@ Scheduler <- R6::R6Class(
       self$current_state <- character()
       self$stage_started <- Sys.time()
 
-      self$run_stage()
+      # Define restarts for suspend conditions
+      suspend_restarts <- list(
+        tricobbler_resume = function() "resume",
+        tricobbler_skip = function() "skip",
+        tricobbler_abort = function() "abort",
+        tricobbler_restart_stage = function() "restart_stage"
+      )
+
+      # Wrap the stage loop with dispatcher
+      private$.dispatcher$wrap(
+        self$run_stage(),
+        restarts = suspend_restarts
+      )
       invisible(self)
     },
 
@@ -237,6 +280,14 @@ Scheduler <- R6::R6Class(
           attempt = init_retry_count
         )
 
+        # Signal dispatch event
+        tricobbler_dispatch(
+          scheduler = self,
+          state_name = state_name,
+          stage = stage,
+          attempt = init_retry_count
+        )
+
         # Execute agent once (agent handles transient retries
         # internally if needed)
         result_list <- runtime$run()
@@ -246,6 +297,15 @@ Scheduler <- R6::R6Class(
         }
 
         succeed <- result_list$succeed
+
+        # Signal state completed event
+        tricobbler_state_completed(
+          scheduler = self,
+          state_name = state_name,
+          stage = stage,
+          succeed = succeed,
+          attachment_id = runtime$attachment_id
+        )
 
         # Determine next state based on execution outcome
         if (succeed) {
@@ -266,7 +326,8 @@ Scheduler <- R6::R6Class(
           # Check if retry limit exceeded
           if (retry_map[[state_name]] > max_retry) {
             if (policy@critical) {
-              self$suspend()
+              private$.last_error <- result_list$error
+              self$suspend(error = result_list$error)
               return()
             }
             # Skip to next state
@@ -313,7 +374,8 @@ Scheduler <- R6::R6Class(
             )
 
             if (policy@critical) {
-              self$suspend()
+              private$.last_error <- result_list$error
+              self$suspend(error = result_list$error)
               return()
             }
 
@@ -335,13 +397,25 @@ Scheduler <- R6::R6Class(
 
       run_state(state_policies[[1]]@name, retry_map = list())
 
+      # Signal stage completed event
+      tricobbler_stage_completed(
+        scheduler = self,
+        stage = stage
+      )
+
       # next stage
       self$run_stage()
     },
 
     #' @description Suspend the workflow execution
-    suspend = function() {
+    #' @param error condition or character, the error that caused suspension
+    #'   (default: \code{private$.last_error})
+    suspend = function(error = NULL) {
       self$suspended <- TRUE
+      if (is.null(error)) {
+        error <- private$.last_error
+      }
+
       self$context$logger(
         "scheduler suspended at ",
         self$current_stage, " -> ", self$current_state,
@@ -349,15 +423,69 @@ Scheduler <- R6::R6Class(
         "Human attention might be needed. \nLast error: \n",
         paste0(
           c(
-            private$.last_error$message,
-            utils::capture.output(traceback(private$.last_error))
+            if (inherits(error, "condition")) conditionMessage(error)
+            else as.character(error),
+            utils::capture.output(traceback(error))
           ),
           collapse = "\n"
         ),
         caller = self
       )
-      # Needs human attention
-      .NotYetImplemented()
+
+      # Emit suspend condition; if a registered listener invokes a
+      # restart, control returns here with the restart value
+      action <- tricobbler_suspend(
+        scheduler = self,
+        state_name = self$current_state,
+        stage = self$current_stage,
+        error = error
+      )
+
+      # If no listener handled the condition, fall back to default
+      # behavior: interactive menu or abort
+      if (is.null(action)) {
+        if (interactive()) {
+          choice <- utils::menu(
+            choices = c("Resume", "Skip", "Abort", "Restart stage"),
+            title = paste0(
+              "Scheduler suspended at stage '",
+              self$current_stage,
+              "', state '",
+              self$current_state,
+              "'. Choose action:"
+            )
+          )
+          action <- c("resume", "skip", "abort", "restart_stage")[
+            max(choice, 3L)  # default to abort if menu cancelled
+          ]
+        } else {
+          action <- "abort"
+        }
+      }
+
+      # Execute the chosen action
+      switch(
+        action,
+        "resume" = {
+          self$suspended <- FALSE
+        },
+        "skip" = {
+          self$suspended <- FALSE
+          # Return without re-dispatching; caller moves to next state
+        },
+        "restart_stage" = {
+          self$suspended <- FALSE
+          # Caller should re-enter run_stage() for the current stage
+        },
+        "abort" = {
+          stop("Scheduler aborted at stage '",
+               self$current_stage,
+               "', state '",
+               self$current_state, "'")
+        }
+      )
+
+      invisible(action)
     },
 
     #' @description Stop the workflow execution

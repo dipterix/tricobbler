@@ -47,9 +47,9 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 \describe{
 \item{\code{agent}}{Agent object, the agent being executed (who)}
 
-\item{\code{context}}{AgentContext object, the execution context (where)}
+\item{\code{context}}{\code{AgentContext} object, the execution context (where)}
 
-\item{\code{policy}}{StatePolicy object, the policy being executed (what)}
+\item{\code{policy}}{\code{StatePolicy} object, the policy being executed (what)}
 
 \item{\code{attempt}}{integer, retry count if failed}
 

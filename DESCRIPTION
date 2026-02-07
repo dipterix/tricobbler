@@ -46,6 +46,8 @@ Collate:
     'mcp-describe.R'
     'class-baseagent.R'
     'class-context.R'
+    'helper-conditions.R'
+    'class-event-dispatcher.R'
     'class-policymaster.R'
     'class-statedeps.R'
     'class-policystate.R'

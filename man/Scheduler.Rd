@@ -35,6 +35,8 @@ objects keyed by agent_id}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TricobblerScheduler-new}{\code{Scheduler$new()}}
+\item \href{#method-TricobblerScheduler-on}{\code{Scheduler$on()}}
+\item \href{#method-TricobblerScheduler-off}{\code{Scheduler$off()}}
 \item \href{#method-TricobblerScheduler-validate}{\code{Scheduler$validate()}}
 \item \href{#method-TricobblerScheduler-start}{\code{Scheduler$start()}}
 \item \href{#method-TricobblerScheduler-init_resources}{\code{Scheduler$init_resources()}}
@@ -61,6 +63,51 @@ Initialize scheduler with manifest blueprint and agents
 
 \item{\code{context}}{Context object, execution environment
 (default: new \code{\link{AgentContext}})}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerScheduler-on"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerScheduler-on}{}}}
+\subsection{Method \code{on()}}{
+Register a listener for a lifecycle event
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$on(type, handler, id = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{type}}{character, event type (e.g. \code{"suspend"},
+\code{"state_completed"}, \code{"stage_completed"},
+\code{"dispatch"})}
+
+\item{\code{handler}}{function, callback receiving the condition object}
+
+\item{\code{id}}{character or \code{NULL}, optional listener ID for
+replacement or removal; auto-generated via
+\code{digest::digest(handler)} when \code{NULL}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+character, the listener ID (invisibly)
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerScheduler-off"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerScheduler-off}{}}}
+\subsection{Method \code{off()}}{
+Remove a registered lifecycle listener by ID
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$off(id)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{id}}{character, the listener ID returned by \code{$on()}}
 }
 \if{html}{\out{</div>}}
 }
@@ -133,9 +180,17 @@ Execute a specific workflow stage
 \subsection{Method \code{suspend()}}{
 Suspend the workflow execution
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Scheduler$suspend()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$suspend(error = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{error}}{condition or character, the error that caused suspension
+(default: \code{private$.last_error})}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerScheduler-stop"></a>}}

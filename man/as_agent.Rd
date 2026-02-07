@@ -10,8 +10,9 @@ as_agent(x, ...)
 \item{x}{Object to convert. Can be:
 \itemize{
 \item An \code{Agent} object (returned as-is)
-\item An ellmer \code{Chat} object (creates an LLM-backed agent)
-\item A function with signature \code{function(self, policy, context)}
+\item An \pkg{ellmer} \code{Chat} object (creates an LLM-backed agent)
+\item A function with signature \code{function(runtime)}, where
+\code{runtime} is an \code{AgentRuntime} object
 \item A character string referencing a package function
 (\code{"pkg::fun"})
 \item An MCP tool definition (class \code{tricobbler_mcp_tool})
