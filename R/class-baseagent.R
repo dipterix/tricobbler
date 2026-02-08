@@ -3,7 +3,6 @@
 NULL
 
 
-
 #' @title Agent Function Wrapper for State Execution
 #' @description Creates an executable agent that can be registered with a
 #'   \code{Scheduler} to execute state-specific logic. The agent wraps a

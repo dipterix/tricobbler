@@ -231,6 +231,8 @@ as_agent_from_chat <- function(
 
   agent_fun <- function(runtime, ...) {
 
+    chat <- chat$clone(deep = TRUE)
+
     policy <- runtime$policy
     context <- runtime$context
     is_async <- identical(runtime$status, "running (async)")

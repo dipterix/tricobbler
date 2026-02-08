@@ -291,7 +291,7 @@ states:
 
 ---
 
-## Phase 4: Async Scheduler
+## Phase 4: Async Scheduler [Done]
 
 **Why:** Enable concurrent execution of independent states. All agent-level async primitives are already in place (`AgentRuntime$run_async`, `chat_async`/`chat_structured_async` dispatch, `StateDeps`, `AttachmentIndex`). This phase adds the scheduler orchestration layer.
 
@@ -303,465 +303,266 @@ states:
 - The event loop yields control only at `await` points
 - `chat$clone(deep = TRUE)` is still needed because multiple agents sharing the same `Chat` would corrupt conversation state when interleaved at `await` boundaries
 
-### 4.1 Implement Condition-Based Lifecycle Event System
+### 4.1 Direct Function-Call Lifecycle Event System [Done]
 
-**Location:** New `R/class-event-dispatcher.R`, `R/helper-conditions.R`
+**Location:** `R/class-event-dispatcher.R`, `R/helper-conditions.R`
 
-**Why:** The scheduler needs to communicate lifecycle events (suspend, state completed, stage completed, dispatch) to callers. Rather than requiring users to wrap `scheduler$start()` in `withCallingHandlers()`, the Scheduler owns an internal `EventDispatcher` that manages a listener registry. Users call `scheduler$on("suspend", handler)` to register listeners, and `start()` / `start_async()` internally wraps execution in `withCallingHandlers()` + `withRestarts()` built from the registry.
+**Why:** The scheduler needs to communicate lifecycle events (suspend, state completed, stage completed, dispatch) to callers. Rather than requiring users to wrap `scheduler$start()` in `withCallingHandlers()`, the Scheduler owns an internal `EventDispatcher` that manages a listener registry. Users call `scheduler$on("suspend", handler)` to register listeners.
+
+**Design decision:** The original plan specified a condition-based approach (`signalCondition`/`withCallingHandlers`/`withRestarts`/`$wrap()`). This was abandoned because `coro::async` does **not** support `withCallingHandlers()` inside coroutine bodies — conditions raised after an `await` point escape the handler frame. Instead, the dispatcher uses **direct function-call dispatch**: `$emit(event)` iterates a snapshot of the handler list and calls each `handler(event)` directly. This is compatible with `coro::async` and avoids the coroutine limitation entirely.
 
 **Architecture:**
-- R's condition system (`signalCondition` / `withCallingHandlers`) provides the dispatch mechanism — zero overhead when no listeners are registered, stack-based, synchronous inline execution
-- `EventDispatcher` (internal R6 class) wraps the registry and provides `$on()`, `$off()`, `$emit()`, and `$wrap()` methods
+- `EventDispatcher` (internal R6 class) owns a per-type ordered handler list and provides `$on()`, `$off()`, `$emit()`, `$has()`, `$clear()` methods
 - The Scheduler composes an `EventDispatcher` instance (has-a, not is-a) and delegates `$on()` / `$off()` as public methods
-- `$wrap(expr)` returns `expr` wrapped in `withCallingHandlers()` + `withRestarts()` built from the current registry — the Scheduler calls this around `run_stage()` / `run_stage_async()` inside `start()` / `start_async()`
+- `$emit(event)` returns the **first non-NULL** handler return value (first-wins semantics) — used by `suspend` to capture the chosen action string from a listener
+- No `$wrap()` method — no conditions, no restarts, no `withCallingHandlers`/`withRestarts`
 
-**Steps:**
+**Implementation:**
 
-1. **Create condition constructors** in `R/helper-conditions.R`:
-   ```r
-   # Base condition constructor — fields are spread flat on the condition object
-   # so handlers use cond$state_name, not cond$data$state_name
-   tricobbler_condition <- function(type, message, ..., call = NULL) {
-     structure(
-       class = c(
-         paste0("tricobbler_", type),
-         "tricobbler_lifecycle",
-         "condition"
-       ),
-       list(message = message, ..., call = call)
-     )
-   }
-   ```
+1. **Event constructors** in `R/helper-conditions.R`:
+   - `tricobbler_event(type, message, ...)` — creates a plain list with `class = c("tricobbler_<type>", "tricobbler_lifecycle")` and all fields spread flat. These are **not** R conditions; they are plain list event objects passed to `$emit()`.
 
-2. **Define lifecycle condition classes:**
+2. **Lifecycle event types** (emitted by the Scheduler via `dispatch_event()`):
 
-   | Condition class | When signaled | Fields (flat on `cond$`) | Restarts available |
+   | Event type | When emitted | Key fields | Semantics |
    |---|---|---|---|
-   | `tricobbler_suspend` | Critical state failed, retries exhausted | `scheduler, state_name, stage, error` | `tricobbler_resume`, `tricobbler_skip`, `tricobbler_abort`, `tricobbler_restart_stage` |
-   | `tricobbler_state_completed` | A state finished (success or failure) | `scheduler, state_name, stage, succeed, attachment_id` | (informational, no restarts) |
-   | `tricobbler_stage_completed` | All states in a stage finished | `scheduler, stage` | (informational) |
-   | `tricobbler_dispatch` | A state is about to be dispatched | `scheduler, state_name, stage, attempt` | (informational) |
+   | `suspend` | Critical state failed, retries exhausted | `state_name, stage, error` | First-wins: handler return value becomes the suspend action |
+   | `runtime.resolved` | A runtime promise resolved successfully | `runtime, result` | Informational |
+   | `runtime.exhausted` | A state exhausted all retries | `runtime, result` | Informational |
+   | `runtime.errored` | A state failed but will retry | `runtime, result` | Informational |
+   | `runtime.redirect` | `on_failure` redirect triggered | `runtime, result, target` | Informational |
+   | `runtime.dispatch` | A state is about to be dispatched | `state_name, stage, attempt` | Informational |
+   | `runtime.skipped` | A state was skipped (depends on skipped/failed) | `state_name, stage` | Informational |
+   | `runtime.final` | A `final = TRUE` state completed; draining | `state_name` | Informational |
+   | `stage.completed` | All states in a stage finished | `stage` | Informational |
+   | `init_resources` | Resources being initialized | — | Informational |
+   | `init_stage.begin` / `init_stage.end` | Stage initialization | `stage` | Informational |
+   | `enqueue_runtime.begin` / `enqueue_runtime.end` / `enqueue_runtime.changed` | Queue cycle events | — | Informational |
 
-3. **Implement `EventDispatcher` R6 class** in `R/class-event-dispatcher.R`:
+3. **EventDispatcher R6 class** in `R/class-event-dispatcher.R`:
+   - Uses `fastmap::fastmap()` for the top-level type registry and reverse-lookup map
+   - Per-type handlers stored in a plain list to guarantee deterministic execution order
+   - `digest::digest(list(handler, type))` auto-generates deterministic IDs, preventing duplicate registration
+   - User-supplied `id` enables explicit replacement (upsert semantics)
+   - `$on(type, handler, id, after)` — `after = TRUE` appends (default), `after = FALSE` prepends
+   - `$off(id, types)` — removes by ID; reverse-lookup avoids needing the type
+   - `$has(type, id)` — checks whether a listener is registered
+   - `$clear(type)` — clears one or all types; also called from `finalize()`
 
-   Uses `fastmap::fastmap()` for both the top-level type registry and per-type handler maps — O(1) lookup, no partial-matching footguns. `digest::digest()` auto-generates deterministic IDs from handler functions, preventing duplicate registration of the same closure. User-supplied `id` enables explicit replacement (upsert semantics).
-
+4. **Composed into Scheduler:**
    ```r
-   EventDispatcher <- R6::R6Class(
-     "EventDispatcher",
-     private = list(
-       # Registry: fastmap of fastmaps
-       # Top-level keys = event types (e.g. "suspend", "state_completed")
-       # Each value = fastmap of {id -> handler_function}
-       .listeners = NULL,
-       # Reverse lookup: id -> type (for off() without requiring type)
-       .id_to_type = NULL,
-       # Ensure a per-type fastmap exists
-       .ensure_type = function(type) {
-         if (!private$.listeners$has(type)) {
-           private$.listeners$set(type, fastmap::fastmap())
-         }
-       }
-     ),
-     public = list(
-       initialize = function() {
-         private$.listeners <- fastmap::fastmap()
-         private$.id_to_type <- fastmap::fastmap()
-       },
-       
-       # Register a listener for condition type
-       # id: user-supplied or auto-generated via digest::digest(handler)
-       # If id already exists under this type, the handler is replaced (upsert)
-       # Returns the id (invisibly) for later removal via off()
-       on = function(type, handler, id = NULL) {
-         stopifnot(is.function(handler))
-         if (is.null(id) || is.na(id)) {
-           id <- digest::digest(handler)
-         }
-         private$.ensure_type(type)
-         private$.listeners$get(type)$set(id, handler)
-         private$.id_to_type$set(id, type)
-         invisible(id)
-       },
-       
-       # Remove a listener by ID
-       # Looks up the type from reverse map — no need to pass type
-       off = function(id) {
-         type <- private$.id_to_type$get(id)
-         if (!is.null(type) && private$.listeners$has(type)) {
-           private$.listeners$get(type)$remove(id)
-           private$.id_to_type$remove(id)
-         }
-         invisible(self)
-       },
-       
-       # Signal a condition — registered listeners are invoked inline
-       # For conditions with restarts (e.g. suspend), this is called
-       # from within the withRestarts() block set up by wrap()
-       emit = function(type, message = type, ...) {
-         signalCondition(tricobbler_condition(type, message, ...))
-       },
-       
-       # Wrap an expression with withCallingHandlers built from registry
-       # Also installs withRestarts for suspend-type conditions
-       wrap = function(expr, restarts = list()) {
-         # Build handler list from registry
-         handlers <- list()
-         for (type in private$.listeners$keys()) {
-           type_map <- private$.listeners$get(type)
-           if (type_map$size() == 0L) next
-           condition_class <- paste0("tricobbler_", type)
-           # Combine multiple listeners for same type into one handler
-           handlers[[condition_class]] <- local({
-             listener_funs <- type_map$as_list()
-             function(cond) {
-               for (fn in listener_funs) {
-                 fn(cond)
-               }
-             }
-           })
-         }
-         
-         # Install restarts, then handlers, then evaluate
-         wrapped <- if (length(restarts) > 0L) {
-           do.call(withRestarts, c(list(expr), restarts))
-         } else {
-           expr
-         }
-         
-         if (length(handlers) > 0L) {
-           do.call(withCallingHandlers, c(list(wrapped), handlers))
-         } else {
-           wrapped
-         }
-       }
-     )
-   )
-   ```
-
-4. **Compose into Scheduler:**
-   ```r
-   Scheduler <- R6::R6Class(
-     ...
-     private = list(
-       .dispatcher = NULL,  # EventDispatcher instance
-       ...
-     ),
-     public = list(
-       initialize = function(manifest, agents, max_concurrency = Inf) {
-         ...
-         private$.dispatcher <- EventDispatcher$new()
-       },
-       
-       # Delegate listener registration
-       on = function(type, handler, id = NULL) {
-         private$.dispatcher$on(type, handler, id = id)
-       },
-       off = function(id) {
-         private$.dispatcher$off(id)
-       },
-       
-       start = function() {
-         # ... existing guards, init_resources ...
-         
-         # Define restarts for suspend conditions
-         suspend_restarts <- list(
-           tricobbler_resume = function() "resume",
-           tricobbler_skip = function() "skip",
-           tricobbler_abort = function() "abort",
-           tricobbler_restart_stage = function() "restart_stage"
-         )
-         
-         # Wrap the stage loop with dispatcher
-         private$.dispatcher$wrap(
-           self$run_stage(),
-           restarts = suspend_restarts
-         )
-       }
-     )
-   )
-   ```
-
-5. **User-facing API:**
-   ```r
-   scheduler <- Scheduler$new(manifest, agents)
-   
-   # Register listeners before starting
-   scheduler$on("state_completed", function(cond) {
-     cat("Done:", cond$state_name, "\n")
+   # Delegate listener registration
+   scheduler$on("runtime.resolved", function(event) {
+     cat("Done:", event$state_name, "\n")
    })
-   
+
    # Auto-skip on suspend (CI/tests):
-   scheduler$on("suspend", function(cond) {
-     invokeRestart("tricobbler_skip")
+   scheduler$on("suspend", function(event) {
+     "skip"  # return value is captured as the action
    })
-   
+
    # Custom suspend logic:
-   scheduler$on("suspend", function(cond) {
-     if (cond$state_name == "non_essential") {
-       invokeRestart("tricobbler_skip")
-     } else {
-       invokeRestart("tricobbler_abort")
-     }
+   scheduler$on("suspend", function(event) {
+     if (event$state_name == "non_essential") "skip" else "abort"
    })
-   
+
    # Replace a handler by supplying the same id:
    scheduler$on("suspend", my_new_handler, id = "my_suspend")
-   
-   # Just start — no wrapping needed
-   scheduler$start()
    ```
 
-6. **Default suspend behavior** (when no `tricobbler_suspend` listener is registered):
-   - The condition propagates past `withCallingHandlers` (no handler installed for it)
-   - `suspend()` falls through to a default: `interactive()` → `utils::menu()` prompt; non-interactive → `"abort"`
-   - See 4.6 for the fallback implementation
-
-**Why this over raw `withCallingHandlers` wrapping:**
-- Users don't need to understand R's condition system — `scheduler$on("suspend", fn)` is familiar
-- Registration persists across multiple `start()` calls (e.g., after resume)
+**Why direct-call over condition-based:**
+- Compatible with `coro::async` (conditions are not preserved across `await` points)
+- Simpler mental model — `scheduler$on("event", fn)` with return-value semantics
+- Registration persists across multiple `start()` calls
 - Multiple listeners for the same event compose naturally
-- The Scheduler controls the `withRestarts()` installation — users just call `invokeRestart()` from their handler
-- Advanced users can still use external `withCallingHandlers()` wrapping if they prefer — conditions propagate up the stack regardless
-- Testable: `testthat::expect_condition(scheduler$start(), class = "tricobbler_suspend")` still works
+- No need to understand R's condition/restart system
 
 **Dependencies:** `coro`, `promises`, `fastmap`, and `digest` are already in Imports. No new dependencies needed.
 
-### 4.2 Fix `suspend()` and Populate `.last_error`
+### 4.2 `suspend()` with Error Propagation and Action Dispatch [Done]
 
 **Location:** `R/class-scheduler.R`
 
-**Why:** `suspend()` currently calls `.NotYetImplemented()` which crashes the scheduler. Also, `private$.last_error` is never populated — `AgentRuntime` handles errors internally and the scheduler never captures them.
+**Implementation:**
+1. **Error propagation:** `execute_runtime()`'s `onFulfilled` callback checks `result$succeed`. When a critical state exhausts retries, the error from the result is passed directly to `self$suspend(error = result$error, ...)`. `private$.last_error` is set inline.
+2. **`suspend()` implementation** (`Scheduler$suspend(error, state_name, stage, runtime_summary)`):
+   - Sets `self$suspended = TRUE`
+   - Captures context in `self$suspend_info` (state_name, stage, error, timestamp) for inspection
+   - Logs the error with full traceback via `utils::capture.output(traceback(error))`
+   - Emits `"suspend"` event via `self$dispatch_event()` — the return value (first non-NULL handler return) is captured as the action string
+   - If no listener returns an action, falls through to interactive `utils::menu()` prompt or `"abort"` in non-interactive mode
+   - Executes the chosen action inline via `switch(action, ...)`:
+     - `"resume"`: clears suspended state, re-adds state to `runtime_map` with `attempt = 0`, calls `advance()`
+     - `"skip"`: clears suspended state, marks state as `"skipped"` in `completed_map`, calls `private$skip_dependents()` to transitively skip downstream dependents, calls `advance()`
+     - `"restart_stage"`: clears suspended state, calls `self$start_stage(stage)` to reset all per-stage structures, re-snapshots `.stage_flag`, calls `advance()`
+     - `"abort"`: clears suspended state, rejects the stage promise via `private$.stage_reject()`
+3. **`suspend_info` field:** Public field set during suspension, cleared on resume/skip/restart/abort. Contains `state_name`, `stage`, `error`, `timestamp` for external inspection.
 
-**Steps:**
-1. **Propagate errors from runtime to scheduler:** After `runtime$run()` or awaiting `runtime$run_async()`, check if the policy is critical and if `runtime$status == "errored"`, set `private$.last_error <- runtime$last_error`. Only errors causing suspension need to be propagated.
-2. **Replace `.NotYetImplemented()` in `suspend()`** with real implementation:
-   - Set `self$suspended = TRUE` — the dispatch loop (both sync and async) checks this flag; when `TRUE`, no new states are dispatched, in-flight promises drain naturally
-   - Log the error with full traceback
-   - Emit `tricobbler_suspend` condition via `private$.dispatcher$emit()` (see 4.1)
-   - If a registered listener invokes a restart (`tricobbler_resume`, `tricobbler_skip`, `tricobbler_abort`, `tricobbler_restart_stage`), the corresponding action is taken
-   - If no listener handles it, fall through to interactive menu or abort (see 4.6)
-
-### 4.3 Add `max_concurrency` and `start_async()` to Scheduler
-
-**Location:** `R/class-scheduler.R`
-
-**Steps:**
-1. Add `max_concurrency` field (integer, default `Inf`) — max simultaneous promises in the waiting pool
-2. Add `start_async()` public method:
-   ```r
-   start_async = function() {
-     # Same guards as start(): validate agents, init_resources, reset flags
-     # Wrap run_stage_async() with dispatcher (same as start wraps run_stage)
-     # Returns a promise that resolves when all stages complete
-   }
-   ```
-3. Keep `start()` unchanged — fully synchronous, uses `run_stage()` as before
-
-**Important:** Stages are always executed sequentially, even in async mode. `run_stage_async()` runs all states within a single stage concurrently (via the queue + pool), then `await`s until all states complete before advancing to the next stage. `start_async()` simply wraps the sequential stage loop in `coro::async()` so it returns a promise instead of blocking. Both `start()` and `start_async()` use `private$.dispatcher$wrap()` to install condition handlers and restarts from registered listeners.
-
-### 4.4 Implement Queue + Waiting Pool Dispatch
+### 4.3 `max_concurrency` and Async `start()` [Done]
 
 **Location:** `R/class-scheduler.R`
 
-**Strategy:** `run_stage_async(stage)` manages a dispatch loop with three data structures:
+**Implementation:**
+1. `max_concurrency` field (integer, default `100L`) — max simultaneous promises in the waiting pool
+2. `start()` is itself async — it uses `coro::async` internally to loop over stages, calling `await(self$run_stage(stage))` for each. It returns a promise (via `impl()$then(...)`) that resolves when all stages complete.
+3. **No separate `start_async()`** — the original plan to have both `start()` (sync) and `start_async()` was abandoned. `start()` is the single entry point and is inherently async. Callers block by draining the event loop (e.g., `later::run_now()`) or `await` inside a `coro::async` context.
+4. Stages are always executed sequentially; `run_stage()` runs all states within a stage concurrently (via queue + pool), returns a promise that resolves when the stage finishes.
+
+### 4.4 Queue + Waiting Pool Dispatch [Done]
+
+**Location:** `R/class-scheduler.R`
+
+**Implementation:** Five per-stage data structures on the Scheduler instance (all reset by `start_stage()`):
+
+| Structure | Type | Purpose |
+|---|---|---|
+| `runtime_map` | `fastmap` | States not yet dependency-cleared; keyed by state name → `AgentRuntime` |
+| `ready_queue` | `fastmap::fastqueue` | Dependency-resolved states sorted by priority (descending); FIFO within same priority |
+| `waiting_pool` | `fastmap` | In-flight promises; keyed by state name → `list(runtime, promise)` |
+| `completed_map` | `fastmap` | Finished states; keyed by state name → `list(policy, agent, attempt, attachment_id, status)` where status ∈ {"finished", "errored", "skipped"} |
+| `retry_map` | `fastmap` | Failed states awaiting retry; keyed by state name → runtime summary |
+
+**Dispatch cycle** (event-driven via `advance()`):
 
 ```
-ready_queue:    [state_C(pri=100), state_A(pri=80), state_B(pri=80)]
-                 ↓ dispatch up to max_concurrency (2 in this toy example)
-waiting_pool:   {state_C: <promise>, state_A: <promise>}
-                 ↓ promise_race resolves one
-completed_set:  {state_C: TRUE, state_D: <error_condition>}
-                 ↓ re-evaluate blocked states
-ready_queue:    [state_D: (pri=120), state_B(pri=80), state_E(pri=50)]  ← `state_E` depends_on state_C, now satisfied; `state_D` enters retry, but since it has higher priority, it is queued ahead of `state_E` and `state_B`. `state_B` was not executed due to max_concurrency reached: it might still not be executed if there is only one slot available (`state_D` will run first)
+init_stage(stage)
+  └→ builds runtime_map from manifest
+  └→ enqueue_runtime() seeds ready_queue
+
+run_stage(stage) returns a promise
+  └→ execute_runtime() kicks off first batch
+  └→ each promise resolution → advance()
+       └→ retry_runtime()    — re-creates runtimes from retry_map
+       └→ enqueue_runtime()  — moves dep-cleared states to ready_queue
+       └→ execute_runtime()  — dispatches up to max_concurrency
+       └→ check completion   — resolves stage promise if done
 ```
 
-**Steps:**
-1. Create `run_stage_async = coro::async(function(stage = NULL) { ... })`:
-   - `all_states <- extract_manifest_state(manifest, stage)` — sorted by priority descending
-   - `policy_map` (fastmap) — keyed by state name → `{agent, policy}`
-   - `ready_queue` — ordered list; initially seeded with states whose `depends_on` are empty or only reference earlier stages (already in `completed_set` from previous stage runs)
-   - `waiting_pool` — named list of active promises, keyed by state name
-   - `completed_set` (fastmap) — state name → outcome: `TRUE` (success), error condition (failure), or `"skipped"` (not run)
-   - `retry_map` — list, state name → integer attempt count (same semantics as sync path)
-   - `blocked_states` — states waiting for intra-stage dependencies
+**Key methods:**
+- `init_stage(stage)` — creates `AgentRuntime` for each state in the stage, populates `runtime_map`
+- `enqueue_runtime()` — checks `depends_on` resolution against `completed_map`; moves cleared states from `runtime_map` to `ready_queue` sorted by priority. Skips enqueuing when `self$draining` or `self$suspended`.
+- `execute_runtime()` — pops from `ready_queue` up to `max_concurrency - waiting_pool$size()` slots; creates promise chain with `onFulfilled`/`onRejected` callbacks; adds to `waiting_pool`. Implements critical-state priority barrier (see 4.5).
+- `advance()` — the event-driven driver; called from promise callbacks. Guards against cancellation (`.run_flag != .stage_flag`) and suspension. Detects stage completion when `get_incomplete_size() == 0` or draining with empty waiting pool.
+- `run_stage(stage)` — calls `start_stage()`, returns a `promises::promise()` whose resolve/reject are stored in `private$.stage_resolve`/`.stage_reject` and settled by `advance()`.
 
-2. **Seed the ready queue:** For each state in `all_states`, check if all `depends_on` entries are satisfied:
-   - Cross-stage deps: query `context$get_attachment_by_state(state, stage)` — if found, satisfied
-   - Same-stage deps: check `completed_set` — if present, satisfied (even if errored)
-   - If all satisfied → push to `ready_queue`; otherwise → push to `blocked_states`
+**No `promise_race` needed:** Each promise's `.then()` callback calls `advance()` directly, which drives the next dispatch cycle. This is simpler and avoids the `promise_race` identification problem.
 
-3. **Dispatch loop** (`while` ready_queue non-empty OR waiting_pool non-empty):
-   ```
-   a. Check self$suspended → if TRUE, skip dispatching, just drain pool
-   b. While ready_queue non-empty AND length(waiting_pool) < max_concurrency:
-      - Pop highest-priority state from ready_queue
-      - Create AgentRuntime(agent, context, policy, attempt = retry_map[[name]])
-      - Launch runtime$run_async() → promise
-      - Attach then()/catch() handlers to the promise that push to a
-        resolution channel (a simple list + flag checked after await)
-      - Add to waiting_pool
-   c. await(promise_race(waiting_pool)) — yields until any promise resolves
-   d. For each resolved promise:
-      - Remove from waiting_pool
-      - Record outcome in completed_set
-      - Handle failure: retry logic (see 4.5)
-      - Handle success: if policy@final, set a drain flag (finish pool, skip further dispatch)
-      - Re-evaluate blocked_states: move newly-ready states to ready_queue
-   e. Check critical failure → suspend if needed
-   ```
+### 4.5 Retry, `on_failure`, and Critical Priority Barrier [Done]
 
-4. After loop exits, advance to next stage: `self$run_stage_async()` (recursive, same as sync)
+**Location:** `R/class-scheduler.R`
 
-**`promise_race` mechanics:** `coro::async` returns a promise, so `promises::promise_race(pool_as_list)` works directly. When one resolves, identify which state it was by matching the promise or using the `then()`/`catch()` callback pattern to record the state name. Prefer the callback approach — attach a `.then` and `.catch` to each promise at dispatch time that writes `{state_name, result, succeed}` into a `private$.resolved_queue`, then `await` a sentinel promise that resolves when `resolved_queue` is non-empty.
+**Retry logic** (in `execute_runtime()`'s `onFulfilled` callback and `retry_runtime()`):
+1. **State fails, retries remain, `on_failure` is `NA`:** State is added to `retry_map`. `retry_runtime()` (called by `advance()`) creates a new `AgentRuntime` with `attempt + 1` and places it in `runtime_map`. `enqueue_runtime()` then moves it to `ready_queue` when dependencies are met.
+2. **State fails, retries remain, `on_failure` is set:** The `on_failure` target is created as a new `AgentRuntime` in `runtime_map` (if not already completed or in-flight). The failed state is NOT retried — the redirect replaces retry.
+3. **State fails, retries exhausted, `critical = TRUE`:** `self$suspend()` is called with the error and runtime summary. Suspend handler decides the action (see 4.2).
+4. **State fails, retries exhausted, `critical = FALSE`:** Marked `"errored"` in `completed_map`. Downstream dependents proceed (they see the errored state as a satisfied dependency).
 
-### 4.5 Retry and `on_failure` in Queue Model
-
-**Location:** `R/class-scheduler.R` (within `run_stage_async`)
-
-**Rules (same as sync path, adapted for queue):**
-1. **State fails, retries remain, `on_failure` is `NA`:** Re-enqueue the same state into `ready_queue` with incremented `retry_map`. It will be re-dispatched next iteration.
-2. **State fails, retries remain, `on_failure` is set:** Enqueue the `on_failure` target into `ready_queue` (if not already in pool or completed). The failed state's retry count is incremented. The `on_failure` target's own retry count applies independently.
-3. **State fails, retries exhausted, `critical = TRUE`:** Call `self$suspend()`. The suspend handler decides whether to resume, skip, or abort (see 4.6).
-4. **State fails, retries exhausted, `critical = FALSE`:** Add to `completed_set` with the error condition as value. Dependents receive the error — the agent function can inspect the dependency value and decide how to handle it. The state is NOT marked `"skipped"`; it is `"errored"`.
-5. **`on_failure` target already running or completed:** Skip the jump — the target will produce its own result. Log a warning.
-6. **`on_failure` across priorities:** Handled naturally. The `on_failure` target is just enqueued into `ready_queue` sorted by its own priority. No special cases needed since the queue model doesn't enforce strict priority tiers.
+**Critical-state priority barrier** (in `execute_runtime()`):
+- Before dispatching, all queued items are scanned. If any has `critical = TRUE`, only states at priority ≥ the highest critical state's priority are dispatched. Lower-priority states are moved back to `runtime_map` for re-evaluation after the critical state settles.
+- This prevents lower-priority work from starting while a critical state is pending, since a critical failure could suspend the entire stage.
 
 **Skipped vs Errored distinction:**
 - `"errored"`: State was executed and failed (attachment exists with the error condition as result)
-- `"skipped"`: State was never executed (e.g., scheduler aborted before reaching it, or dependent of a suspend-abort)
+- `"skipped"`: State was never executed (e.g., depends on a skipped or critical-failed state)
 
-### 4.6 Suspend Implementation and Interactive Fallback
+**`skip_dependents()` (private):** When a state is skipped (via suspend → skip action), recursively finds all same-stage states whose `depends_on` references the skipped state. Marks them as `"skipped"` in `completed_map`, removes them from `runtime_map` and `ready_queue`, and emits `"runtime.skipped"` events.
+
+### 4.6 Suspend with Direct-Call Dispatch and Interactive Fallback [Done]
 
 **Location:** `R/class-scheduler.R`
 
-**How `suspend()` works with the event system (from 4.1):**
+**How `suspend()` works with the direct-call event system:**
 
-`start()` and `start_async()` call `private$.dispatcher$wrap()` which installs:
-- `withCallingHandlers(...)` — routes `tricobbler_suspend` (and other lifecycle conditions) to registered listeners
-- `withRestarts(...)` — installs `tricobbler_resume`, `tricobbler_skip`, `tricobbler_abort`, `tricobbler_restart_stage` restarts that listeners can invoke
-
-When `suspend()` is called:
-1. Sets `self$suspended = TRUE`
-2. Logs the error
-3. Emits `tricobbler_suspend` condition via `private$.dispatcher$emit("suspend", ...)`
-4. If a registered listener calls `invokeRestart("tricobbler_skip")` (etc.), the restart returns the action string (e.g., `"skip"`) and `start()` processes it via `private$.process_suspend_action()`
-5. If **no listener handles the condition** (no `invokeRestart` called), the signal falls through and `suspend()` enters the default fallback
-
-**`suspend()` implementation:**
-```r
-suspend = function() {
-  self$suspended <- TRUE
-  self$context$logger(
-    "Scheduler suspended at ", self$current_stage,
-    " -> ", self$current_state, caller = self
-  )
-  
-  # Emit condition — if a listener invokes a restart, withRestarts()
-  # (installed by dispatcher$wrap in start()) catches it and returns
-  # the action string. If nobody handles it, emit() returns normally
-  # and we fall through to the default.
-  private$.dispatcher$emit("suspend",
-    message = paste0("Scheduler suspended: ", self$current_state),
-    data = list(
-      scheduler = self,
-      state_name = self$current_state,
-      stage = self$current_stage,
-      error = private$.last_error
-    )
-  )
-  
-  # Default fallback: no listener handled the suspend
-  action <- if (interactive()) {
-    private$.interactive_suspend_menu()
-  } else {
-    "abort"
-  }
-  
-  private$.process_suspend_action(action)
-}
-```
-
-**Note on restart flow:** When a listener calls `invokeRestart("tricobbler_resume")`, execution jumps out of `emit()` → out of `suspend()` → to the `withRestarts()` block installed by `dispatcher$wrap()` inside `start()`. The restart function returns the action string (e.g., `"resume"`), and `start()` calls `private$.process_suspend_action(action)` to handle it. This means `suspend()` itself does NOT process the action when a restart is invoked — execution never returns to the fallback code below `emit()`. The fallback only runs when no listener calls a restart.
-
-**`private$.process_suspend_action(action)`:**
-```r
-.process_suspend_action = function(action) {
-  switch(action,
-    "resume" = {
-      self$suspended <- FALSE
-      # Re-enqueue the failed state with retry_map reset
-    },
-    "skip" = {
-      self$suspended <- FALSE
-      # Add to completed_set as errored, let dispatch continue
-    },
-    "restart_stage" = {
-      self$suspended <- FALSE
-      # Clear stage attachment indices, re-run entire stage
-    },
-    "abort" = {
-      self$stop()
-    }
-  )
-}
-```
-
-**Interactive fallback** (`private$.interactive_suspend_menu()`):
-```r
-.interactive_suspend_menu = function() {
-  message("Error: ", conditionMessage(private$.last_error))
-  choice <- utils::menu(
-    title = "Scheduler suspended. What would you like to do?",
-    choices = c(
-      "Resume        - Retry the failed state with fresh attempts",
-      "Skip          - Mark as errored and continue",
-      "Abort         - Stop the scheduler entirely",
-      "Restart stage - Clear stage and re-run from scratch",
-      "Inspect       - Enter browser(), then re-prompt"
-    )
-  )
-  action <- c("resume", "skip", "abort", "restart_stage", "inspect")[choice]
-  if (identical(action, "inspect")) {
-    browser()
-    return(private$.interactive_suspend_menu())  # re-prompt
-  }
-  action
-}
-```
+When `suspend()` is called (from `execute_runtime()`'s promise callback after a critical state exhausts retries):
+1. Sets `self$suspended = TRUE`, captures `suspend_info`
+2. Logs the error with full traceback
+3. Calls `self$dispatch_event(type = "suspend", ...)` which invokes `EventDispatcher$emit()` — iterates handlers and returns the first non-NULL return value
+4. If a registered handler returns an action string (e.g., `"skip"`, `"resume"`, `"abort"`, `"restart_stage"`), that value is captured
+5. If **no handler returns an action** (`NULL`), falls through to:
+   - `interactive()` → `utils::menu()` with 4 choices: Retry state, Skip, Abort, Restart stage
+   - Non-interactive → `"abort"`
+6. The chosen action is executed inline via `switch(action, ...)` (see 4.2 for action details)
 
 **For tests/CI — register a listener:**
 ```r
-scheduler$on("suspend", function(cond) {
-  invokeRestart("tricobbler_skip")  # or "tricobbler_abort"
+scheduler$on("suspend", function(event) {
+  "skip"  # or "abort", "resume", "restart_stage"
 })
 scheduler$start()  # no wrapping needed, no blocking menu
 ```
 
-**Sync and async parity:** Same `suspend()` logic for both paths. `signalCondition` is synchronous and runs handlers inline, so it works identically whether called from `run_stage()` (sync) or from within `run_stage_async()` (async — R code between `await` points is synchronous).
+**Key difference from original plan:** No conditions, no restarts, no `$wrap()`. The handler return value is the action, not `invokeRestart()`. This is simpler and compatible with `coro::async`.
 
-### 4.7 Clone Chat for Async Isolation
+### 4.7 Clone Chat for Async Isolation [Done]
 
 **Location:** `R/generic-as_agent.R`
 
-**Steps:**
-1. Inside `agent_fun` (the closure created by `as_agent_from_chat`), add at the top:
+**Implementation:**
+1. Inside `agent_fun` (the closure created by `as_agent_from_chat`), the chat is **always** deep-cloned at the top:
    ```r
-   if (identical(runtime$status, "running (async)")) {
-     chat <- chat$clone(deep = TRUE)
-   }
+   chat <- chat$clone(deep = TRUE)
    ```
-2. This ensures each concurrent execution gets its own `Chat` instance with independent conversation state, system prompt, and tool bindings
-3. Sync mode (`runtime$status == "running"`) continues using the original object — no cloning overhead
+2. This ensures each execution gets its own `Chat` instance with independent conversation state, system prompt, and tool bindings — whether sync or async.
+3. The clone happens unconditionally (not gated on `runtime$status`) to guarantee isolation in all modes and prevent subtle state leakage between retries.
 
-### 4.8 `final` States in Async Mode
+### 4.8 `final` States Drain Pool [Done]
 
-**Decision:** When a `final = TRUE` state succeeds while other same-priority states are in-flight:
-- Let in-flight promises in the waiting pool **finish** (their results are recorded normally)
-- **Stop dispatching** new states from the ready queue
-- After pool drains, skip remaining stages
+**Location:** `R/class-scheduler.R`
 
-**Rationale:** Promise cancellation is complex and error-prone. Letting in-flight work complete is simpler and the results may be useful for debugging. The cost is minimal since these agents are already running.
+**Implementation:**
+1. When a `final = TRUE` state's promise resolves successfully, `self$draining` is set to `TRUE` and the `ready_queue` is cleared
+2. `enqueue_runtime()` and `execute_runtime()` check `self$draining` and skip all work when `TRUE`
+3. `advance()` detects drain completion when `self$draining == TRUE` and `waiting_pool$size() == 0` — it then clears remaining items in `runtime_map`/`ready_queue`/`retry_map` and resolves the stage promise
+4. In-flight promises in the waiting pool are allowed to finish; their results are recorded normally
+
+**Rationale:** Promise cancellation is complex and error-prone. Letting in-flight work complete is simpler and the results may be useful for debugging.
+
+### 4.9 Edge Cases and Potential Bugs
+
+The following issues were identified during review. They are documented here for discussion before fixing.
+
+#### Bug 1: `onRejected` in `execute_runtime()` doesn't clean up waiting pool
+
+**Location:** `R/class-scheduler.R`, `execute_runtime()` promise chain
+
+**Issue:** `AgentRuntime$run_async()` catches agent errors internally (in `onFulfilled`/`onRejected` of the inner promise chain) and always calls `.record_result()`. This means the outer `.then()` in `execute_runtime()` always receives `onFulfilled`. However, if `.record_result()` itself throws (e.g., disk full, SQLite error, `agent@describe()` throws), the outer `onRejected` fires — and it only calls `self$advance()` without removing the state from `waiting_pool` or recording it in `completed_map`. The state effectively vanishes from all maps, causing the stage to never complete (it hangs waiting for an item that will never resolve).
+
+**Fix:** The `onRejected` callback should:
+1. Remove the state from `waiting_pool`
+2. Mark it as `"errored"` in `completed_map`
+3. Then call `self$advance()`
+
+#### Bug 2: `on_failure` target with unsatisfied dependencies can deadlock
+
+**Location:** `R/class-scheduler.R`, `execute_runtime()` on_failure redirect
+
+**Issue:** When `on_failure` fires, the target state is added to `runtime_map` with a fresh `AgentRuntime`. But `enqueue_runtime()` checks the target's `depends_on` — if the target has unmet dependencies (other than the failed state), it will stay blocked in `runtime_map` indefinitely, preventing the stage from completing.
+
+**Note:** The code already has a TODO comment: "need to check if the on_failure depends on the current runtime when manifest is created". This validation should be added to the `Manifest` validator (Phase 5).
+
+**Fix options:**
+- Add manifest validation: `on_failure` targets must not have `depends_on` entries that could be unsatisfied when the source state fails (e.g., deps must be a subset of the source state's own deps, or deps on earlier stages only)
+- Or: at redirect time, automatically satisfy the failed state's dependency in `completed_map` (it's already there as errored) — but the target may have *other* deps too
+
+#### Bug 3: Non-critical exhausted states satisfy downstream dependencies silently
+
+**Location:** `R/class-scheduler.R`, `execute_runtime()` failure handling
+
+**Issue:** When a non-critical state exhausts retries, it's marked `"errored"` in `completed_map`. This *satisfies* downstream `depends_on` checks in `enqueue_runtime()`. Dependents are enqueued and execute, receiving the errored state's attachment (which contains the error condition as `result`). The dependent agent may not expect or handle an error object as input.
+
+**Assessment:** This is documented design ("Dependents receive the error — the agent function can inspect it"), but it's a footgun. Function agents using `accessibility = "explicit"` will receive an error condition object as their parameter value, which will likely cause a secondary failure. Chat agents receive a textual `mcp_describe()` of the error, which is more graceful.
+
+**Potential improvements:**
+- Add `skip_dependents()` call for non-critical exhaustion (opt-in via a policy flag?)
+- Or: document clearly that agents downstream of non-critical states should handle error inputs
+
+#### Bug 4: `start()` return value is unclear
+
+**Location:** `R/class-scheduler.R`, `start()`
+
+**Issue:** `start()` uses `coro::async` internally and calls `impl()$then(onFulfilled, onRejected)`. The `$then()` returns a promise, but `start()` doesn't explicitly return it — the promise is returned implicitly (last expression). The `@return` docs say "A promise that resolves when all stages complete," which is correct, but the `$then()` wrapping means any rejection is already handled (printed as `message()`), so the returned promise always resolves. Callers who chain `.then(onRejected = ...)` on the return value will never see failures.
+
+**Assessment:** Minor — the current pattern (print + resolve) is fine for interactive use. For programmatic use, callers should use `scheduler$on("suspend", ...)` to handle failures.
 
 ---
 

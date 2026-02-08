@@ -242,7 +242,7 @@ Manifest <- S7::new_class(
           ))
         } else if (idx_target == idx_current) {
           # Same stage: Target must have HIGHER priority
-          if (target_state@priority <= state@priority) {
+          if (target_state@priority < state@priority) {
             return(sprintf(
               "invalid same-stage dependency: state %s depends on %s, but dependency priority (%d) is not higher than dependent priority (%d).", # nolint: line_length_linter.
               sQuote(state@name), sQuote(target_name),

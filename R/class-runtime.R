@@ -301,13 +301,80 @@ AgentRuntime <- R6::R6Class(
     },
 
     run_async = function() {
-      run_impl <- private$.create_run_impl(now = FALSE)
-      run_impl()
-    },
+      state_name <- private$.policy@name
+      stage <- private$.policy@stage
+      agent <- private$.agent
+      attempt <- private$.attempt
 
-    run = function() {
-      run_impl <- private$.create_run_impl(now = TRUE)
-      run_impl()
+      # logger runs in main session
+      private$.context$logger(
+        "starting (attempt ", attempt, ")",
+        caller = self, level = "TRACE"
+      )
+
+
+      private$.status <- "running (async)"
+
+      # Update index status to 'running'
+      private$.context$index$update_status(
+        private$.attachment_id, "running"
+      )
+
+      self$logger(
+        sprintf(
+          "Runtime started: Agent=%s, Stage=%s, State=%s, Attempt=%d, Attachment=%s",  # nolint: line_length_linter.
+          agent@id, stage, state_name, attempt, self$attachment_id),
+        role = sprintf("Runtime %s", self$id), level = "TRACE"
+      )
+
+      time_started <- Sys.time()
+
+      # agent() is a coro::async coroutine; calling it returns
+      # a promise that resolves with the agent's return value.
+      # If the coroutine throws synchronously (before any await),
+      # the error escapes the promise; catch it and reject.
+      agent_promise <- tryCatch(
+        agent(runtime = self),
+        error = function(e) {
+          private$.last_error <- e
+          private$.status <- "errored"
+          promises::promise_reject(e)
+        }
+      )
+
+      # Ensure we have a promise
+      if (!promises::is.promise(agent_promise)) {
+        if (promises::is.promising(agent_promise)) {
+          agent_promise <- promises::as.promise(agent_promise)
+        } else {
+          # Synchronous result (non-promise); wrap it
+          val <- agent_promise
+          private$.status <- "finished"
+          agent_promise <- promises::promise_resolve(val)
+        }
+      }
+
+      agent_promise$then(
+        onFulfilled = function(result) {
+          private$.status <- "finished"
+          private$.record_result(
+            result,
+            succeed = TRUE,
+            started = time_started,
+            duration = Sys.time() - time_started
+          )
+        },
+        onRejected = function(e) {
+          private$.last_error <- e
+          private$.status <- "errored"
+          private$.record_result(
+            e,
+            succeed = FALSE,
+            started = time_started,
+            duration = Sys.time() - time_started
+          )
+        }
+      )
     }
   )
 )
