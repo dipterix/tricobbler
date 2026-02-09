@@ -1633,7 +1633,7 @@ mcptool_load_all <- function(pkg, groups = NULL) {
 #'
 #' @examples
 #'
-#' # Read directly from package using MCP tool name
+#' # Read directly from package using \verb{MCP} tool name
 #' mcptool_read("tricobbler-mcp_tool_search_packages")
 #'
 #'
@@ -2223,9 +2223,9 @@ mcptool_path <- function(tool_name, tools_dir = "../tools") {
 #' @param tool An object of class \code{tricobbler_mcp_tool} (loaded via
 #'   \code{\link{mcptool_read}} or \code{\link{mcptool_load_all}}).
 #' @param runtime An \code{\link{AgentRuntime}} object or \code{NULL}
-#'   (default). When provided, MCP tools that declare a \code{.runtime}
+#'   (default). When provided, \verb{MCP} tools that declare a \code{.runtime}
 #'   parameter will receive the runtime automatically via closure capture.
-#'   This enables async-safe execution without relying on global state.
+#'   This enables \verb{async}-safe execution without relying on global state.
 #' @param ... Additional arguments passed to \code{\link[ellmer]{tool}}.
 #'
 #' @return An \code{\link[ellmer]{ToolDef}} object ready to be registered

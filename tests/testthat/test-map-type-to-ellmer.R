@@ -104,8 +104,14 @@ test_that("map_type_to_ellmer falls back to string for unknown types", {
 })
 
 test_that("map_type_to_ellmer errors on invalid input", {
-  expect_error(map_type_to_ellmer(123), "`type_def` must be a list or character")
-  expect_error(map_type_to_ellmer(NULL), "`type_def` must be a list or character")
+  expect_error(
+    map_type_to_ellmer(123),
+    "`type_def` must be a list or character"
+  )
+  expect_error(
+    map_type_to_ellmer(NULL),
+    "`type_def` must be a list or character"
+  )
 })
 
 test_that("map_type_to_ellmer handles empty properties object", {

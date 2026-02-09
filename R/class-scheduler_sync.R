@@ -9,12 +9,15 @@ NULL
 
 
 # DIPSAUS DEBUG START
-# source("~/Dropbox (Personal)/projects/tricobbler/adhoc/simple-example.R", echo = TRUE)
+# source( # nolint
+#   "~/Dropbox (Personal)/projects/tricobbler/adhoc/simple-example.R",
+#   echo = TRUE
+# )
 
 #' Synchronous Workflow Scheduler
 #'
 #' @description R6 class that orchestrates sequential execution of workflow
-#'   stages and states. Manages the lifecycle of agent runtimes through
+#'   stages and states. Manages the \verb{lifecycle} of agent runtimes through
 #'   priority-based dispatch, dependency resolution, retry logic, and
 #'   critical-state suspension. This is the synchronous (blocking) scheduler;
 #'   see \code{\link{AsyncScheduler}} for the promise-based variant.
@@ -37,8 +40,12 @@ Scheduler <- R6::R6Class(
     # to transitively skip all downstream dependents.
     skip_dependents = function(state_name, stage) {
       for (sp in self$manifest@states) {
-        if (!identical(sp@stage, stage)) { next }
-        if (self$completed_map$has(sp@name)) { next }
+        if (!identical(sp@stage, stage)) {
+          next
+        }
+        if (self$completed_map$has(sp@name)) {
+          next
+        }
         # Check whether this state depends on the skipped state
         deps <- sp@depends_on@deps
         depends_on_skipped <- any(vapply(deps, function(dep) {
@@ -47,7 +54,9 @@ Scheduler <- R6::R6Class(
             identical(dep$stage, stage)
           is_same_stage && identical(dep$state, state_name)
         }, FALSE))
-        if (!depends_on_skipped) { next }
+        if (!depends_on_skipped) {
+          next
+        }
 
         # Mark as skipped
         self$completed_map$set(
@@ -189,7 +198,7 @@ Scheduler <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Register a listener for a lifecycle event
+    #' @description Register a listener for a \verb{lifecycle} event
     #' @param type character, event type (e.g. \code{"suspend"},
     #'   \code{"state_completed"}, \code{"stage_completed"},
     #'   \code{"dispatch"})
@@ -210,13 +219,13 @@ Scheduler <- R6::R6Class(
       )
     },
 
-    #' @description Remove a registered lifecycle listener by ID
+    #' @description Remove a registered \verb{lifecycle} listener by ID
     #' @param id character, the listener ID returned by \code{$on()}
     off = function(id) {
       private$.dispatcher$off(id)
     },
 
-    #' @description Emit a lifecycle event to registered listeners
+    #' @description Emit a \verb{lifecycle} event to registered listeners
     #' @param type character, event type identifier
     #' @param message character, human-readable event description
     #' @param ... additional named fields attached to the event
@@ -380,7 +389,9 @@ Scheduler <- R6::R6Class(
         stage = stage
       )
 
-      if (stage == "ready") { return() }
+      if (stage == "ready") {
+        return()
+      }
 
       # --- Build policy map and initial data structures ---
       state_policies <- extract_manifest_state(
@@ -487,10 +498,14 @@ Scheduler <- R6::R6Class(
       }
 
       # return number of newly started runtime
-      if (self$ready_queue$size() == 0) { return(invisible(0L)) }
+      if (self$ready_queue$size() == 0) {
+        return(invisible(0L))
+      }
 
       available_slots <- self$max_concurrency - self$waiting_pool$size()
-      if (available_slots <= 0) { return(invisible(0L)) }
+      if (available_slots <= 0) {
+        return(invisible(0L))
+      }
 
       # --- Critical-state priority barrier ---
       # Peek at all queued items; if any is critical, only dispatch
@@ -534,7 +549,9 @@ Scheduler <- R6::R6Class(
         }
       }
 
-      if (self$ready_queue$size() == 0) { return(invisible(0L)) }
+      if (self$ready_queue$size() == 0) {
+        return(invisible(0L))
+      }
 
       runtime <- self$ready_queue$remove()
       state_name <- runtime$policy@name
@@ -761,10 +778,12 @@ Scheduler <- R6::R6Class(
 
     },
 
-    #' @description Re-enqueue runtimes from \code{retry_map} back into
+    #' @description Re-\verb{enqueue} runtimes from \code{retry_map} back into
     #'   \code{runtime_map} with incremented attempt counts
     retry_runtime = function() {
-      if (self$retry_map$size() == 0) { return(invisible()) }
+      if (self$retry_map$size() == 0) {
+        return(invisible())
+      }
 
       retry_keys <- self$retry_map$keys()
 
@@ -852,9 +871,9 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Drive the dispatch loop for the current stage.
-    #' @details Loops synchronously: retry → enqueue → execute,
+    #' @details Loops synchronously: retry -> \verb{enqueue} -> execute,
     #'   then checks for stage completion. Continues until no more
-    #'   work remains or the stage is cancelled/suspended.
+    #'   work remains or the stage is \verb{cancelled}/suspended.
     advance = function() {
 
       repeat {
@@ -901,7 +920,10 @@ Scheduler <- R6::R6Class(
         # deadlocked (all remaining items have unmet deps)
         if (dispatched == 0L) {
           stop(sprintf(
-            "Deadlock: %d incomplete items but nothing dispatchable in stage '%s'",
+            paste(
+              "Deadlock: %d incomplete items but",
+              "nothing dispatchable in stage '%s'"
+            ),
             self$get_incomplete_size(), self$current_stage
           ))
         }

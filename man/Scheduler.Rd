@@ -5,7 +5,7 @@
 \title{Synchronous Workflow Scheduler}
 \description{
 R6 class that orchestrates sequential execution of workflow
-stages and states. Manages the lifecycle of agent runtimes through
+stages and states. Manages the \verb{lifecycle} of agent runtimes through
 priority-based dispatch, dependency resolution, retry logic, and
 critical-state suspension. This is the synchronous (blocking) scheduler;
 see \code{\link{AsyncScheduler}} for the promise-based variant.
@@ -103,7 +103,7 @@ Initialize scheduler with manifest blueprint and agents
 \if{html}{\out{<a id="method-TricobblerScheduler-on"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerScheduler-on}{}}}
 \subsection{Method \code{on()}}{
-Register a listener for a lifecycle event
+Register a listener for a \verb{lifecycle} event
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Scheduler$on(type, handler, id = NULL, after = TRUE)}\if{html}{\out{</div>}}
 }
@@ -137,7 +137,7 @@ character, the listener ID (invisibly)
 \if{html}{\out{<a id="method-TricobblerScheduler-off"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerScheduler-off}{}}}
 \subsection{Method \code{off()}}{
-Remove a registered lifecycle listener by ID
+Remove a registered \verb{lifecycle} listener by ID
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Scheduler$off(id)}\if{html}{\out{</div>}}
 }
@@ -154,7 +154,7 @@ Remove a registered lifecycle listener by ID
 \if{html}{\out{<a id="method-TricobblerScheduler-dispatch_event"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerScheduler-dispatch_event}{}}}
 \subsection{Method \code{dispatch_event()}}{
-Emit a lifecycle event to registered listeners
+Emit a \verb{lifecycle} event to registered listeners
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Scheduler$dispatch_event(type, message = type, ...)}\if{html}{\out{</div>}}
 }
@@ -277,7 +277,7 @@ integer, number of runtimes dispatched
 \if{html}{\out{<a id="method-TricobblerScheduler-retry_runtime"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerScheduler-retry_runtime}{}}}
 \subsection{Method \code{retry_runtime()}}{
-Re-enqueue runtimes from \code{retry_map} back into
+Re-\verb{enqueue} runtimes from \code{retry_map} back into
 \code{runtime_map} with incremented attempt counts
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Scheduler$retry_runtime()}\if{html}{\out{</div>}}
@@ -325,9 +325,9 @@ Drive the dispatch loop for the current stage.
 }
 
 \subsection{Details}{
-Loops synchronously: retry → enqueue → execute,
+Loops synchronously: retry -> \verb{enqueue} -> execute,
 then checks for stage completion. Continues until no more
-work remains or the stage is cancelled/suspended.
+work remains or the stage is \verb{cancelled}/suspended.
 }
 
 }

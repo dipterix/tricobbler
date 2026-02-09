@@ -3,27 +3,30 @@
 #' @description R6 class that provides an isolated execution environment for
 #'   agent execution. Contains references to the executing agent (who), the
 #'   context (where), and the policy (what). This class is instantiated
-#'   per-execution and passed to agents, enabling async-safe execution without
+#'   per-execution and passed to agents, enabling
+#'   \verb{async}-safe execution without
 #'   relying on global state.
 #'
 #' @details
 #' ## Purpose
 #'
 #' The runtime serves three main purposes:
-#' 1. **Async safety**: Captures execution context in closures, avoiding race
+#' 1. **\verb{Async} safety**: Captures execution context
+#'    in closures, avoiding race
 #'    conditions with global state when agents execute concurrently
 
 #' 2. **Simplified API**: Agents receive a single `runtime` argument instead
 #'    of separate `self`, `policy`, `context` arguments
-#' 3. **Tool injection**: MCP tools that declare a `.runtime` parameter receive
-#'    the runtime automatically via closure capture at instantiation time
+#' 3. **Tool injection**: \verb{MCP} tools that declare a
+#'    `.runtime` parameter receive
+#'    the runtime automatically via closure capture at \verb{instantiation} time
 #'
 #' ## Tool Runtime Injection
 #'
 #' When \code{\link{mcptool_instantiate}} creates tool wrappers, it checks if
 #' the underlying function has a `.runtime` formal parameter. If so, the
 #' runtime is automatically injected into calls. This allows downstream
-#' packages to create MCP tools that access the execution context:
+#' packages to create \verb{MCP} tools that access the execution context:
 #'
 #' \preformatted{
 #' my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
@@ -125,34 +128,48 @@ AgentRuntime <- R6::R6Class(
   ),
   active = list(
     #' @field agent Agent object, the agent being executed (who)
-    agent = function() { private$.agent },
+    agent = function() {
+      private$.agent
+    },
 
     #' @field context `AgentContext` object, the execution context (where)
-    context = function() { private$.context },
+    context = function() {
+      private$.context
+    },
 
     #' @field policy `StatePolicy` object, the policy being executed (what)
-    policy = function() { private$.policy },
+    policy = function() {
+      private$.policy
+    },
 
     #' @field attempt integer, retry count if failed
-    attempt = function() { private$.attempt },
+    attempt = function() {
+      private$.attempt
+    },
 
     #' @field attachment_id character, attachment prefix
-    attachment_id = function() { private$.attachment_id },
+    attachment_id = function() {
+      private$.attachment_id
+    },
 
     #' @field id character, short identifier for this execution to show
     #'   in the context logs
-    id = function() { private$.id },
+    id = function() {
+      private$.id
+    },
 
     #' @field status character, current runtime status
     #'   (\code{"idle"}, \code{"running"}, or \code{"completed"})
-    status = function() { private$.status }
+    status = function() {
+      private$.status
+    }
   ),
   public = list(
 
     #' @description Initialize a new runtime environment
     #' @param agent Agent object being executed
-    #' @param context AgentContext object for logging and storage
-    #' @param policy StatePolicy object being executed
+    #' @param context \code{\link{AgentContext}} object for logging and storage
+    #' @param policy \code{\link{StatePolicy}} object being executed
     #' @param attempt integer, retry count (default: \code{0L})
     initialize = function(agent, context, policy, attempt = 0L) {
       attempt <- as.integer(attempt)
@@ -177,7 +194,10 @@ AgentRuntime <- R6::R6Class(
         format(now, "%y%m%dT%H%M%S"), attempt
       )
 
-      private$.id <- substr(digest::digest(list(private$.attachment_id, now)), 1L, 6L)
+      private$.id <- substr(
+        digest::digest(list(private$.attachment_id, now)),
+        1L, 6L
+      )
 
       # Register in the attachment index as 'init'
       private$.context$index$register(
@@ -207,7 +227,10 @@ AgentRuntime <- R6::R6Class(
       verbose = c("cli", "base", "none"), public = TRUE, role = NA_character_
     ) {
 
-      log_path <- file.path(private$.context$attachment_path, sprintf("%s.log", self$attachment_id))
+      log_path <- file.path(
+        private$.context$attachment_path,
+        sprintf("%s.log", self$attachment_id)
+      )
       if (is.na(role)) {
         role <- sprintf("Agent %s", private$.agent@id)
       }
@@ -217,7 +240,11 @@ AgentRuntime <- R6::R6Class(
       }
 
       # log to the attachment
-      log_to_file(..., path = log_path, role = role, level = level, verbose = verbose)
+      log_to_file(
+        ..., path = log_path,
+        role = role, level = level,
+        verbose = verbose
+      )
 
       if (public && identical(private$.pid, Sys.getpid())) {
         private$.context$logger(

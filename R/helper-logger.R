@@ -1,4 +1,11 @@
-log_to_file <- function(..., path, role = "", level = c("INFO", "TRACE", "DEBUG", "WARN", "ERROR", "FATAL"), verbose = c("cli", "base", "none")) {
+log_to_file <- function(
+    ..., path, role = "",
+    level = c(
+      "INFO", "TRACE", "DEBUG",
+      "WARN", "ERROR", "FATAL"
+    ),
+    verbose = c("cli", "base", "none")
+) {
   level <- match.arg(level)
   # Normalize verbose parameter
   if (is.logical(verbose)) {
@@ -8,7 +15,10 @@ log_to_file <- function(..., path, role = "", level = c("INFO", "TRACE", "DEBUG"
   }
 
   if (nzchar(role)) {
-    prefix <- sprintf("%s %s [%s]: ", level, format(Sys.time(), "%H:%M:%S"), role)
+    prefix <- sprintf(
+      "%s %s [%s]: ", level,
+      format(Sys.time(), "%H:%M:%S"), role
+    )
   } else {
     prefix <- sprintf("%s %s: ", level, format(Sys.time(), "%H:%M:%S"))
   }

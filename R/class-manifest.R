@@ -141,7 +141,11 @@ Manifest <- S7::new_class(
     invalid_stages <- setdiff(state_stages, valid_stages)
     if (length(invalid_stages) > 0) {
       return(sprintf(
-        "StatePolicies reference stages not defined in MasterPolicy. Invalid stages: %s",
+        paste(
+          "StatePolicies reference stages not",
+          "defined in MasterPolicy.",
+          "Invalid stages: %s"
+        ),
         paste(sQuote(invalid_stages), collapse = ", ")
       ))
     }
@@ -183,12 +187,16 @@ Manifest <- S7::new_class(
     }
 
     # Validate explicit dependencies (depends_on)
-    # 1. Check for duplicate state names (required for unambiguous dependency resolution)
+    # 1. Check for duplicate state names
+    # (required for unambiguous dependency resolution)
     state_names <- vapply(self@states, function(s) s@name, character(1))
     if (anyDuplicated(state_names)) {
       dups <- unique(state_names[duplicated(state_names)])
       return(sprintf(
-        "stat policies in manifest must have unique names. Duplicates found: %s",
+        paste(
+          "stat policies in manifest must have",
+          "unique names. Duplicates found: %s"
+        ),
         paste(sQuote(dups), collapse = ", ")
       ))
     }
@@ -223,7 +231,10 @@ Manifest <- S7::new_class(
         if (!is.null(entry$stage)) {
           if (entry$stage != target_state@stage) {
             return(sprintf(
-              "state %s expects dependency %s to be in stage %s, but it is in %s.",
+              paste(
+                "state %s expects dependency %s",
+                "to be in stage %s, but it is in %s."
+              ),
               sQuote(state@name),
               sQuote(target_name),
               sQuote(entry$stage),

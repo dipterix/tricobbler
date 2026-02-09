@@ -13,9 +13,9 @@ mcptool_instantiate(tool, ..., runtime = NULL)
 \item{...}{Additional arguments passed to \code{\link[ellmer]{tool}}.}
 
 \item{runtime}{An \code{\link{AgentRuntime}} object or \code{NULL}
-(default). When provided, MCP tools that declare a \code{.runtime}
+(default). When provided, \verb{MCP} tools that declare a \code{.runtime}
 parameter will receive the runtime automatically via closure capture.
-This enables async-safe execution without relying on global state.}
+This enables \verb{async}-safe execution without relying on global state.}
 }
 \value{
 An \code{\link[ellmer]{ToolDef}} object ready to be registered

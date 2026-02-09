@@ -95,8 +95,9 @@ AgentContext <- R6::R6Class(
       file.path(self$store_path, "attachments")
     },
 
-    #' @field index AttachmentIndex, the attachment index (read-only).
-    #'   Available after \code{init_resources()} is called.
+    #' @field index \code{\link{AttachmentIndex}}, the attachment
+    #'   index (read-only). Available after
+    #'   \code{init_resources()} is called.
     index = function() {
       private$.index
     }
@@ -217,12 +218,18 @@ AgentContext <- R6::R6Class(
         verbose <- match.arg(verbose)
       }
 
-      log_to_file(..., path = self$logger_path, role = role, level = level, verbose = verbose)
+      log_to_file(
+        ..., path = self$logger_path,
+        role = role, level = level,
+        verbose = verbose
+      )
     },
 
     #' @description Record an attachment result from a completed runtime
-    #' @param runtime AgentRuntime object that produced the attachment
-    #' @param succeed logical, whether the agent execution succeeded
+    #' @param runtime \code{\link{AgentRuntime}} object that
+    #'   produced the attachment
+    #' @param succeed logical, whether the agent execution
+    #'   succeeded
     record_attachment = function(runtime, succeed) {
       private$.index$mark_finished(
         attachment_id = runtime$attachment_id,
@@ -399,9 +406,9 @@ AgentContext <- R6::R6Class(
       private$.index$list_incomplete(timeout_secs)
     },
 
-    #' @description Read a specific runtime's per-execution log file
+    #' @description Read the per-execution log file for a specific runtime
     #' @param attachment_id character, the attachment identifier
-    #'   (which is also the runtime's log file prefix)
+    #'   (which is also the log file prefix for the runtime)
     #' @return character vector of log lines, or \code{NULL} if not found
     get_runtime_log = function(attachment_id) {
       log_path <- file.path(

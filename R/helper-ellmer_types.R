@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Helper: map_type_to_ellmer
 # ---------------------------------------------------------------------------
-#' Convert Type Definitions to ellmer Type Indicators
+#' Convert Type Definitions to \pkg{ellmer} Type Indicators
 #'
 #' @description Converts JSON Schema type definitions (from YAML or lists) to
 #'   \pkg{ellmer} type indicator objects for use with

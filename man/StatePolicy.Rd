@@ -77,7 +77,7 @@ validation loops (\code{on_failure = "executor"}), alternative strategies
 dependencies on prior state outputs. Each entry maps a parameter name to
 a dependency: \code{list(param = list(state = "state_name", field =
   "result", stage = NULL))}. Used with \code{accessibility = "explicit"}
-for async execution. See \code{\link{StateDeps}} for format details}
+for \verb{async} execution. See \code{\link{StateDeps}} for format details}
 }
 \description{
 Represents a single workflow state. Inherits from \code{BasePolicy}
@@ -147,7 +147,7 @@ mature
 The \code{parameters} list is interpreted differently based on the agent
 type created via \code{\link{as_agent}}:
 
-\strong{Deterministic Agents} (from functions or MCP tools):
+\strong{Deterministic Agents} (from functions or \verb{MCP} tools):
 \itemize{
 \item \code{args}: list, function arguments passed via
 \code{do.call(fun, args)}. Kept separate from other parameters to
@@ -171,7 +171,8 @@ but run as no-op (returning debug information instead of executing).
 \itemize{
 \item \code{system_prompt}: character, additional system prompt appended
 to \code{@description}
-\item \code{user_prompt}: character, the user message to send to the LLM
+\item \code{user_prompt}: character, the user message
+to send to the \verb{LLM}
 \item \code{keep_turns}: logical, if \code{TRUE}, retains conversation
 history across executions (default \code{FALSE})
 \item \code{return_type}: an \pkg{ellmer} type indicator (e.g.,

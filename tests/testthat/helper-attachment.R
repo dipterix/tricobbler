@@ -1,6 +1,8 @@
 # Helper for testing attachments since record_result API changed on AgentContext
 
-record_dummy_result <- function(ctx, result, stage, state, agent_id, current_attempt, description = "") {
+record_dummy_result <- function(
+    ctx, result, stage, state, agent_id,
+    current_attempt, description = "") {
   
   # Create attachment ID manually (mimicking AgentRuntime)
   # [stage][state][agentid]_YYMMDDTHHMMSS_{attempt}
@@ -38,7 +40,8 @@ record_dummy_result <- function(ctx, result, stage, state, agent_id, current_att
   # The AgentRuntime generates ID based on Sys.time(). 
   # If we want to control it, we might be fighting the class.
   
-  # Alternative: Let AgentRuntime generate the ID, and use THAT to write the file.
+  # Alternative: Let AgentRuntime generate the ID,
+  # and use THAT to write the file.
   
   # Let's try to instantiate AgentRuntime first, get its ID, and use it.
   runtime <- AgentRuntime$new(
@@ -67,7 +70,10 @@ record_dummy_result <- function(ctx, result, stage, state, agent_id, current_att
   if (!dir.exists(attachment_folder)) {
     dir.create(attachment_folder, recursive = TRUE, showWarnings = FALSE)
   }
-  attachment_path <- file.path(attachment_folder, sprintf("%s.rds", attachment_id))
+  attachment_path <- file.path(
+    attachment_folder,
+    sprintf("%s.rds", attachment_id)
+  )
   saveRDS(attachment, attachment_path)
   
   # Update index

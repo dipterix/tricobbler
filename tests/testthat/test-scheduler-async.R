@@ -479,7 +479,9 @@ test_that("Async: suspend 'restart_stage' re-initializes stage", {
   expect_equal(sched$completed_map$get("state_critical")$status, "finished")
 })
 
-test_that("Async: suspend 'abort' rejects promise and fires scheduler.aborted", {
+test_that(
+  "Async: suspend 'abort' rejects promise and fires scheduler.aborted",
+  {
   aborted <- NULL
   promise_rejected <- FALSE
 

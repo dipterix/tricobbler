@@ -29,7 +29,7 @@ and \code{mcptool_path}.
 }
 \examples{
 
-# Read directly from package using MCP tool name
+# Read directly from package using \verb{MCP} tool name
 mcptool_read("tricobbler-mcp_tool_search_packages")
 
 

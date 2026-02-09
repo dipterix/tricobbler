@@ -306,8 +306,14 @@ test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
   
   # Log additional messages AFTER runtime creation so they are the "tail"
   # (Runtime initialization adds a log line which would otherwise be last)
-  context$logger("Third message", caller = context, level = "INFO", verbose = "none")
-  context$logger("Fourth message", caller = context, level = "INFO", verbose = "none")
+  context$logger(
+    "Third message",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Fourth message",
+    caller = context, level = "INFO", verbose = "none"
+  )
   
   result <- mcp_tool_context_logs_tail(max_lines = 2L, .runtime = runtime)
 
@@ -363,7 +369,11 @@ test_that("mcp_tool_context_logs_search returns JSON matching YAML spec", {
 
   # Create runtime and search for "error" pattern
   runtime <- create_test_runtime(context)
-  result <- mcp_tool_context_logs_search(pattern = "error", max_lines = 100L, .runtime = runtime)
+  result <- mcp_tool_context_logs_search(
+    pattern = "error",
+    max_lines = 100L,
+    .runtime = runtime
+  )
 
   expect_s3_class(result, "json")
 
@@ -532,7 +542,10 @@ test_that("level filtering works correctly", {
 
   # Create runtime and filter to only ERROR level
   runtime <- create_test_runtime(context)
-  result <- mcp_tool_context_logs_head(max_lines = 100L, levels = "ERROR", .runtime = runtime)
+  result <- mcp_tool_context_logs_head(
+    max_lines = 100L, levels = "ERROR",
+    .runtime = runtime
+  )
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -568,7 +581,10 @@ test_that("pattern filtering works correctly", {
 
   # Create runtime and call tool with pattern filter
   runtime <- create_test_runtime(context)
-  result <- mcp_tool_context_logs_head(max_lines = 100L, pattern = "Processing", .runtime = runtime)
+  result <- mcp_tool_context_logs_head(
+    max_lines = 100L, pattern = "Processing",
+    .runtime = runtime
+  )
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -590,16 +606,30 @@ test_that("skip_lines pagination works", {
   # Create runtime and skip first 2 lines from head
   runtime <- create_test_runtime(context)
   
-  # Runtime initialization adds a log line. We want to test logic on KNOWN lines.
+  # Runtime initialization adds a log line. We want to
+  # test logic on KNOWN lines.
   # So we clear logs, then add our lines.
-  if(file.exists(context$logger_path)) unlink(context$logger_path)
+  if (file.exists(context$logger_path)) unlink(context$logger_path)
   
-  context$logger("Line 2", caller = context, level = "INFO", verbose = "none")
-  context$logger("Line 3", caller = context, level = "INFO", verbose = "none")
-  context$logger("Line 4", caller = context, level = "INFO", verbose = "none")
+  context$logger(
+    "Line 2",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Line 3",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Line 4",
+    caller = context, level = "INFO", verbose = "none"
+  )
 
-  result <- mcp_tool_context_logs_head(max_lines = 100L, skip_lines = 0L, .runtime = runtime)
-  # ORIGINAL TEST LOGIC: skip_lines=2 was skipping "Line 1" and (?)
+  result <- mcp_tool_context_logs_head(
+    max_lines = 100L, skip_lines = 0L,
+    .runtime = runtime
+  )
+  # ORIGINAL TEST LOGIC: skip_lines=2 was
+  # skipping "Line 1" and (?)
   # Original code had:
   # context$logger("Line 2"...)
   # context$logger("Line 3"...)
@@ -611,14 +641,29 @@ test_that("skip_lines pagination works", {
   # skip_lines=1 -> Line 3, 4.
   
   # Or I can just replicate original state:
-  if(file.exists(context$logger_path)) unlink(context$logger_path)
-  context$logger("Line 1 (hidden)", caller = context, level = "INFO", verbose = "none")
-  context$logger("Line 2 (hidden)", caller = context, level = "INFO", verbose = "none") 
-  context$logger("Line 3", caller = context, level = "INFO", verbose = "none")
-  context$logger("Line 4", caller = context, level = "INFO", verbose = "none")
+  if (file.exists(context$logger_path)) unlink(context$logger_path)
+  context$logger(
+    "Line 1 (hidden)",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Line 2 (hidden)",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Line 3",
+    caller = context, level = "INFO", verbose = "none"
+  )
+  context$logger(
+    "Line 4",
+    caller = context, level = "INFO", verbose = "none"
+  )
   
   # skip_lines=2 should give Line 3, 4
-  result <- mcp_tool_context_logs_head(max_lines = 100L, skip_lines = 2L, .runtime = runtime)
+  result <- mcp_tool_context_logs_head(
+    max_lines = 100L, skip_lines = 2L,
+    .runtime = runtime
+  )
 
   parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -637,7 +682,7 @@ test_that("empty log file returns valid empty response", {
   # Create runtime and call tool on empty log
   runtime <- create_test_runtime(context)
   # Runtime initialization log breaks "empty" assumption. Clear it.
-  if(file.exists(context$logger_path)) unlink(context$logger_path)
+  if (file.exists(context$logger_path)) unlink(context$logger_path)
   
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
@@ -920,9 +965,21 @@ test_that(
   runtime <- create_test_runtime(context)
 
   tools <- list(
-    head = function() mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime),
-    tail = function() mcp_tool_context_logs_tail(max_lines = 10L, .runtime = runtime),
-    search = function() mcp_tool_context_logs_search(pattern = "log", .runtime = runtime)
+    head = function() {
+      mcp_tool_context_logs_head(
+        max_lines = 10L, .runtime = runtime
+      )
+    },
+    tail = function() {
+      mcp_tool_context_logs_tail(
+        max_lines = 10L, .runtime = runtime
+      )
+    },
+    search = function() {
+      mcp_tool_context_logs_search(
+        pattern = "log", .runtime = runtime
+      )
+    }
   )
 
   for (tool_name in names(tools)) {
@@ -1051,7 +1108,7 @@ test_that("JSON arrays are serialized as rows not columns", {
   # Create runtime and call tool
   runtime <- create_test_runtime(context)
   # Clear runtime init log to keep test clean
-  if(file.exists(context$logger_path)) unlink(context$logger_path)
+  if (file.exists(context$logger_path)) unlink(context$logger_path)
   
   # Log test messages (no with_activated needed)
   context$logger("First", caller = context, level = "INFO", verbose = "none")

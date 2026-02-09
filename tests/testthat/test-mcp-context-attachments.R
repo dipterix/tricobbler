@@ -280,7 +280,10 @@ test_that(
 
     # Execute tool with runtime
     runtime <- create_test_runtime(context)
-    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_exists(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     # Verify result is JSON
     expect_s3_class(result, "json")
@@ -316,7 +319,10 @@ test_that(
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
-    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_exists(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -339,7 +345,10 @@ test_that(
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
-    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_exists(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -371,7 +380,10 @@ test_that(
 
     # Execute with runtime that has "all" accessibility
     runtime <- create_test_runtime(context, accessibility = "all")
-    result <- mcp_tool_context_attachment_exists(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_exists(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -397,7 +409,10 @@ test_that(
 
     # Execute with runtime that has "logs" accessibility
     runtime <- create_test_runtime(context, accessibility = "logs")
-    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_get(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     parsed <- jsonlite::fromJSON(as.character(result))
 
@@ -421,7 +436,10 @@ test_that(
 
     # Execute with runtime that has "all" accessibility
     runtime <- create_test_runtime(context, accessibility = "all")
-    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_get(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     expect_s3_class(result, "json")
 
@@ -451,7 +469,10 @@ test_that(
 
     # Execute with runtime that has "none" accessibility
     runtime <- create_test_runtime(context, accessibility = "none")
-    result <- mcp_tool_context_attachment_get(attachment_id = attachment_id, .runtime = runtime)
+    result <- mcp_tool_context_attachment_get(
+      attachment_id = attachment_id,
+      .runtime = runtime
+    )
 
     parsed <- jsonlite::fromJSON(as.character(result))
 

@@ -40,7 +40,7 @@ is guaranteed to complete before the dependent stage begins
 
 \subsection{Validation Rules (Property-Level)}{
 
-The property-level validator checks structural correctness:
+The property-level \verb{validator} checks structural correctness:
 \itemize{
 \item Must be a named list (names become parameter names)
 \item Each entry must be a list with required \code{state} field

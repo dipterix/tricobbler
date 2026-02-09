@@ -46,8 +46,9 @@ directory (read-only)}
 \item{\code{attachment_path}}{character, path to attachments directory
 (read-only)}
 
-\item{\code{index}}{AttachmentIndex, the attachment index (read-only).
-Available after \code{init_resources()} is called.}
+\item{\code{index}}{\code{\link{AttachmentIndex}}, the attachment
+index (read-only). Available after
+\code{init_resources()} is called.}
 }
 \if{html}{\out{</div>}}
 }
@@ -165,9 +166,11 @@ Record an attachment result from a completed runtime
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{runtime}}{AgentRuntime object that produced the attachment}
+\item{\code{runtime}}{\code{\link{AgentRuntime}} object that
+produced the attachment}
 
-\item{\code{succeed}}{logical, whether the agent execution succeeded}
+\item{\code{succeed}}{logical, whether the agent execution
+succeeded}
 }
 \if{html}{\out{</div>}}
 }
@@ -293,7 +296,7 @@ A data.frame of incomplete index entries
 \if{html}{\out{<a id="method-TricobblerAgentContext-get_runtime_log"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-get_runtime_log}{}}}
 \subsection{Method \code{get_runtime_log()}}{
-Read a specific runtime's per-execution log file
+Read the per-execution log file for a specific runtime
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_runtime_log(attachment_id)}\if{html}{\out{</div>}}
 }
@@ -302,7 +305,7 @@ Read a specific runtime's per-execution log file
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{attachment_id}}{character, the attachment identifier
-(which is also the runtime's log file prefix)}
+(which is also the log file prefix for the runtime)}
 }
 \if{html}{\out{</div>}}
 }

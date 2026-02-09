@@ -12,18 +12,20 @@
 #'
 #' @description Generic function to convert various object types into
 #'   \code{\link{Agent}} objects for use with the \code{\link{Scheduler}}.
-#'   Supports conversion from ellmer Chat objects, functions, MCP tool
+#'   Supports conversion from \pkg{ellmer} Chat objects,
+#'   functions, \verb{MCP} tool
 #'   specifications, and package function references.
 #'
 #' @param x Object to convert. Can be:
 #'   \itemize{
 #'     \item An \code{Agent} object (returned as-is)
-#'     \item An \pkg{ellmer} \code{Chat} object (creates an LLM-backed agent)
+#'     \item An \pkg{ellmer} \code{Chat} object
+#'       (creates an \verb{LLM}-backed agent)
 #'     \item A function with signature \code{function(runtime)}, where
 #'           `runtime` is an `AgentRuntime` object
 #'     \item A character string referencing a package function
 #'       (\code{"pkg::fun"})
-#'     \item An MCP tool definition (class \code{tricobbler_mcp_tool})
+#'     \item An \verb{MCP} tool definition (class \code{tricobbler_mcp_tool})
 #'   }
 #' @param ... Additional arguments passed to methods. Common arguments
 #'   include \code{id} (character, unique agent identifier),
@@ -35,7 +37,7 @@
 #'
 #' @seealso \code{\link{StatePolicy}} for details on how to set additional
 #'   arguments via \code{parameters} for deterministic agents (functions,
-#'   MCP tools) and AI agents (ellmer Chat objects).
+#'   \verb{MCP} tools) and AI agents (\pkg{ellmer} Chat objects).
 #'
 #' @examples
 #'
@@ -70,7 +72,10 @@ S7::method(as_agent, S7::new_S3_class("Chat")) <- function(
     describe = mcp_describe,
     ...) {
 
-  as_agent_from_chat(chat = x, id = id, description = description, describe = describe, ...)
+  as_agent_from_chat(
+    chat = x, id = id, description = description,
+    describe = describe, ...
+  )
 }
 
 S7::method(as_agent, S7::new_S3_class("tricobbler_mcp_tool")) <- function(
@@ -122,8 +127,16 @@ S7::method(as_agent, S7::class_function) <- function(
         dep_spec <- deps[[param_name]]
 
         # 3. Resolve defaults
-        target_stage <- if (is.null(dep_spec$stage)) policy@stage else dep_spec$stage
-        target_field <- if (is.null(dep_spec$field)) "result" else dep_spec$field
+        target_stage <- if (is.null(dep_spec$stage)) {
+          policy@stage
+        } else {
+          dep_spec$stage
+        }
+        target_field <- if (is.null(dep_spec$field)) {
+          "result"
+        } else {
+          dep_spec$field
+        }
 
         # 4. Fetch attachment
         attachment <- context$get_attachment_by_state(
@@ -134,7 +147,11 @@ S7::method(as_agent, S7::class_function) <- function(
         # 5. Fail-fast if missing
         if (is.null(attachment)) {
           stop(sprintf(
-            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            paste0(
+              "Dependency missing: State '%s' ",
+              "(Stage '%s') required for ",
+              "parameter '%s'."
+            ),
             dep_spec$state, target_stage, param_name
           ))
         }
@@ -153,7 +170,10 @@ S7::method(as_agent, S7::class_function) <- function(
     do.call(x, input)
   }
 
-  Agent(.data = wrapper_fun, id = id, description = description, describe = describe)
+  Agent(
+    .data = wrapper_fun, id = id,
+    description = description, describe = describe
+  )
 }
 
 S7::method(as_agent, S7::class_character) <- function(
@@ -236,7 +256,10 @@ as_agent_from_chat <- function(
 
     # Extract AI agent parameters from policy@parameters
     params <- as.list(policy@parameters)
-    system_prompt <- paste(params$system_prompt %||% policy@description, collapse = "\n")
+    system_prompt <- paste(
+      params$system_prompt %||% policy@description,
+      collapse = "\n"
+    )
     user_prompt <- params$user_prompt %||% ""
     keep_turns <- params$keep_turns %||% FALSE
     return_type <- params$return_type  # NULL means unstructured chat
@@ -263,7 +286,8 @@ as_agent_from_chat <- function(
         context_tools <- mcptool_list("tricobbler", "context")
         context_tools <- context_tools[!context_tools %in% context_banned]
         sys_prompt2 <- paste0(
-          "Context tools available (logs only, attachments restricted):\n",
+          "Context tools available ",
+          "(logs only, attachments restricted):\n",
           paste("  -", context_tools, collapse = "\n")
         )
       },
@@ -274,9 +298,14 @@ as_agent_from_chat <- function(
         context_tools <- mcptool_list("tricobbler", "context")
         context_tools <- context_tools[!context_tools %in% context_banned]
         sys_prompt2 <- paste0(
-          "Context tools available (restricted access):\n",
-          "You can read execution logs and list attachments, but you cannot read arbitrary attachment content.\n",
-          "Specific attachments declared as dependencies will be provided in the user prompt.\n",
+          "Context tools available ",
+          "(restricted access):\n",
+          "You can read execution logs and list ",
+          "attachments, but you cannot read ",
+          "arbitrary attachment content.\n",
+          "Specific attachments declared as ",
+          "dependencies will be provided in ",
+          "the user prompt.\n",
           paste("  -", context_tools, collapse = "\n")
         )
       },
@@ -292,7 +321,10 @@ as_agent_from_chat <- function(
     resources <- unique(resources)
 
     # Build system prompt
-    chat$set_system_prompt(paste(c(system_prompt, sys_prompt2), collapse = "\n"))
+    chat$set_system_prompt(
+      paste(c(system_prompt, sys_prompt2),
+            collapse = "\n")
+    )
 
     # Build MCP tools
     tools <- mcptool_instantiate(lapply(resources, mcptool_read))
@@ -312,7 +344,10 @@ as_agent_from_chat <- function(
 
     user_prompt <- trimws(user_prompt)
     if (!nzchar(user_prompt)) {
-      user_prompt <- "Please proceed with the task defined in your system prompt."
+      user_prompt <- paste(
+        "Please proceed with the task",
+        "defined in your system prompt."
+      )
     }
 
     # Clear conversation history unless keep_turns is TRUE
@@ -322,11 +357,26 @@ as_agent_from_chat <- function(
 
     # Debug mode: log prompts and tools for inspection
     if (debug) {
-      full_sys_prompt <- paste(c(system_prompt, sys_prompt2), collapse = "\n")
-      context$logger("Model: ", model, level = "DEBUG")
-      context$logger("System prompt:\n", full_sys_prompt, level = "DEBUG")
-      context$logger("User prompt:\n", user_prompt, level = "DEBUG")
-      context$logger("Tools: ", paste(resources, collapse = ", "), level = "DEBUG")
+      full_sys_prompt <- paste(
+        c(system_prompt, sys_prompt2),
+        collapse = "\n"
+      )
+      context$logger(
+        "Model: ", model, level = "DEBUG"
+      )
+      context$logger(
+        "System prompt:\n", full_sys_prompt,
+        level = "DEBUG"
+      )
+      context$logger(
+        "User prompt:\n", user_prompt,
+        level = "DEBUG"
+      )
+      context$logger(
+        "Tools: ",
+        paste(resources, collapse = ", "),
+        level = "DEBUG"
+      )
     }
 
     if (!is.null(return_type)) {
@@ -377,7 +427,11 @@ as_agent_from_chat <- function(
 
         if (is.null(attachment)) {
           stop(sprintf(
-            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            paste0(
+              "Dependency missing: State '%s' ",
+              "(Stage '%s') required for ",
+              "parameter '%s'."
+            ),
             dep_spec$state, target_stage, param_name
           ))
         }
@@ -386,7 +440,8 @@ as_agent_from_chat <- function(
         if (identical(target_field, "result")) {
           val <- mcp_describe(val)
         }
-        dependency_attachments[[length(dependency_attachments) + 1]] <- mcp_attach(
+        dep_idx <- length(dependency_attachments) + 1
+        dependency_attachments[[dep_idx]] <- mcp_attach(
           sprintf(
             "Dependency Input: %s (from %s, field %s)",
             param_name,
@@ -475,8 +530,16 @@ as_agent_from_mcp_tool <- function(
         dep_spec <- deps[[param_name]]
 
         # 3. Resolve defaults
-        target_stage <- if (is.null(dep_spec$stage)) policy@stage else dep_spec$stage
-        target_field <- if (is.null(dep_spec$field)) "result" else dep_spec$field
+        target_stage <- if (is.null(dep_spec$stage)) {
+          policy@stage
+        } else {
+          dep_spec$stage
+        }
+        target_field <- if (is.null(dep_spec$field)) {
+          "result"
+        } else {
+          dep_spec$field
+        }
 
         # 4. Fetch attachment
         attachment <- context$get_attachment_by_state(
@@ -487,7 +550,11 @@ as_agent_from_mcp_tool <- function(
         # 5. Fail-fast if missing
         if (is.null(attachment)) {
           stop(sprintf(
-            "Dependency missing: State '%s' (Stage '%s') required for parameter '%s'.",
+            paste0(
+              "Dependency missing: State '%s' ",
+              "(Stage '%s') required for ",
+              "parameter '%s'."
+            ),
             dep_spec$state, target_stage, param_name
           ))
         }

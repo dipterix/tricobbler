@@ -2,7 +2,7 @@
 % Please edit documentation in R/class-scheduler_async.R
 \name{AsyncScheduler}
 \alias{AsyncScheduler}
-\title{Async Workflow Execution Scheduler}
+\title{\verb{Async} Workflow Execution Scheduler}
 \description{
 R6 class that extends \code{\link{Scheduler}} with
 promise-based asynchronous execution. Within each stage,
@@ -11,7 +11,7 @@ independent states are dispatched concurrently via
 \code{max_concurrency}. Stages are executed sequentially.
 }
 \details{
-TODO: explaine the cycle
+TODO: explain the cycle
 }
 \section{Super class}{
 \code{tricobbler::TricobblerScheduler} -> \code{TricobblerAsyncScheduler}
@@ -77,7 +77,7 @@ or \code{await()} inside a \code{coro::async} context.
 \if{html}{\out{<a id="method-TricobblerAsyncScheduler-execute_runtime"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAsyncScheduler-execute_runtime}{}}}
 \subsection{Method \code{execute_runtime()}}{
-Dispatch queued runtimes as async promises.
+Dispatch queued runtimes as \verb{async} promises.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$execute_runtime()}\if{html}{\out{</div>}}
 }
@@ -90,14 +90,14 @@ integer, number of runtimes dispatched (invisibly)
 \if{html}{\out{<a id="method-TricobblerAsyncScheduler-advance"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAsyncScheduler-advance}{}}}
 \subsection{Method \code{advance()}}{
-Drive the next async dispatch cycle.
+Drive the next \verb{async} dispatch cycle.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$advance()}\if{html}{\out{</div>}}
 }
 
 \subsection{Details}{
 Called by promise callbacks when a runtime settles.
-Runs: retry -> enqueue -> execute. If no incomplete work
+Runs: retry -> \verb{enqueue} -> execute. If no incomplete work
 remains, resolves the stage promise.
 }
 
@@ -127,7 +127,7 @@ have completed
 \if{html}{\out{<a id="method-TricobblerAsyncScheduler-suspend"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAsyncScheduler-suspend}{}}}
 \subsection{Method \code{suspend()}}{
-Suspend the workflow execution (async version).
+Suspend the workflow execution (\verb{async} version).
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$suspend(
   error = NULL,

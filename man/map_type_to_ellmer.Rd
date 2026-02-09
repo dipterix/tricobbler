@@ -2,7 +2,7 @@
 % Please edit documentation in R/helper-ellmer_types.R
 \name{map_type_to_ellmer}
 \alias{map_type_to_ellmer}
-\title{Convert Type Definitions to ellmer Type Indicators}
+\title{Convert Type Definitions to \pkg{ellmer} Type Indicators}
 \usage{
 map_type_to_ellmer(type_def)
 }

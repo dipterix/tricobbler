@@ -7,7 +7,8 @@
 R6 class that provides an isolated execution environment for
 agent execution. Contains references to the executing agent (who), the
 context (where), and the policy (what). This class is instantiated
-per-execution and passed to agents, enabling async-safe execution without
+per-execution and passed to agents, enabling
+\verb{async}-safe execution without
 relying on global state.
 }
 \details{
@@ -15,12 +16,14 @@ relying on global state.
 
 The runtime serves three main purposes:
 \enumerate{
-\item \strong{Async safety}: Captures execution context in closures, avoiding race
+\item \strong{\verb{Async} safety}: Captures execution context
+in closures, avoiding race
 conditions with global state when agents execute concurrently
 \item \strong{Simplified API}: Agents receive a single \code{runtime} argument instead
 of separate \code{self}, \code{policy}, \code{context} arguments
-\item \strong{Tool injection}: MCP tools that declare a \code{.runtime} parameter receive
-the runtime automatically via closure capture at instantiation time
+\item \strong{Tool injection}: \verb{MCP} tools that declare a
+\code{.runtime} parameter receive
+the runtime automatically via closure capture at \verb{instantiation} time
 }
 }
 
@@ -29,7 +32,7 @@ the runtime automatically via closure capture at instantiation time
 When \code{\link{mcptool_instantiate}} creates tool wrappers, it checks if
 the underlying function has a \code{.runtime} formal parameter. If so, the
 runtime is automatically injected into calls. This allows downstream
-packages to create MCP tools that access the execution context:
+packages to create \verb{MCP} tools that access the execution context:
 
 \preformatted{
 my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
@@ -86,9 +89,9 @@ Initialize a new runtime environment
 \describe{
 \item{\code{agent}}{Agent object being executed}
 
-\item{\code{context}}{AgentContext object for logging and storage}
+\item{\code{context}}{\code{\link{AgentContext}} object for logging and storage}
 
-\item{\code{policy}}{StatePolicy object being executed}
+\item{\code{policy}}{\code{\link{StatePolicy}} object being executed}
 
 \item{\code{attempt}}{integer, retry count (default: \code{0L})}
 }

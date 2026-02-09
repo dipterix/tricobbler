@@ -71,7 +71,9 @@ test_that("Manifest validates depends_on correctness", {
   # Valid: Cross-stage
   s_s2 <- StatePolicy(
     name = "s2_state", stage = "two", agent_id = "a8",
-    depends_on = StateDeps(prev = list(state = "upstream")) # upstream is stage "one"
+    depends_on = StateDeps(
+      prev = list(state = "upstream")
+    ) # upstream is stage "one"
   )
   expect_true(S7::S7_inherits(
     Manifest(master = mp, states = list(s_dep, s_s2)),

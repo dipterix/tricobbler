@@ -10,12 +10,13 @@ as_agent(x, ...)
 \item{x}{Object to convert. Can be:
 \itemize{
 \item An \code{Agent} object (returned as-is)
-\item An \pkg{ellmer} \code{Chat} object (creates an LLM-backed agent)
+\item An \pkg{ellmer} \code{Chat} object
+(creates an \verb{LLM}-backed agent)
 \item A function with signature \code{function(runtime)}, where
 \code{runtime} is an \code{AgentRuntime} object
 \item A character string referencing a package function
 (\code{"pkg::fun"})
-\item An MCP tool definition (class \code{tricobbler_mcp_tool})
+\item An \verb{MCP} tool definition (class \code{tricobbler_mcp_tool})
 }}
 
 \item{...}{Additional arguments passed to methods. Common arguments
@@ -30,7 +31,8 @@ An \code{Agent} object.
 \description{
 Generic function to convert various object types into
 \code{\link{Agent}} objects for use with the \code{\link{Scheduler}}.
-Supports conversion from ellmer Chat objects, functions, MCP tool
+Supports conversion from \pkg{ellmer} Chat objects,
+functions, \verb{MCP} tool
 specifications, and package function references.
 }
 \examples{
@@ -56,5 +58,5 @@ agent <- as_agent("utils::read.csv", id = "mean_agent")
 \seealso{
 \code{\link{StatePolicy}} for details on how to set additional
 arguments via \code{parameters} for deterministic agents (functions,
-MCP tools) and AI agents (ellmer Chat objects).
+\verb{MCP} tools) and AI agents (\pkg{ellmer} Chat objects).
 }

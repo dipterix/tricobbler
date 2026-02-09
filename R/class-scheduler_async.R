@@ -1,7 +1,7 @@
 #' @include class-scheduler_sync.R
 NULL
 
-#' Async Workflow Execution Scheduler
+#' \verb{Async} Workflow Execution Scheduler
 #'
 #' @description R6 class that extends \code{\link{Scheduler}} with
 #'   promise-based asynchronous execution. Within each stage,
@@ -10,7 +10,7 @@ NULL
 #'   \code{max_concurrency}. Stages are executed sequentially.
 #'
 #' @details
-#' TODO: explaine the cycle
+#' TODO: explain the cycle
 #'
 #' @export
 AsyncScheduler <- R6::R6Class(
@@ -110,7 +110,7 @@ AsyncScheduler <- R6::R6Class(
       )
     },
 
-    #' @description Dispatch queued runtimes as async promises.
+    #' @description Dispatch queued runtimes as \verb{async} promises.
     #' @return integer, number of runtimes dispatched (invisibly)
     execute_runtime = function() {
 
@@ -118,11 +118,15 @@ AsyncScheduler <- R6::R6Class(
         return(invisible(0L))
       }
 
-      if (self$ready_queue$size() == 0) { return(invisible(0L)) }
+      if (self$ready_queue$size() == 0) {
+        return(invisible(0L))
+      }
 
       available_slots <- self$max_concurrency -
         self$waiting_pool$size()
-      if (available_slots <= 0) { return(invisible(0L)) }
+      if (available_slots <= 0) {
+        return(invisible(0L))
+      }
 
       # --- Critical-state priority barrier ---
       all_queued <- self$ready_queue$as_list()
@@ -382,9 +386,9 @@ AsyncScheduler <- R6::R6Class(
       return(invisible(available_slots))
     },
 
-    #' @description Drive the next async dispatch cycle.
+    #' @description Drive the next \verb{async} dispatch cycle.
     #' @details Called by promise callbacks when a runtime settles.
-    #'   Runs: retry -> enqueue -> execute. If no incomplete work
+    #'   Runs: retry -> \verb{enqueue} -> execute. If no incomplete work
     #'   remains, resolves the stage promise.
     advance = function() {
       if (isTRUE(self$suspended)) {
@@ -454,7 +458,7 @@ AsyncScheduler <- R6::R6Class(
       })
     },
 
-    #' @description Suspend the workflow execution (async version).
+    #' @description Suspend the workflow execution (\verb{async} version).
     #' @param error condition or character, the error that caused
     #'   suspension
     #' @param state_name character, the state that caused suspension

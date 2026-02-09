@@ -6,17 +6,17 @@
 \description{
 R6 class that manages the attachment index for workflow
 execution. Backed by \pkg{RSQLite}, this class provides atomic,
-query-friendly tracking of attachment lifecycle status. All database
+query-friendly tracking of attachment \verb{lifecycle} status. All database
 access uses open/close-per-operation pattern for safety.
 }
 \details{
-The index tracks each attachment through its lifecycle:
+The index tracks each attachment through its \verb{lifecycle}:
 \describe{
-\item{init}{Runtime created, execution not yet started}
-\item{running}{Agent execution in progress}
-\item{finished}{Execution completed successfully}
-\item{errored}{Execution completed with error}
-\item{skipped}{Execution was skipped (reserved for future use)}
+\item{\code{init}}{Runtime created, execution not yet started}
+\item{\code{running}}{Agent execution in progress}
+\item{\code{finished}}{Execution completed successfully}
+\item{\code{errored}}{Execution completed with error}
+\item{\code{skipped}}{Execution was skipped (reserved for future use)}
 }
 \subsection{Backend Abstraction}{
 
@@ -105,7 +105,7 @@ Update the status of an existing attachment
 \if{html}{\out{<a id="method-TricobblerAttachmentIndex-mark_finished"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAttachmentIndex-mark_finished}{}}}
 \subsection{Method \code{mark_finished()}}{
-Mark an attachment as finished or errored
+Mark an attachment as finished or \verb{errored}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AttachmentIndex$mark_finished(attachment_id, succeed)}\if{html}{\out{</div>}}
 }
