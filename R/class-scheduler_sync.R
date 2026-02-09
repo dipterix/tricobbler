@@ -11,7 +11,13 @@ NULL
 # DIPSAUS DEBUG START
 # source("~/Dropbox (Personal)/projects/tricobbler/adhoc/simple-example.R", echo = TRUE)
 
-
+#' Synchronous Workflow Scheduler
+#'
+#' @description R6 class that orchestrates sequential execution of workflow
+#'   stages and states. Manages the lifecycle of agent runtimes through
+#'   priority-based dispatch, dependency resolution, retry logic, and
+#'   critical-state suspension. This is the synchronous (blocking) scheduler;
+#'   see \code{\link{AsyncScheduler}} for the promise-based variant.
 #' @export
 Scheduler <- R6::R6Class(
   classname = "TricobblerScheduler",
@@ -123,25 +129,25 @@ Scheduler <- R6::R6Class(
     #'   dispatch per advance cycle (default: \code{100L})
     max_concurrency = 100L,
 
-    # all tasks will be stored here before joining the ready_queue
+    #' @field runtime_map \code{fastmap::fastmap()} object, all runtimes
+    #'   for the current stage before joining the ready queue
     runtime_map = NULL,
 
-    # ready_queue: list of state names, highest priority first
-    #   all to-do tasks will be saved here
+    #' @field ready_queue \code{fastmap::fastqueue()} object, priority-sorted
+    #'   queue of runtimes ready to execute
     ready_queue = NULL,
 
-    # waiting_pool: named list, state_name -> list(runtime = runtime)
-    #   tracks the currently executing state (at most one in sync)
-    #   storing running agents
+    #' @field waiting_pool \code{fastmap::fastmap()} object, tracks
+    #'   currently executing runtimes
     waiting_pool = NULL,
 
-    # completed_map: fastmap, state_name -> list(policy, agent,
-    #   attempt, attachment_id, status) where status is one of
-    #   "finished", "errored", or "skipped"
+    #' @field completed_map \code{fastmap::fastmap()} object, maps
+    #'   state names to completion records with status
+    #'   (\code{"finished"}, \code{"errored"}, or \code{"skipped"})
     completed_map = NULL,
 
-    # retry_map: named list, state_name -> integer attempt count
-    #   the agents will be queued in the next cycle (merged to ready_queue)
+    #' @field retry_map \code{fastmap::fastmap()} object, maps state
+    #'   names to integer attempt counts for retry scheduling
     retry_map = NULL,
 
 
@@ -210,6 +216,10 @@ Scheduler <- R6::R6Class(
       private$.dispatcher$off(id)
     },
 
+    #' @description Emit a lifecycle event to registered listeners
+    #' @param type character, event type identifier
+    #' @param message character, human-readable event description
+    #' @param ... additional named fields attached to the event
     dispatch_event = function(type, message = type, ...) {
       private$.dispatcher$emit(
         tricobbler_event(type = type,
@@ -359,6 +369,9 @@ Scheduler <- R6::R6Class(
     },
 
 
+    #' @description Initialize a single stage by creating runtimes
+    #'   for all state policies in that stage
+    #' @param stage character, stage name to initialize
     init_stage = function(stage) {
 
       self$dispatch_event(
@@ -400,8 +413,8 @@ Scheduler <- R6::R6Class(
       return()
     },
 
-    # cycle 1: check the runtimes from `self$runtime_map`, extract ready-states
-    # als
+    #' @description Move ready runtimes from \code{runtime_map} to the
+    #'   \code{ready_queue} based on dependency satisfaction
     enqueue_runtime = function() {
 
       # Don't enqueue new runtimes while draining (a final state
@@ -464,6 +477,9 @@ Scheduler <- R6::R6Class(
       return(invisible(changed))
     },
 
+    #' @description Dispatch runtimes from \code{ready_queue} to
+    #'   \code{waiting_pool} for execution (up to \code{max_concurrency})
+    #' @return integer, number of runtimes dispatched
     execute_runtime = function() {
 
       if (self$suspended || self$draining) {
@@ -745,6 +761,8 @@ Scheduler <- R6::R6Class(
 
     },
 
+    #' @description Re-enqueue runtimes from \code{retry_map} back into
+    #'   \code{runtime_map} with incremented attempt counts
     retry_runtime = function() {
       if (self$retry_map$size() == 0) { return(invisible()) }
 
@@ -779,9 +797,9 @@ Scheduler <- R6::R6Class(
       return(invisible(retry_keys))
     },
 
+    #' @description Prepare and validate a stage before execution
+    #' @param stage character, stage name to start
     start_stage = function(stage) {
-
-      # stage <- "triage"
 
       if (missing(stage) || length(stage) != 1L || !nzchar(stage)) {
         stop("run_stage() requires an explicit stage name.")

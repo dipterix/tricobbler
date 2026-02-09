@@ -157,10 +157,20 @@ output without styling.}
 \if{html}{\out{<a id="method-TricobblerAgentContext-record_attachment"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-record_attachment}{}}}
 \subsection{Method \code{record_attachment()}}{
+Record an attachment result from a completed runtime
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$record_attachment(runtime, succeed)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{runtime}}{AgentRuntime object that produced the attachment}
+
+\item{\code{succeed}}{logical, whether the agent execution succeeded}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-last_results"></a>}}

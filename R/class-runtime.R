@@ -143,6 +143,8 @@ AgentRuntime <- R6::R6Class(
     #'   in the context logs
     id = function() { private$.id },
 
+    #' @field status character, current runtime status
+    #'   (\code{"idle"}, \code{"running"}, or \code{"completed"})
     status = function() { private$.status }
   ),
   public = list(
@@ -151,6 +153,7 @@ AgentRuntime <- R6::R6Class(
     #' @param agent Agent object being executed
     #' @param context AgentContext object for logging and storage
     #' @param policy StatePolicy object being executed
+    #' @param attempt integer, retry count (default: \code{0L})
     initialize = function(agent, context, policy, attempt = 0L) {
       attempt <- as.integer(attempt)
       if (!isTRUE(attempt >= 0)) {
@@ -195,6 +198,8 @@ AgentRuntime <- R6::R6Class(
     #' @param ... character, message components to paste together
     #' @param level character, log level (INFO, WARN, ERROR, FATAL, DEBUG)
     #' @param verbose character or logical, verbosity setting
+    #' @param public logical, whether to also log to the context log
+    #' @param role character, role label for the log entry
     #' @return NULL invisibly
     logger = function(
       ...,
@@ -225,6 +230,9 @@ AgentRuntime <- R6::R6Class(
 
     },
 
+    #' @description Execute the agent asynchronously, returning a
+    #'   promise that resolves with the recorded attachment
+    #' @return A \code{promises::promise} object
     run_async = function() {
       state_name <- private$.policy@name
       stage <- private$.policy@stage
@@ -302,6 +310,9 @@ AgentRuntime <- R6::R6Class(
       )
     },
 
+    #' @description Execute the agent synchronously, blocking
+    #'   until completion and returning the recorded attachment
+    #' @return The attachment list (invisibly)
     run = function() {
       state_name <- private$.policy@name
       stage <- private$.policy@stage

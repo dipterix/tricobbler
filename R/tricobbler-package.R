@@ -8,7 +8,6 @@
 #' @importFrom utils str
 #' @importFrom coro await
 #' @importFrom coro async
-#' @importFrom later run_now
 #' @importFrom promises promise
 #' @importFrom promises promise_resolve
 #' @importFrom RSQLite SQLite

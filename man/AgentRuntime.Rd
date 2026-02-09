@@ -57,6 +57,9 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 
 \item{\code{id}}{character, short identifier for this execution to show
 in the context logs}
+
+\item{\code{status}}{character, current runtime status
+(\code{"idle"}, \code{"running"}, or \code{"completed"})}
 }
 \if{html}{\out{</div>}}
 }
@@ -66,6 +69,7 @@ in the context logs}
 \item \href{#method-TricobblerAgentRuntime-new}{\code{AgentRuntime$new()}}
 \item \href{#method-TricobblerAgentRuntime-logger}{\code{AgentRuntime$logger()}}
 \item \href{#method-TricobblerAgentRuntime-run_async}{\code{AgentRuntime$run_async()}}
+\item \href{#method-TricobblerAgentRuntime-run}{\code{AgentRuntime$run()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -85,6 +89,8 @@ Initialize a new runtime environment
 \item{\code{context}}{AgentContext object for logging and storage}
 
 \item{\code{policy}}{StatePolicy object being executed}
+
+\item{\code{attempt}}{integer, retry count (default: \code{0L})}
 }
 \if{html}{\out{</div>}}
 }
@@ -112,6 +118,10 @@ Log a message with the agent as caller
 \item{\code{level}}{character, log level (INFO, WARN, ERROR, FATAL, DEBUG)}
 
 \item{\code{verbose}}{character or logical, verbosity setting}
+
+\item{\code{public}}{logical, whether to also log to the context log}
+
+\item{\code{role}}{character, role label for the log entry}
 }
 \if{html}{\out{</div>}}
 }
@@ -123,9 +133,28 @@ NULL invisibly
 \if{html}{\out{<a id="method-TricobblerAgentRuntime-run_async"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run_async}{}}}
 \subsection{Method \code{run_async()}}{
+Execute the agent asynchronously, returning a
+promise that resolves with the recorded attachment
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run_async()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+A \code{promises::promise} object
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentRuntime-run"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run}{}}}
+\subsection{Method \code{run()}}{
+Execute the agent synchronously, blocking
+until completion and returning the recorded attachment
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+The attachment list (invisibly)
+}
 }
 }

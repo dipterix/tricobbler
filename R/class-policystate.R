@@ -107,7 +107,7 @@ NULL
 #' @param description character, human-readable description
 #' @param stage character, must be a non-blank single string
 #' @param parameters list, state-specific parameters passed to the agent.
-#'   See \\strong{Parameters for Different Agent Types} in Details
+#'   See **Parameters for Different Agent Types** in Details
 #' @param priority integer, execution priority (0-999, default 100). Higher
 #'   values run first (999 = highest priority, 0 = lowest). Used when multiple
 #'   states share the same stage. NA or NULL are treated as 100
@@ -325,7 +325,7 @@ StatePolicy <- S7::new_class(
     # See StateDeps for format details
     depends_on = S7::new_property(
       class = StateDeps,
-      default = StateDeps()
+      default = quote(StateDeps())
     )
   ),
   validator = function(self) {

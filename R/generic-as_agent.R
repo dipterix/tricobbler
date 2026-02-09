@@ -25,14 +25,11 @@
 #'       (\code{"pkg::fun"})
 #'     \item An MCP tool definition (class \code{tricobbler_mcp_tool})
 #'   }
-#' @param id Character. Unique identifier for the agent. Required for
-#'   non-Agent inputs. For Chat objects, defaults to
-#'   \code{"chat_<provider>_<model>"}.
-#' @param description Character. Human-readable description. For Chat objects,
-#'   auto-generated from model info if not provided.
-#' @param describe Function or NULL. Result formatting function for logging.
-#'   Defaults to \code{\link{mcp_describe}}.
-#' @param ... Additional arguments passed to \code{\link{Agent}}.
+#' @param ... Additional arguments passed to methods. Common arguments
+#'   include \code{id} (character, unique agent identifier),
+#'   \code{description} (character, human-readable description), and
+#'   \code{describe} (function, result formatting for logging;
+#'   defaults to \code{\link{mcp_describe}}).
 #'
 #' @return An \code{Agent} object.
 #'

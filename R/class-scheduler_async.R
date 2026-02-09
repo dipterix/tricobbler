@@ -10,20 +10,7 @@ NULL
 #'   \code{max_concurrency}. Stages are executed sequentially.
 #'
 #' @details
-#' Inherits all fields, data structures, and helper methods from
-#' \code{\link{Scheduler}}. Overrides the following for async:
-#' \describe{
-#'   \item{\code{stop()}}{Rejects the active stage promise.}
-#'   \item{\code{start()}}{Returns a promise that resolves when
-#'     all stages complete.}
-#'   \item{\code{execute_runtime()}}{Dispatches multiple runtimes
-#'     concurrently via \code{run_async()}.}
-#'   \item{\code{advance()}}{Event-driven (called by promise
-#'     callbacks) instead of a synchronous loop.}
-#'   \item{\code{run_stage(stage)}}{Returns a promise settled by
-#'     \code{advance()}.}
-#'   \item{\code{suspend()}}{Uses promise rejection for abort.}
-#' }
+#' TODO: explaine the cycle
 #'
 #' @export
 AsyncScheduler <- R6::R6Class(

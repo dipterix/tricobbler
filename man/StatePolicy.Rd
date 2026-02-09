@@ -17,7 +17,7 @@ StatePolicy(
   critical = FALSE,
   final = FALSE,
   on_failure = NA_character_,
-  depends_on = <object>
+  depends_on = StateDeps()
 )
 }
 \arguments{
@@ -42,7 +42,7 @@ Controls what context data the agent can read. One of \code{"all"}
 Default is \code{"all"}}
 
 \item{parameters}{list, state-specific parameters passed to the agent.
-See \\strong{Parameters for Different Agent Types} in Details}
+See \strong{Parameters for Different Agent Types} in Details}
 
 \item{max_retry}{integer, maximum total attempts (initial + retries) for
 this state during stage execution (default 0, meaning single attempt).

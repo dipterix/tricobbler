@@ -220,6 +220,9 @@ AgentContext <- R6::R6Class(
       log_to_file(..., path = self$logger_path, role = role, level = level, verbose = verbose)
     },
 
+    #' @description Record an attachment result from a completed runtime
+    #' @param runtime AgentRuntime object that produced the attachment
+    #' @param succeed logical, whether the agent execution succeeded
     record_attachment = function(runtime, succeed) {
       private$.index$mark_finished(
         attachment_id = runtime$attachment_id,

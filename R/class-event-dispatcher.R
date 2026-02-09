@@ -92,7 +92,7 @@ EventDispatcher <- R6::R6Class(
     on = function(type, handler, id = NULL, after = TRUE) {
       stopifnot(is.function(handler))
       if (is.null(id) || is.na(id)) {
-        id <- digest::digest(list(handler, type))
+        id <- digest::digest(list(deparse1(handler), type))
       }
       private$.ensure_type(type)
 

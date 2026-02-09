@@ -25,7 +25,6 @@ Imports:
     ellmer (>= 0.4.0),
     fastmap,
     jsonlite,
-    later,
     pkgsearch,
     promises,
     R6 (>= 2.6.1),
@@ -34,6 +33,7 @@ Imports:
     yaml (>= 2.3.12)
 Suggests: 
     cli,
+    later,
     spelling,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
@@ -54,8 +54,8 @@ Collate:
     'class-policystate.R'
     'class-manifest.R'
     'class-runtime.R'
-    'class-scheduler_async.R'
     'class-scheduler_sync.R'
+    'class-scheduler_async.R'
     'generic-as_agent.R'
     'helper-ellmer_types.R'
     'helper-logger.R'
