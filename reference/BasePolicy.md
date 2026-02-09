@@ -2,8 +2,11 @@
 
 Internal abstract base class for all policy objects. It defines common
 properties `name` and `description` that are shared by concrete
-subclasses. This class is not exported and is intended for internal use
-only.
+subclasses such as
+[`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md)
+and
+[`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md).
+This class is not exported and is intended for internal use only.
 
 ## Usage
 
@@ -15,9 +18,9 @@ BasePolicy(name = character(0), description = character(0))
 
 - name:
 
-  Character. Must be a non-blank single string.
+  character, must be a non-blank single string
 
 - description:
 
-  Character. Human-readable description; multiple values are collapsed
-  into a single space-separated string.
+  character, human-readable description; multiple values are collapsed
+  into a single space-separated string

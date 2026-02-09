@@ -47,19 +47,19 @@ access uses open/close-per-operation pattern for safety.</p>
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The index tracks each attachment through its <code>lifecycle</code>:</p><dl><dt><code>init</code></dt>
+    <p>The index tracks each attachment through its <code>lifecycle</code>:</p><dl><dt><code>"init"</code></dt>
 <dd><p>Runtime created, execution not yet started</p></dd>
 
-<dt><code>running</code></dt>
+<dt><code>"running"</code></dt>
 <dd><p>Agent execution in progress</p></dd>
 
-<dt><code>finished</code></dt>
+<dt><code>"finished"</code></dt>
 <dd><p>Execution completed successfully</p></dd>
 
-<dt><code>errored</code></dt>
+<dt><code>"errored"</code></dt>
 <dd><p>Execution completed with error</p></dd>
 
-<dt><code>skipped</code></dt>
+<dt><code>"skipped"</code></dt>
 <dd><p>Execution was skipped (reserved for future use)</p></dd>
 
 
@@ -107,7 +107,7 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-register"></a><div class="section">
 <h3 id="method-register-">Method <code>register()</code><a class="anchor" aria-label="anchor" href="#method-register-"></a></h3>
-<p>Register a new attachment entry with status 'init'</p><div class="section">
+<p>Register a new attachment entry with status <code>init</code></p><div class="section">
 <h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AttachmentIndex</span><span class="op">$</span><span class="fu">register</span><span class="op">(</span><span class="va">attachment_id</span>, <span class="va">stage</span>, <span class="va">state</span>, <span class="va">agent_id</span>, attempt <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
@@ -151,7 +151,9 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 
 
 <dt><code>status</code></dt>
-<dd><p>character, new status</p></dd>
+<dd><p>character, new status (one of <code>"init"</code>,
+<code>"running"</code>, <code>"finished"</code>, <code>"errored"</code>,
+<code>"skipped"</code>)</p></dd>
 
 
 </dl><p></p></div>
@@ -159,7 +161,8 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-mark_finished"></a><div class="section">
 <h3 id="method-mark-finished-">Method <code>mark_finished()</code><a class="anchor" aria-label="anchor" href="#method-mark-finished-"></a></h3>
-<p>Mark an attachment as finished or <code>errored</code></p><div class="section">
+<p>Mark an attachment as <code>"finished"</code> or
+<code>"errored"</code></p><div class="section">
 <h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AttachmentIndex</span><span class="op">$</span><span class="fu">mark_finished</span><span class="op">(</span><span class="va">attachment_id</span>, <span class="va">succeed</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
@@ -214,7 +217,7 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 </div>
 <div class="section">
 <h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
-<p>A data.frame of all matching entries (most recent first)</p>
+<p>A <code>data.frame</code> of all matching entries (most recent first)</p>
 </div>
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-query"></a><div class="section">
@@ -242,12 +245,13 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 </div>
 <div class="section">
 <h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
-<p>A data.frame of matching entries (most recent first)</p>
+<p>A <code>data.frame</code> of matching entries (most recent first)</p>
 </div>
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-list_incomplete"></a><div class="section">
 <h3 id="method-list-incomplete-">Method <code>list_incomplete()</code><a class="anchor" aria-label="anchor" href="#method-list-incomplete-"></a></h3>
-<p>Find incomplete entries (init or running past timeout)</p><div class="section">
+<p>Find incomplete entries (<code>"init"</code> or
+<code>"running"</code> past timeout)</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AttachmentIndex</span><span class="op">$</span><span class="fu">list_incomplete</span><span class="op">(</span>timeout_secs <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
@@ -255,16 +259,17 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 <div class="section">
 <h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>timeout_secs</code></dt>
-<dd><p>numeric, seconds after which init/running entries
-are considered incomplete. If <code>NULL</code> (default), returns all
-entries with status 'init' or 'running' regardless of age.</p></dd>
+<dd><p>numeric, seconds after which
+<code>"init"</code>/<code>"running"</code> entries are considered incomplete.
+If <code>NULL</code> (default), returns all entries with status
+<code>"init"</code> or <code>"running"</code> regardless of age.</p></dd>
 
 
 </dl><p></p></div>
 </div>
 <div class="section">
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A data.frame of incomplete entries</p>
+<p>A <code>data.frame</code> of incomplete entries</p>
 </div>
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-exists"></a><div class="section">

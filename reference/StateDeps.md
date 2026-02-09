@@ -18,22 +18,22 @@ Each entry in a `StateDeps` object is a named list element where:
 
 - **Name**: The parameter name passed to the agent function
 
-- **state**: (required) Name of the state to depend on
+- `state`: (required) Name of the state to depend on
 
-- **field**: (optional) What to extract - `"result"` (default) or
+- `field`: (optional) What to extract - `"result"` (default) or
   `"description"`
 
-- **stage**: (optional) Stage of the dependency. If `NULL` or omitted,
-  the dependency must be in the same stage with higher priority. If
+- `stage`: (optional) Stage of the dependency. If `NULL` or omitted, the
+  dependency must be in the same stage with higher priority. If
   specified, must be an earlier stage in the workflow
 
 ### Same-Stage vs Cross-Stage Dependencies
 
-- **Same-stage** (stage = NULL): The dependent state must have higher
-  priority (lower number = runs later). This ensures the dependency
-  executes before the dependent within parallel priority groups
+- **Same-stage** (`stage = NULL`): The dependency state must have higher
+  priority (higher number = runs first). This ensures the dependency
+  executes before the dependent within the same stage
 
-- **Cross-stage** (stage = "earlier_stage"): The dependency is in a
+- **Cross-stage** (`stage = "earlier_stage"`): The dependency is in a
   previous stage. Since stages execute sequentially, the dependency is
   guaranteed to complete before the dependent stage begins
 
@@ -49,13 +49,15 @@ The property-level `validator` checks structural correctness:
 
 - `field` (if present) must be `"result"` or `"description"`
 
-- `stage` (if present) must be a single character string or NULL
+- `stage` (if present) must be a single character string or `NULL`
 
 - Parameter names must be valid R identifiers
 
 ### Cross-Validation (Manifest-Level)
 
-Additional validation is performed at the `Manifest` level to check:
+Additional validation is performed at the
+[`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md) level
+to check:
 
 - Referenced states exist in the manifest
 

@@ -9,7 +9,43 @@ executed sequentially.
 
 ## Details
 
-TODO: explain the cycle
+### `Async` Dispatch Cycle
+
+Each stage follows a promise-driven dispatch loop:
+
+1.  [`start()`](https://rdrr.io/r/stats/start.html) validates the
+    manifest, initializes resources, and iterates through stages
+    sequentially using
+    [`coro::async`](https://coro.r-lib.org/reference/async.html)
+
+2.  `run_stage(stage)` initializes runtimes for all state policies in
+    the stage, creates a stage-level promise, and calls `advance()`
+
+3.  `advance()` drives the cycle: retry failed runtimes, `enqueue` ready
+    runtimes, then dispatch up to `max_concurrency` concurrent
+    executions
+
+4.  When a runtime settles (fulfills or rejects), its promise callback
+    processes the result (success, retry, redirect, or suspend) and
+    calls `advance()` again
+
+5.  When no incomplete work remains, `advance()` resolves the stage
+    promise and the next stage begins
+
+### Differences from [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md)
+
+- [`start()`](https://rdrr.io/r/stats/start.html) returns a
+  [`promises::promise`](https://rstudio.github.io/promises/reference/promise.html)
+  instead of blocking
+
+- `execute_runtime()` dispatches multiple runtimes concurrently (up to
+  `max_concurrency`)
+
+- [`stop()`](https://rdrr.io/r/base/stop.html) rejects the active stage
+  promise in addition to resetting state
+
+- `suspend()` resolves actions via the event dispatcher and manipulates
+  promise settlement functions
 
 ## Super class
 
@@ -102,9 +138,9 @@ Drive the next `async` dispatch cycle.
 
 #### Details
 
-Called by promise callbacks when a runtime settles. Runs: retry -\>
-`enqueue` -\> execute. If no incomplete work remains, resolves the stage
-promise.
+Called by promise callbacks when a runtime settles. Runs: retry,
+`enqueue`, then execute. If no incomplete work remains, resolves the
+stage promise.
 
 ------------------------------------------------------------------------
 

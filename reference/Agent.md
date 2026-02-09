@@ -1,11 +1,12 @@
 # Agent Function Wrapper for State Execution
 
-Creates an executable agent that can be registered with a `Scheduler` to
+Creates an executable agent that can be registered with a
+[`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md) to
 execute state-specific logic. The agent wraps a user-defined function
-with metadata (id, description) and result formatting. Agents are the
-execution units in the Runtime Layer (Tier 2) that implement the logic
-defined in `StatePolicy`
-
+with metadata (`id`, `description`) and result formatting. Agents are
+the execution units in the Runtime Layer (Tier 2) that implement the
+logic defined in
+[`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
 objects from the Policy Layer (Tier 1).
 
 ## Usage
@@ -37,14 +38,16 @@ Agent(
 
 - describe:
 
-  function or NULL, result formatting function for logging; defaults to
+  function or `NULL`, result formatting function for logging; defaults
+  to
   [`mcp_describe`](http://dipterix.org/tricobbler/reference/mcp_describe.md).
-  If provided, should take result as first argument and return a
-  character string
+  If provided, should accept the agent's return value as its first
+  argument and return a character string
 
 ## Value
 
-An `Agent` object (S7 class inheriting from `function`)
+An `Agent` object (S7 class inheriting from
+[`function`](https://rdrr.io/r/base/function.html))
 
 ## Details
 
@@ -56,21 +59,26 @@ The wrapped function must have the following signature:
       # Agent implementation
       # runtime$agent - the Agent object itself
       # runtime$policy - the StatePolicy being executed
-
-      # runtime$context - the Context for logging
+      # runtime$context - the AgentContext for logging
       # runtime$logger() - shorthand for logging
       # Return value will be logged to context via @describe
     }
 
 **Required arguments:**
 
-- `runtime`: An `AgentRuntime` object containing:
+- `runtime`: An
+  [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
+  object containing:
 
-  - `runtime$agent`: Reference to the agent object itself
+  - `runtime$agent`: Reference to the `Agent` object itself
 
-  - `runtime$policy`: The `StatePolicy` object being executed
+  - `runtime$policy`: The
+    [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+    object being executed
 
-  - `runtime$context`: The `Context` object for logging
+  - `runtime$context`: The
+    [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
+    object for logging and storage
 
   - `runtime$logger()`: Method to log messages
 
@@ -78,19 +86,24 @@ The wrapped function must have the following signature:
 
 ### Agent Execution Flow
 
-When a `Scheduler` executes a state:
+When a
+[`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md)
+executes a state:
 
 1.  Looks up the agent by `StatePolicy@agent_id`
 
-2.  Creates an `AgentRuntime` with agent, policy, and context
+2.  Creates an
+    [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
+    with agent, policy, and context
 
 3.  Calls the agent function with `(runtime)`
 
 4.  Captures the return value
 
-5.  Uses `describe` function to format result for logging
+5.  Uses the `describe` function to format the result for logging
 
-6.  Logs formatted result to `Context`
+6.  Logs formatted result to
+    [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
 
 ### Result Description
 
@@ -101,15 +114,15 @@ which captures the printed results. The `describe` property serves three
 purposes: first, the function allows the agent to format the output for
 better AI-readability. The formatted results will be logged into a
 public log file along with the scheduling messages; second, the agent
-can choose to redact sensitive information and avoid insecure agents to
-access those data - reading attachments requires permissions and those
-agents (according to how they are implemented) should not access the
-attachments; finally, because the output description will be recorded
-into the public log file so the other agents can still refer to the
-context without reading the corresponding attachment file. For example
-If a local agent's the output contains user-sensitive data, its
+can choose to redact sensitive information and avoid insecure agents
+from accessing those data - reading attachments requires permissions and
+those agents (according to how they are implemented) should not access
+the attachments; finally, because the output description will be
+recorded into the public log file so the other agents can still refer to
+the context without reading the corresponding attachment file. For
+example, if a local agent's output contains user-sensitive data, its
 `describe` function may hide those information by string replacement, or
-simply show the data format and schema. Other online-agents may still
+simply show the data format and schema. Other online agents may still
 see the redacted outputs from the log files and work on the output (such
 as writing code or executing the tools).
 

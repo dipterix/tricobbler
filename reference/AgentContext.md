@@ -3,7 +3,7 @@
 R6 class that manages the execution environment for workflow states.
 Provides logging, result storage, and attachment management during
 workflow execution. This is part of the Runtime Layer (Tier 2) alongside
-`Scheduler`.
+[`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md).
 
 ## Public fields
 
@@ -23,11 +23,11 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - `current_stage`:
 
-  character, currently executing stage from scheduler (read-only)
+  character, currently executing stage from the scheduler (read-only)
 
 - `current_state`:
 
-  character, currently executing state from scheduler (read-only)
+  character, currently executing state from the scheduler (read-only)
 
 - `memory_path`:
 
@@ -40,7 +40,8 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - `cache`:
 
-  map, stores and persists temporary data
+  [`fastmap::fastmap()`](https://r-lib.github.io/fastmap/reference/fastmap.html)
+  object, stores and persists temporary data
 
 - `store_path`:
 
@@ -104,7 +105,8 @@ Associate a scheduler with this context
 
 - `scheduler`:
 
-  Scheduler object to associate
+  [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md)
+  object to associate
 
 ------------------------------------------------------------------------
 
@@ -123,11 +125,12 @@ Initialize a new context
 
 - `id`:
 
-  character, unique identifier (NULL to auto-generate)
+  character, unique identifier (`NULL` to auto-generate)
 
 - `path`:
 
-  character, root directory path (NULL for default cache)
+  character, root directory path (defaults to a temporary directory
+  under [`tempdir()`](https://rdrr.io/r/base/tempfile.html))
 
 ------------------------------------------------------------------------
 
@@ -218,7 +221,8 @@ Retrieve the most recent result(s)
 
 - `simplify`:
 
-  logical, return single result if items == 1
+  logical, if `TRUE` and `items == 1`, return a single result instead of
+  a list
 
 ------------------------------------------------------------------------
 
@@ -234,9 +238,10 @@ Retrieve a specific attachment by its identifier
 
 - `attachment_id`:
 
-  character, the attachment identifier (filename from record_result). Or
-  a `StatePolicy` object to retrieve the latest attachment for that
-  state.
+  character, the attachment identifier (filename from
+  `record_attachment`). Alternatively, a
+  [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+  object to retrieve the latest attachment for that state.
 
 ------------------------------------------------------------------------
 
@@ -309,12 +314,13 @@ Find incomplete executions (crashed or in-progress)
 
 - `timeout_secs`:
 
-  numeric or `NULL`, seconds after which init/running entries are
-  considered incomplete. If `NULL`, returns all init/running entries.
+  numeric or `NULL`, seconds after which `"init"`/`"running"` entries
+  are considered incomplete. If `NULL`, returns all `"init"`/`"running"`
+  entries.
 
 #### Returns
 
-A data.frame of incomplete index entries
+A `data.frame` of incomplete index entries
 
 ------------------------------------------------------------------------
 
@@ -357,21 +363,22 @@ Read and parse log file contents
 
 - `method`:
 
-  character, read from "tail" (end) or "head" (beginning)
+  character, read from `"tail"` (end of file) or `"head"` (beginning of
+  file)
 
 - `skip_lines`:
 
   integer, skipping lines relative to the end or start; If `method` is
-  `"head"`, then `skip` skips the first several lines, otherwise
+  `"head"`, then `skip_lines` skips the first several lines, otherwise
   skipping the last several lines; default is `0L` (no skipping).
 
 - `max_lines`:
 
-  integer, maximum number of lines to read (default 300)
+  integer, maximum number of lines to read (default `300L`)
 
 - `pattern`:
 
-  character, optional regex pattern to filter log content
+  character or `NULL`, optional regex pattern to filter log content
 
 - `levels`:
 
@@ -379,5 +386,5 @@ Read and parse log file contents
 
 #### Returns
 
-data.frame with columns: line_no, level, time, caller, content. Returns
-empty data.frame if file missing or no matches.
+`data.frame` with columns: `line_no`, `level`, `time`, `caller`,
+`content`. Returns empty `data.frame` if file missing or no matches.

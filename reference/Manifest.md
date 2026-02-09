@@ -1,8 +1,11 @@
 # Validated Container Linking Master Policy to State Policies
 
-Container that ties a `MasterPolicy` together with a list of
-`StatePolicy` objects. The validation ensures that every stage defined
-in the master policy is represented by at least one state.
+Container that ties a
+[`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md)
+together with a list of
+[`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+objects. The validation ensures that every stage defined in the master
+policy is represented by at least one state.
 
 ## Usage
 
@@ -14,11 +17,14 @@ Manifest(master = MasterPolicy(), states = list())
 
 - master:
 
-  `MasterPolicy` object
+  [`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md)
+  object
 
 - states:
 
-  list of `StatePolicy` objects
+  list of
+  [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+  objects
 
 ## Details
 
@@ -40,18 +46,19 @@ in the package two-tier design:
 
 2.  **Runtime Layer (Tier 2 - Mutable R6)**: Execution orchestration
 
-    - `Scheduler`: Orchestrates all stage/state progression and workflow
-      execution
+    - [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md):
+      Orchestrates all stage/state progression and workflow execution
 
-    - `Context`: Manages execution environment (logging, storage,
-      attachments)
+    - [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md):
+      Manages execution environment (logging, storage, attachments)
 
-    - `Agent`: Executes state-specific logic
+    - [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md):
+      Executes state-specific logic
 
 ### Stages vs States: Critical Distinction
 
 - **Stages** (symbolic vocabulary): Workflow phase names defined in
-  `MasterPolicy@stages` (e.g., "triage", "planning", "executing")
+  `MasterPolicy@stages` (e.g., `"triage"`, `"planning"`, `"executing"`)
 
 - **States** (concrete implementations): `StatePolicy` objects that
   reference stages and add execution metadata (description, parameters,
@@ -65,50 +72,46 @@ in the package two-tier design:
   - **Critical gates**: Critical states enforce fail-fast validation
     semantics
 
-- **Validation rule**: Every stage in `MasterPolicy@stages` MUST have at
-  least one corresponding `StatePolicy` (enforced by validation)
+- **Validation rule**: Every stage in `MasterPolicy@stages` **must**
+  have at least one corresponding `StatePolicy` (enforced by validation)
 
 ### Validation Rules
 
 The `Manifest` validation performs critical cross-checks:
 
 1.  **Completeness**: Every `MasterPolicy` stage has at least one
-    `StatePolicy`
-
-    - Prevents "orphaned" stages with no implementation
-
-    - Error message: "Missing stages: ..."
+    `StatePolicy`. Prevents "orphaned" stages with no implementation.
+    Error message: `"Missing stages: ..."`
 
 2.  **Critical priority uniqueness**: Critical states cannot share
-    priorities
-
-    - If `StatePolicy@critical = TRUE`, no other state in the same stage
-      can have the same `priority` value
-
-    - Prevents ambiguity about which critical state blocks
-      lower-priority states
-
-    - Error message: "Critical state ... cannot share its priority with
-      ..."
+    priorities. If `StatePolicy@critical = TRUE`, no other state in the
+    same stage can have the same `priority` value. Prevents ambiguity
+    about which critical state blocks lower-priority states. Error
+    message: `"Critical state ... cannot share its priority with ..."`
 
 ### Immutability and Serialization
 
 Once created, `Manifest` objects are immutable (S7 value semantics),
 providing a stable reference for runtime execution. Manifests can be
-serialized to/from YAML for version control:
+serialized to/from `YAML` for version control:
 
-- `manifest_write(manifest, file)`: Save to human-readable YAML
+- [`manifest_write`](http://dipterix.org/tricobbler/reference/manifest-file.md)`(manifest, file)`:
+  Save to human-readable `YAML`
 
-- `manifest_read(file)`: Load with full validation
+- [`manifest_read`](http://dipterix.org/tricobbler/reference/manifest-file.md)`(file)`:
+  Load with full validation
 
-- All validation rules apply when reading YAML
+- All validation rules apply when reading `YAML`
 
 ### Policy vs Runtime Separation
 
-The `Manifest` is a policy-level blueprint that defines WHAT the
-workflow should do (stages and states), not HOW it executes. The actual
-execution (orchestration, logging, state management) is handled by
-`Scheduler` and `Context` in the Runtime layer.
+The `Manifest` is a policy-level blueprint that defines *what* the
+workflow should do (stages and states), not *how* it executes. The
+actual execution (orchestration, logging, state management) is handled
+by [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md)
+and
+[`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
+in the Runtime layer.
 
 ## Examples
 

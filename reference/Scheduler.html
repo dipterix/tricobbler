@@ -51,16 +51,17 @@ see <code><a href="AsyncScheduler.html">AsyncScheduler</a></code> for the promis
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
     <p></p><div class="r6-fields"><dl><dt><code>manifest</code></dt>
-<dd><p>Manifest, the workflow blueprint</p></dd>
+<dd><p><code><a href="Manifest.html">Manifest</a></code>, the workflow blueprint</p></dd>
 
 
 <dt><code>agents</code></dt>
-<dd><p><code><a href="https://r-lib.github.io/fastmap/reference/fastmap.html" class="external-link">fastmap::fastmap()</a></code> object, registry of Agent
-objects keyed by agent_id</p></dd>
+<dd><p><code><a href="https://r-lib.github.io/fastmap/reference/fastmap.html" class="external-link">fastmap::fastmap()</a></code> object, registry of
+<code><a href="Agent.html">Agent</a></code> objects keyed by <code>agent_id</code></p></dd>
 
 
 <dt><code>context</code></dt>
-<dd><p>Context, the execution environment for logging and storage</p></dd>
+<dd><p><code><a href="AgentContext.html">AgentContext</a></code>, the execution environment
+for logging and storage</p></dd>
 
 
 <dt><code>current_stage</code></dt>
@@ -68,7 +69,8 @@ objects keyed by agent_id</p></dd>
 
 
 <dt><code>stage_started</code></dt>
-<dd><p><code>POSIXct</code>, timestamp when current stage started</p></dd>
+<dd><p><code>POSIXct</code> or <code>NULL</code>, timestamp when
+the current stage started</p></dd>
 
 
 <dt><code>suspended</code></dt>
@@ -153,15 +155,15 @@ names to integer attempt counts for retry scheduling</p></dd>
 <div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>manifest</code></dt>
-<dd><p>Manifest object, the workflow blueprint</p></dd>
+<dd><p><code><a href="Manifest.html">Manifest</a></code> object, the workflow blueprint</p></dd>
 
 
 <dt><code>agents</code></dt>
-<dd><p>list, collection of Agent objects</p></dd>
+<dd><p>list, collection of <code><a href="Agent.html">Agent</a></code> objects</p></dd>
 
 
 <dt><code>context</code></dt>
-<dd><p>Context object, execution environment
+<dd><p><code><a href="AgentContext.html">AgentContext</a></code> object, execution environment
 (default: new <code><a href="AgentContext.html">AgentContext</a></code>)</p></dd>
 
 
@@ -178,9 +180,9 @@ names to integer attempt counts for retry scheduling</p></dd>
 <div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>type</code></dt>
-<dd><p>character, event type (e.g. <code>"suspend"</code>,
-<code>"state_completed"</code>, <code>"stage_completed"</code>,
-<code>"dispatch"</code>)</p></dd>
+<dd><p>character, event type (e.g., <code>"suspend"</code>,
+<code>"runtime.resolved"</code>, <code>"stage.completed"</code>,
+<code>"runtime.dispatch"</code>)</p></dd>
 
 
 <dt><code>handler</code></dt>
@@ -258,8 +260,9 @@ after existing handlers; if <code>FALSE</code> prepend it</p></dd>
 <div class="section">
 <h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>on_error</code></dt>
-<dd><p>character, action on validation failure
-("error" or "quiet")</p></dd>
+<dd><p>character, action on validation failure:
+<code>"error"</code> (throw an error) or <code>"quiet"</code> (return
+<code>FALSE</code> silently)</p></dd>
 
 
 </dl><p></p></div>
@@ -387,9 +390,9 @@ waiting_pool, and retry_map</p>
 
 <div class="section">
 <h4 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h4>
-<p>Loops synchronously: retry -&gt; <code>enqueue</code> -&gt; execute,
+<p>Loops synchronously: retry, <code>enqueue</code>, then execute;
 then checks for stage completion. Continues until no more
-work remains or the stage is <code>cancelled</code>/suspended.</p>
+work remains or the stage is <code>cancelled</code> or suspended.</p>
 </div>
 
 

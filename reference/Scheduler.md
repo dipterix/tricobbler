@@ -11,16 +11,20 @@ for the promise-based variant.
 
 - `manifest`:
 
-  Manifest, the workflow blueprint
+  [`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md),
+  the workflow blueprint
 
 - `agents`:
 
   [`fastmap::fastmap()`](https://r-lib.github.io/fastmap/reference/fastmap.html)
-  object, registry of Agent objects keyed by agent_id
+  object, registry of
+  [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md) objects
+  keyed by `agent_id`
 
 - `context`:
 
-  Context, the execution environment for logging and storage
+  [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md),
+  the execution environment for logging and storage
 
 - `current_stage`:
 
@@ -28,7 +32,7 @@ for the promise-based variant.
 
 - `stage_started`:
 
-  `POSIXct`, timestamp when current stage started
+  `POSIXct` or `NULL`, timestamp when the current stage started
 
 - `suspended`:
 
@@ -129,15 +133,18 @@ Initialize scheduler with manifest blueprint and agents
 
 - `manifest`:
 
-  Manifest object, the workflow blueprint
+  [`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md)
+  object, the workflow blueprint
 
 - `agents`:
 
-  list, collection of Agent objects
+  list, collection of
+  [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md) objects
 
 - `context`:
 
-  Context object, execution environment (default: new
+  [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
+  object, execution environment (default: new
   [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md))
 
 ------------------------------------------------------------------------
@@ -154,8 +161,8 @@ Register a listener for a `lifecycle` event
 
 - `type`:
 
-  character, event type (e.g. `"suspend"`, `"state_completed"`,
-  `"stage_completed"`, `"dispatch"`)
+  character, event type (e.g., `"suspend"`, `"runtime.resolved"`,
+  `"stage.completed"`, `"runtime.dispatch"`)
 
 - `handler`:
 
@@ -231,7 +238,8 @@ Verify that all required agents are registered
 
 - `on_error`:
 
-  character, action on validation failure ("error" or "quiet")
+  character, action on validation failure: `"error"` (throw an error) or
+  `"quiet"` (return `FALSE` silently)
 
 ------------------------------------------------------------------------
 
@@ -370,9 +378,9 @@ Drive the dispatch loop for the current stage.
 
 #### Details
 
-Loops synchronously: retry -\> `enqueue` -\> execute, then checks for
+Loops synchronously: retry, `enqueue`, then execute; then checks for
 stage completion. Continues until no more work remains or the stage is
-`cancelled`/suspended.
+`cancelled` or suspended.
 
 ------------------------------------------------------------------------
 

@@ -1,9 +1,12 @@
 # State-Level Policy Implementation for Workflow Stages
 
-Represents a single workflow state. Inherits from `BasePolicy` and adds
-a mandatory `stage` that must match one of the stages defined in a
-`MasterPolicy`. Includes priority and criticality flags for execution
-ordering when multiple states share the same stage.
+Represents a single workflow state. Inherits from
+[`BasePolicy`](http://dipterix.org/tricobbler/reference/BasePolicy.md)
+and adds a mandatory `stage` that must match one of the stages defined
+in a
+[`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md).
+Includes priority and criticality flags for execution ordering when
+multiple states share the same stage.
 
 ## Usage
 
@@ -52,10 +55,11 @@ StatePolicy(
 - accessibility:
 
   character, context accessibility level for the agent. Controls what
-  context data the agent can read. One of `"all"` (full access),
-  `"logs"` (logs only), `"none"` (no access), or `"explicit"` (use
-  `depends_on` to specify inputs; if `depends_on` is empty, behaves like
-  `"logs"`). Default is `"all"`
+  context data the agent can read. One of `"all"` (full access to
+  previous results and logs), `"logs"` (log descriptions only, no raw
+  results), `"none"` (no access to previous context), or `"explicit"`
+  (use `depends_on` to specify inputs; if `depends_on` is empty, behaves
+  like `"logs"`). Default is `"all"`
 
 - parameters:
 
@@ -69,29 +73,30 @@ StatePolicy(
   `max_retry` limit applies globally across all re-entries to this state
   within the same stage. If `on_failure` is set, this state will not
   retry locally but will jump to the failure handler immediately. If
-  `on_failure` is NA, local retries up to `max_retry` will be attempted
-  before moving to next state
+  `on_failure` is `NA`, local retries up to `max_retry` will be
+  attempted before moving to next state
 
 - priority:
 
   integer, execution priority (0-999, default 100). Higher values run
   first (999 = highest priority, 0 = lowest). Used when multiple states
-  share the same stage. NA or NULL are treated as 100
+  share the same stage. `NA` or `NULL` are treated as 100
 
 - critical:
 
-  logical, if TRUE, states with lower priority will not execute if this
-  state fails (default FALSE). Critical states must have priority \>= 1
-  and cannot share priority code with other states
+  logical, if `TRUE`, states with lower priority will not execute if
+  this state fails (default `FALSE`). Critical states must have
+  `priority >= 1` and cannot share priority with other states in the
+  same stage
 
 - final:
 
-  logical, if TRUE and validation succeeds, skip remaining states in the
-  workflow (default FALSE)
+  logical, if `TRUE` and the agent succeeds, skip remaining states in
+  the stage (default `FALSE`)
 
 - on_failure:
 
-  character, name of the state to jump to on first failure (default NA
+  character, name of the state to jump to on first failure (default `NA`
   to retry locally up to `max_retry` times). When set, failures trigger
   immediate jump to the specified state without local retries. The
   `max_retry` limit still applies globally to prevent infinite loops: if
@@ -115,7 +120,7 @@ StatePolicy(
 ### Stages vs States
 
 - **Stage** (macro): The workflow phase name from `MasterPolicy@stages`
-  (e.g., "executing")
+  (e.g., `"executing"`)
 
 - **State** (micro): A concrete `StatePolicy` implementation of that
   stage
@@ -145,13 +150,16 @@ semantics:
 
 - If a critical state fails, lower-priority states are skipped entirely
 
-- Critical states must have unique priority (enforced by `Manifest`)
+- Critical states must have unique priority (enforced by
+  [`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md))
 
 - Critical states must have `priority >= 1` (cannot be lowest priority
   0)
 
 - Critical states cannot share their priority value with other states in
-  the same stage (enforced by `Manifest` validation)
+  the same stage (enforced by
+  [`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md)
+  validation)
 
 - **Use case**: Required validation gates that must pass before
   alternatives run
@@ -164,10 +172,9 @@ Create multiple `StatePolicy` objects for the same stage when you need:
     with alternative strategies
 
 2.  **Alternative implementations**: Multiple states for the same stage
-    execution with alternative strategies (e.g., primary approach -\>
-    fallback -\> last resort)
+    (e.g., primary approach, then fallback, then last resort)
 
-3.  **Critical validation gates**: Critical state must succeed before
+3.  **Critical validation gates**: A critical state must succeed before
     lower-priority alternatives execute (enforces sequential, fail-fast
     semantics)
 
@@ -197,10 +204,10 @@ The `accessibility` property affects how inputs are constructed:
 - `"none"`: Only `args` are passed (no context access)
 
 **Debug Mode**: Set `context$debug <- TRUE` at runtime to enable debug
-mode. In debug mode, agents print their calls/tools for inspection but
-run as no-op (returning debug information instead of executing).
+mode. In debug mode, agents print their calls and tools for inspection
+but run as no-op (returning debug information instead of executing).
 
-**AI Agents** (from ellmer Chat objects):
+**AI Agents** (from ellmer `Chat` objects):
 
 - `system_prompt`: character, additional system prompt appended to
   `@description`
@@ -213,7 +220,7 @@ run as no-op (returning debug information instead of executing).
 - `return_type`: an ellmer type indicator (e.g.,
   [`ellmer::type_object()`](https://ellmer.tidyverse.org/reference/type_boolean.html)).
   When provided, triggers `chat$chat_structured(type = return_type)` for
-  structured output. Can also be specified in YAML via
+  structured output. Can also be specified in `YAML` via
   [`map_type_to_ellmer()`](http://dipterix.org/tricobbler/reference/map_type_to_ellmer.md)
 
 ## Examples

@@ -9,23 +9,23 @@ open/close-per-operation pattern for safety.
 
 The index tracks each attachment through its `lifecycle`:
 
-- `init`:
+- `"init"`:
 
   Runtime created, execution not yet started
 
-- `running`:
+- `"running"`:
 
   Agent execution in progress
 
-- `finished`:
+- `"finished"`:
 
   Execution completed successfully
 
-- `errored`:
+- `"errored"`:
 
   Execution completed with error
 
-- `skipped`:
+- `"skipped"`:
 
   Execution was skipped (reserved for future use)
 
@@ -79,7 +79,7 @@ Initialize the attachment index
 
 ### Method `register()`
 
-Register a new attachment entry with status 'init'
+Register a new attachment entry with status `init`
 
 #### Usage
 
@@ -125,13 +125,14 @@ Update the status of an existing attachment
 
 - `status`:
 
-  character, new status
+  character, new status (one of `"init"`, `"running"`, `"finished"`,
+  `"errored"`, `"skipped"`)
 
 ------------------------------------------------------------------------
 
 ### Method `mark_finished()`
 
-Mark an attachment as finished or `errored`
+Mark an attachment as `"finished"` or `"errored"`
 
 #### Usage
 
@@ -185,7 +186,7 @@ List all index entries
 
 #### Returns
 
-A data.frame of all matching entries (most recent first)
+A `data.frame` of all matching entries (most recent first)
 
 ------------------------------------------------------------------------
 
@@ -213,13 +214,13 @@ Query index entries by state and/or stage
 
 #### Returns
 
-A data.frame of matching entries (most recent first)
+A `data.frame` of matching entries (most recent first)
 
 ------------------------------------------------------------------------
 
 ### Method `list_incomplete()`
 
-Find incomplete entries (init or running past timeout)
+Find incomplete entries (`"init"` or `"running"` past timeout)
 
 #### Usage
 
@@ -229,13 +230,13 @@ Find incomplete entries (init or running past timeout)
 
 - `timeout_secs`:
 
-  numeric, seconds after which init/running entries are considered
-  incomplete. If `NULL` (default), returns all entries with status
-  'init' or 'running' regardless of age.
+  numeric, seconds after which `"init"`/`"running"` entries are
+  considered incomplete. If `NULL` (default), returns all entries with
+  status `"init"` or `"running"` regardless of age.
 
 #### Returns
 
-A data.frame of incomplete entries
+A `data.frame` of incomplete entries
 
 ------------------------------------------------------------------------
 

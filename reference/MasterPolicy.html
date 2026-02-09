@@ -35,7 +35,7 @@ the set of allowed stages. Inherits from BasePolicy."></head><body>
 
     <div class="ref-description section level2">
     <p>Concrete policy that defines the overall workflow version and
-the set of allowed stages. Inherits from <code>BasePolicy</code>.</p>
+the set of allowed stages. Inherits from <code><a href="BasePolicy.html">BasePolicy</a></code>.</p>
     </div>
 
     <div class="section level2">
@@ -54,24 +54,26 @@ the set of allowed stages. Inherits from <code>BasePolicy</code>.</p>
 
 
 <dl><dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
-<dd><p>Character. Name of the policy (non-blank).</p></dd>
+<dd><p>character, name of the policy (non-blank)</p></dd>
 
 
 <dt id="arg-description">description<a class="anchor" aria-label="anchor" href="#arg-description"></a></dt>
-<dd><p>Character. Human-readable description.</p></dd>
+<dd><p>character, human-readable description</p></dd>
 
 
 <dt id="arg-version">version<a class="anchor" aria-label="anchor" href="#arg-version"></a></dt>
-<dd><p>Character. Version string validated by <code>property_version()</code>.</p></dd>
+<dd><p>character, version string in <code>"major.minor.patch"</code>
+format (e.g., <code>"1.0.0"</code>)</p></dd>
 
 
 <dt id="arg-stages">stages<a class="anchor" aria-label="anchor" href="#arg-stages"></a></dt>
-<dd><p>Character vector. Non-empty, lower-cased, unique, and each
-element may contain only letters, digits, underscores or dashes.</p></dd>
+<dd><p>character, non-empty vector of unique, lowercase stage names.
+Each element may contain only letters, digits, underscores, or dashes.
+Defaults to <code>c("triage", "planning", "executing")</code></p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>
-<dd><p>List. Additional free-form parameters for the workflow.</p></dd>
+<dd><p>list, additional free-form parameters for the workflow</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -81,29 +83,34 @@ element may contain only letters, digits, underscores or dashes.</p></dd>
 <h3 id="stages-as-workflow-vocabulary">Stages as Workflow Vocabulary<a class="anchor" aria-label="anchor" href="#stages-as-workflow-vocabulary"></a></h3>
 
 
-<p>The <code>stages</code> property defines the symbolic vocabulary of workflow phases
-(e.g., "triage", "planning", "executing"). These are macro-level phase names
-that must be implemented by at least one <code>StatePolicy</code> object in the
-<code>Manifest</code>.</p>
+<p>The <code>stages</code> property defines the symbolic vocabulary of workflow
+phases (e.g., <code>"triage"</code>, <code>"planning"</code>, <code>"executing"</code>).
+These are macro-level phase names that must be implemented by at least one
+<code><a href="StatePolicy.html">StatePolicy</a></code> object in the <code><a href="Manifest.html">Manifest</a></code>.</p>
+<p>The reserved stage names <code>"ready"</code>, <code>"error"</code>, and
+<code>"human"</code> cannot be used because they are managed internally by
+the <code><a href="Scheduler.html">Scheduler</a></code>.</p>
 </div>
 
 <div class="section">
 <h3 id="stage-naming-conventions">Stage Naming Conventions<a class="anchor" aria-label="anchor" href="#stage-naming-conventions"></a></h3>
 
+
 <ul><li><p>Stages are automatically converted to lowercase for consistency</p></li>
-<li><p>Must contain only letters (a-z), digits (0-9), underscores (_), or
-dashes (-)</p></li>
+<li><p>Must contain only letters (a-z), digits (0-9), underscores
+(<code>_</code>), or dashes (<code>-</code>)</p></li>
 <li><p>Must be unique (case-insensitive) within a workflow</p></li>
-<li><p>Cannot be blank or NA</p></li>
+<li><p>Cannot be blank or <code>NA</code></p></li>
 </ul></div>
 
 <div class="section">
 <h3 id="immutability">Immutability<a class="anchor" aria-label="anchor" href="#immutability"></a></h3>
 
 
-<p><code>MasterPolicy</code> objects are immutable (S7 value semantics). Once created,
-they serve as a stable reference for <code>Contract</code> objects. Use the
-<code>@</code> accessor to read properties (e.g., <code>policy@stages</code>).</p>
+<p><code>MasterPolicy</code> objects are immutable (S7 value semantics). Once
+created, they serve as a stable reference for the <code><a href="Manifest.html">Manifest</a></code>.
+Use the <code>@</code> accessor to read properties
+(e.g., <code>policy@stages</code>).</p>
 </div>
 
     </div>

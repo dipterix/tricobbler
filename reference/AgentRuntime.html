@@ -59,13 +59,14 @@ relying on global state.</p>
 
 
 <p>The runtime serves three main purposes:</p><ol><li><p><strong><code>Async</code> safety</strong>: Captures execution context
-in closures, avoiding race
-conditions with global state when agents execute concurrently</p></li>
-<li><p><strong>Simplified API</strong>: Agents receive a single <code>runtime</code> argument instead
-of separate <code>self</code>, <code>policy</code>, <code>context</code> arguments</p></li>
+in closures, avoiding race conditions with global state when agents
+execute concurrently</p></li>
+<li><p><strong>Simplified API</strong>: Agents receive a single <code>runtime</code>
+argument instead of separate <code>agent</code>, <code>policy</code>,
+<code>context</code> arguments</p></li>
 <li><p><strong>Tool injection</strong>: <code>MCP</code> tools that declare a
-<code>.runtime</code> parameter receive
-the runtime automatically via closure capture at <code>instantiation</code> time</p></li>
+<code>.runtime</code> parameter receive the runtime automatically via
+closure capture at <code>instantiation</code> time</p></li>
 </ol></div>
 
 <div class="section">
@@ -91,15 +92,17 @@ packages to create <code>MCP</code> tools that access the execution context:</p>
     <div class="section level2">
     <h2 id="active-bindings">Active bindings<a class="anchor" aria-label="anchor" href="#active-bindings"></a></h2>
     <p></p><div class="r6-active-bindings"><dl><dt><code>agent</code></dt>
-<dd><p>Agent object, the agent being executed (who)</p></dd>
+<dd><p><code><a href="Agent.html">Agent</a></code> object, the agent being executed (who)</p></dd>
 
 
 <dt><code>context</code></dt>
-<dd><p><code>AgentContext</code> object, the execution context (where)</p></dd>
+<dd><p><code><a href="AgentContext.html">AgentContext</a></code> object, the execution
+context (where)</p></dd>
 
 
 <dt><code>policy</code></dt>
-<dd><p><code>StatePolicy</code> object, the policy being executed (what)</p></dd>
+<dd><p><code><a href="StatePolicy.html">StatePolicy</a></code> object, the policy being
+executed (what)</p></dd>
 
 
 <dt><code>attempt</code></dt>
@@ -142,7 +145,7 @@ in the context logs</p></dd>
 <div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>agent</code></dt>
-<dd><p>Agent object being executed</p></dd>
+<dd><p><code><a href="Agent.html">Agent</a></code> object being executed</p></dd>
 
 
 <dt><code>context</code></dt>
@@ -205,7 +208,7 @@ in the context logs</p></dd>
 </div><p></p><hr><a id="method-TricobblerAgentRuntime-run_async"></a><div class="section">
 <h3 id="method-run-async-">Method <code>run_async()</code><a class="anchor" aria-label="anchor" href="#method-run-async-"></a></h3>
 <p>Execute the agent asynchronously, returning a
-promise that resolves with the recorded attachment</p><div class="section">
+<code><a href="https://rstudio.github.io/promises/reference/promise.html" class="external-link">promises::promise</a></code> that resolves with the recorded attachment</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentRuntime</span><span class="op">$</span><span class="fu">run_async</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>

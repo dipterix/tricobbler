@@ -1,7 +1,8 @@
 # Master Workflow Policy Defining Stages and Version
 
 Concrete policy that defines the overall workflow version and the set of
-allowed stages. Inherits from `BasePolicy`.
+allowed stages. Inherits from
+[`BasePolicy`](http://dipterix.org/tricobbler/reference/BasePolicy.md).
 
 ## Usage
 
@@ -19,50 +20,59 @@ MasterPolicy(
 
 - name:
 
-  Character. Name of the policy (non-blank).
+  character, name of the policy (non-blank)
 
 - description:
 
-  Character. Human-readable description.
+  character, human-readable description
 
 - version:
 
-  Character. Version string validated by `property_version()`.
+  character, version string in `"major.minor.patch"` format (e.g.,
+  `"1.0.0"`)
 
 - stages:
 
-  Character vector. Non-empty, lower-cased, unique, and each element may
-  contain only letters, digits, underscores or dashes.
+  character, non-empty vector of unique, lowercase stage names. Each
+  element may contain only letters, digits, underscores, or dashes.
+  Defaults to `c("triage", "planning", "executing")`
 
 - parameters:
 
-  List. Additional free-form parameters for the workflow.
+  list, additional free-form parameters for the workflow
 
 ## Details
 
 ### Stages as Workflow Vocabulary
 
 The `stages` property defines the symbolic vocabulary of workflow phases
-(e.g., "triage", "planning", "executing"). These are macro-level phase
-names that must be implemented by at least one `StatePolicy` object in
-the `Manifest`.
+(e.g., `"triage"`, `"planning"`, `"executing"`). These are macro-level
+phase names that must be implemented by at least one
+[`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+object in the
+[`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md).
+
+The reserved stage names `"ready"`, `"error"`, and `"human"` cannot be
+used because they are managed internally by the
+[`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md).
 
 ### Stage Naming Conventions
 
 - Stages are automatically converted to lowercase for consistency
 
-- Must contain only letters (a-z), digits (0-9), underscores (\_), or
-  dashes (-)
+- Must contain only letters (a-z), digits (0-9), underscores (`_`), or
+  dashes (`-`)
 
 - Must be unique (case-insensitive) within a workflow
 
-- Cannot be blank or NA
+- Cannot be blank or `NA`
 
 ### Immutability
 
 `MasterPolicy` objects are immutable (S7 value semantics). Once created,
-they serve as a stable reference for `Contract` objects. Use the `@`
-accessor to read properties (e.g., `policy@stages`).
+they serve as a stable reference for the
+[`Manifest`](http://dipterix.org/tricobbler/reference/Manifest.md). Use
+the `@` accessor to read properties (e.g., `policy@stages`).
 
 ## Examples
 

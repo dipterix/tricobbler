@@ -50,7 +50,41 @@ independent states are dispatched concurrently via
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>TODO: explain the cycle</p>
+
+<div class="section">
+<h3 id="async-dispatch-cycle"><code>Async</code> Dispatch Cycle<a class="anchor" aria-label="anchor" href="#async-dispatch-cycle"></a></h3>
+
+
+<p>Each stage follows a promise-driven dispatch loop:</p><ol><li><p><code><a href="https://rdrr.io/r/stats/start.html" class="external-link">start()</a></code> validates the manifest, initializes resources,
+and iterates through stages sequentially using
+<code><a href="https://coro.r-lib.org/reference/async.html" class="external-link">coro::async</a></code></p></li>
+<li><p><code>run_stage(stage)</code> initializes runtimes for all state
+policies in the stage, creates a stage-level promise, and calls
+<code>advance()</code></p></li>
+<li><p><code>advance()</code> drives the cycle: retry failed runtimes,
+<code>enqueue</code> ready runtimes, then dispatch up to
+<code>max_concurrency</code> concurrent executions</p></li>
+<li><p>When a runtime settles (fulfills or rejects), its promise
+callback processes the result (success, retry, redirect, or
+suspend) and calls <code>advance()</code> again</p></li>
+<li><p>When no incomplete work remains, <code>advance()</code> resolves
+the stage promise and the next stage begins</p></li>
+</ol></div>
+
+<div class="section">
+<h3 id="differences-from-scheduler">Differences from <code><a href="Scheduler.html">Scheduler</a></code><a class="anchor" aria-label="anchor" href="#differences-from-scheduler"></a></h3>
+
+
+<ul><li><p><code><a href="https://rdrr.io/r/stats/start.html" class="external-link">start()</a></code> returns a <code><a href="https://rstudio.github.io/promises/reference/promise.html" class="external-link">promises::promise</a></code> instead
+of blocking</p></li>
+<li><p><code>execute_runtime()</code> dispatches multiple runtimes
+concurrently (up to <code>max_concurrency</code>)</p></li>
+<li><p><code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code> rejects the active stage promise in addition
+to resetting state</p></li>
+<li><p><code>suspend()</code> resolves actions via the event dispatcher
+and manipulates promise settlement functions</p></li>
+</ul></div>
+
     </div>
     <div class="section level2">
     <h2 id="super-class">Super class<a class="anchor" aria-label="anchor" href="#super-class"></a></h2>
@@ -127,7 +161,7 @@ or <code>await()</code> inside a <code><a href="https://coro.r-lib.org/reference
 <div class="section">
 <h4 id="details-1">Details<a class="anchor" aria-label="anchor" href="#details-1"></a></h4>
 <p>Called by promise callbacks when a runtime settles.
-Runs: retry -&gt; <code>enqueue</code> -&gt; execute. If no incomplete work
+Runs: retry, <code>enqueue</code>, then execute. If no incomplete work
 remains, resolves the stage promise.</p>
 </div>
 

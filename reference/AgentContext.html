@@ -41,7 +41,7 @@ Scheduler."></head><body>
     <p>R6 class that manages the execution environment for workflow
 states. Provides logging, result storage, and attachment management during
 workflow execution. This is part of the Runtime Layer (Tier 2) alongside
-<code>Scheduler</code>.</p>
+<code><a href="Scheduler.html">Scheduler</a></code>.</p>
     </div>
 
 
@@ -65,13 +65,13 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 
 <dt><code>current_stage</code></dt>
-<dd><p>character, currently executing stage from scheduler
-(read-only)</p></dd>
+<dd><p>character, currently executing stage from the
+scheduler (read-only)</p></dd>
 
 
 <dt><code>current_state</code></dt>
-<dd><p>character, currently executing state from scheduler
-(read-only)</p></dd>
+<dd><p>character, currently executing state from the
+scheduler (read-only)</p></dd>
 
 
 <dt><code>memory_path</code></dt>
@@ -85,7 +85,8 @@ used to store agent memories across the sessions (read-only)</p></dd>
 
 
 <dt><code>cache</code></dt>
-<dd><p>map, stores and persists temporary data</p></dd>
+<dd><p><code><a href="https://r-lib.github.io/fastmap/reference/fastmap.html" class="external-link">fastmap::fastmap()</a></code> object, stores and persists
+temporary data</p></dd>
 
 
 <dt><code>store_path</code></dt>
@@ -139,7 +140,7 @@ index (read-only). Available after
 <div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>scheduler</code></dt>
-<dd><p>Scheduler object to associate</p></dd>
+<dd><p><code><a href="Scheduler.html">Scheduler</a></code> object to associate</p></dd>
 
 
 </dl><p></p></div>
@@ -158,11 +159,12 @@ index (read-only). Available after
 <div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>id</code></dt>
-<dd><p>character, unique identifier (NULL to auto-generate)</p></dd>
+<dd><p>character, unique identifier (<code>NULL</code> to auto-generate)</p></dd>
 
 
 <dt><code>path</code></dt>
-<dd><p>character, root directory path (NULL for default cache)</p></dd>
+<dd><p>character, root directory path (defaults to a temporary
+directory under <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>)</p></dd>
 
 
 </dl><p></p></div>
@@ -252,7 +254,8 @@ succeeded</p></dd>
 
 
 <dt><code>simplify</code></dt>
-<dd><p>logical, return single result if items == 1</p></dd>
+<dd><p>logical, if <code>TRUE</code> and <code>items == 1</code>, return
+a single result instead of a list</p></dd>
 
 
 </dl><p></p></div>
@@ -269,8 +272,9 @@ succeeded</p></dd>
 <h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
-(filename from record_result). Or a <code>StatePolicy</code> object to
-retrieve the latest attachment for that state.</p></dd>
+(filename from <code>record_attachment</code>). Alternatively, a
+<code><a href="StatePolicy.html">StatePolicy</a></code> object to retrieve the latest attachment
+for that state.</p></dd>
 
 
 </dl><p></p></div>
@@ -344,15 +348,15 @@ kept for backward compatibility</p></dd>
 <h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>timeout_secs</code></dt>
 <dd><p>numeric or <code>NULL</code>, seconds after which
-init/running entries are considered incomplete. If <code>NULL</code>,
-returns all init/running entries.</p></dd>
+<code>"init"</code>/<code>"running"</code> entries are considered incomplete.
+If <code>NULL</code>, returns all <code>"init"</code>/<code>"running"</code> entries.</p></dd>
 
 
 </dl><p></p></div>
 </div>
 <div class="section">
 <h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
-<p>A data.frame of incomplete index entries</p>
+<p>A <code>data.frame</code> of incomplete index entries</p>
 </div>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-get_runtime_log"></a><div class="section">
@@ -392,22 +396,25 @@ returns all init/running entries.</p></dd>
 <div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>method</code></dt>
-<dd><p>character, read from "tail" (end) or "head" (beginning)</p></dd>
+<dd><p>character, read from <code>"tail"</code> (end of file) or
+<code>"head"</code> (beginning of file)</p></dd>
 
 
 <dt><code>skip_lines</code></dt>
 <dd><p>integer, skipping lines relative to the end or start;
-If <code>method</code> is <code>"head"</code>, then <code>skip</code> skips the first several lines,
-otherwise skipping the last several lines; default is <code>0L</code>
-(no skipping).</p></dd>
+If <code>method</code> is <code>"head"</code>, then <code>skip_lines</code> skips the
+first several lines, otherwise skipping the last several lines;
+default is <code>0L</code> (no skipping).</p></dd>
 
 
 <dt><code>max_lines</code></dt>
-<dd><p>integer, maximum number of lines to read (default 300)</p></dd>
+<dd><p>integer, maximum number of lines to read
+(default <code>300L</code>)</p></dd>
 
 
 <dt><code>pattern</code></dt>
-<dd><p>character, optional regex pattern to filter log content</p></dd>
+<dd><p>character or <code>NULL</code>, optional regex pattern to
+filter log content</p></dd>
 
 
 <dt><code>levels</code></dt>
@@ -419,8 +426,9 @@ otherwise skipping the last several lines; default is <code>0L</code>
 </div>
 <div class="section">
 <h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>data.frame with columns: line_no, level, time, caller, content.
-Returns empty data.frame if file missing or no matches.</p>
+<p><code>data.frame</code> with columns: <code>line_no</code>, <code>level</code>,
+<code>time</code>, <code>caller</code>, <code>content</code>.
+Returns empty <code>data.frame</code> if file missing or no matches.</p>
 </div>
 
 </div>

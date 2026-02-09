@@ -16,7 +16,7 @@ The runtime serves three main purposes:
     race conditions with global state when agents execute concurrently
 
 2.  **Simplified API**: Agents receive a single `runtime` argument
-    instead of separate `self`, `policy`, `context` arguments
+    instead of separate `agent`, `policy`, `context` arguments
 
 3.  **Tool injection**: `MCP` tools that declare a `.runtime` parameter
     receive the runtime automatically via closure capture at
@@ -43,15 +43,18 @@ tools that access the execution context:
 
 - `agent`:
 
-  Agent object, the agent being executed (who)
+  [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md) object,
+  the agent being executed (who)
 
 - `context`:
 
-  `AgentContext` object, the execution context (where)
+  [`AgentContext`](http://dipterix.org/tricobbler/reference/AgentContext.md)
+  object, the execution context (where)
 
 - `policy`:
 
-  `StatePolicy` object, the policy being executed (what)
+  [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+  object, the policy being executed (what)
 
 - `attempt`:
 
@@ -97,7 +100,8 @@ Initialize a new runtime environment
 
 - `agent`:
 
-  Agent object being executed
+  [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md) object
+  being executed
 
 - `context`:
 
@@ -159,8 +163,9 @@ NULL invisibly
 
 ### Method `run_async()`
 
-Execute the agent asynchronously, returning a promise that resolves with
-the recorded attachment
+Execute the agent asynchronously, returning a
+[`promises::promise`](https://rstudio.github.io/promises/reference/promise.html)
+that resolves with the recorded attachment
 
 #### Usage
 

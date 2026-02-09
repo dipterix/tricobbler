@@ -54,10 +54,10 @@ to a prior state's output field.</p>
 
 
 <p>Each entry in a <code>StateDeps</code> object is a named list element where:</p><ul><li><p><strong>Name</strong>: The parameter name passed to the agent function</p></li>
-<li><p><strong>state</strong>: (required) Name of the state to depend on</p></li>
-<li><p><strong>field</strong>: (optional) What to extract - <code>"result"</code>
+<li><p><code>state</code>: (required) Name of the state to depend on</p></li>
+<li><p><code>field</code>: (optional) What to extract - <code>"result"</code>
 (default) or <code>"description"</code></p></li>
-<li><p><strong>stage</strong>: (optional) Stage of the dependency. If <code>NULL</code>
+<li><p><code>stage</code>: (optional) Stage of the dependency. If <code>NULL</code>
 or omitted, the dependency must be in the same stage with higher
 priority. If specified, must be an earlier stage in the workflow</p></li>
 </ul></div>
@@ -66,12 +66,13 @@ priority. If specified, must be an earlier stage in the workflow</p></li>
 <h3 id="same-stage-vs-cross-stage-dependencies">Same-Stage vs Cross-Stage Dependencies<a class="anchor" aria-label="anchor" href="#same-stage-vs-cross-stage-dependencies"></a></h3>
 
 
-<ul><li><p><strong>Same-stage</strong> (stage = NULL): The dependent state must have
-higher priority (lower number = runs later). This ensures the dependency
-executes before the dependent within parallel priority groups</p></li>
-<li><p><strong>Cross-stage</strong> (stage = "earlier_stage"): The dependency is
-in a previous stage. Since stages execute sequentially, the dependency
-is guaranteed to complete before the dependent stage begins</p></li>
+<ul><li><p><strong>Same-stage</strong> (<code>stage = NULL</code>): The dependency state
+must have higher priority (higher number = runs first). This ensures
+the dependency executes before the dependent within the same stage</p></li>
+<li><p><strong>Cross-stage</strong> (<code>stage = "earlier_stage"</code>): The
+dependency is in a previous stage. Since stages execute sequentially,
+the dependency is guaranteed to complete before the dependent stage
+begins</p></li>
 </ul></div>
 
 <div class="section">
@@ -83,7 +84,8 @@ is guaranteed to complete before the dependent stage begins</p></li>
 <li><p><code>state</code> must be a single non-blank character string</p></li>
 <li><p><code>field</code> (if present) must be <code>"result"</code> or
 <code>"description"</code></p></li>
-<li><p><code>stage</code> (if present) must be a single character string or NULL</p></li>
+<li><p><code>stage</code> (if present) must be a single character string
+or <code>NULL</code></p></li>
 <li><p>Parameter names must be valid R identifiers</p></li>
 </ul></div>
 
@@ -91,7 +93,8 @@ is guaranteed to complete before the dependent stage begins</p></li>
 <h3 id="cross-validation-manifest-level-">Cross-Validation (Manifest-Level)<a class="anchor" aria-label="anchor" href="#cross-validation-manifest-level-"></a></h3>
 
 
-<p>Additional validation is performed at the <code>Manifest</code> level to check:</p><ul><li><p>Referenced states exist in the manifest</p></li>
+<p>Additional validation is performed at the <code><a href="Manifest.html">Manifest</a></code> level
+to check:</p><ul><li><p>Referenced states exist in the manifest</p></li>
 <li><p>Same-stage dependencies have higher priority</p></li>
 <li><p>Cross-stage dependencies reference earlier stages</p></li>
 </ul></div>
