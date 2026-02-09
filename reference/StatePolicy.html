@@ -46,21 +46,21 @@ ordering when multiple states share the same stage.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre><code>StatePolicy(
-  name = character(0),
-  description = character(0),
-  stage = character(0),
-  agent_id = character(0),
-  resources = character(0),
-  accessibility = "all",
-  parameters = list(),
-  max_retry = 0L,
-  priority = 100L,
-  critical = FALSE,
-  final = FALSE,
-  on_failure = NA_character_,
-  depends_on = &lt;object&gt;
-)</code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">StatePolicy</span><span class="op">(</span></span>
+<span>  name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  stage <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  agent_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  resources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
+<span>  accessibility <span class="op">=</span> <span class="st">"all"</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  max_retry <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>  priority <span class="op">=</span> <span class="fl">100L</span>,</span>
+<span>  critical <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  final <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  on_failure <span class="op">=</span> <span class="cn">NA_character_</span>,</span>
+<span>  depends_on <span class="op">=</span> <span class="fu"><a href="StateDeps.html">StateDeps</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -101,7 +101,7 @@ Default is <code>"all"</code></p></dd>
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>
 <dd><p>list, state-specific parameters passed to the agent.
-See \strongParameters for Different Agent Types in Details</p></dd>
+See <strong>Parameters for Different Agent Types</strong> in Details</p></dd>
 
 
 <dt id="arg-max-retry">max_retry<a class="anchor" aria-label="anchor" href="#arg-max-retry"></a></dt>
@@ -148,7 +148,7 @@ validation loops (<code>on_failure = "executor"</code>), alternative strategies
 dependencies on prior state outputs. Each entry maps a parameter name to
 a dependency: <code>list(param = list(state = "state_name", field =
   "result", stage = NULL))</code>. Used with <code>accessibility = "explicit"</code>
-for async execution. See <code><a href="StateDeps.html">StateDeps</a></code> for format details</p></dd>
+for <code>async</code> execution. See <code><a href="StateDeps.html">StateDeps</a></code> for format details</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -213,7 +213,7 @@ mature</p></li>
 
 <p>The <code>parameters</code> list is interpreted differently based on the agent
 type created via <code><a href="as_agent.html">as_agent</a></code>:</p>
-<p><strong>Deterministic Agents</strong> (from functions or MCP tools):</p><ul><li><p><code>args</code>: list, function arguments passed via
+<p><strong>Deterministic Agents</strong> (from functions or <code>MCP</code> tools):</p><ul><li><p><code>args</code>: list, function arguments passed via
 <code>do.call(fun, args)</code>. Kept separate from other parameters to
 avoid conflicts with functions that have their own reserved arguments</p></li>
 </ul><p>The <code>accessibility</code> property affects how inputs are constructed:</p><ul><li><p><code>"all"</code>: First argument is the previous agent's result
@@ -226,7 +226,8 @@ debug mode. In debug mode, agents print their calls/tools for inspection
 but run as no-op (returning debug information instead of executing).</p>
 <p><strong>AI Agents</strong> (from <span class="pkg">ellmer</span> Chat objects):</p><ul><li><p><code>system_prompt</code>: character, additional system prompt appended
 to <code>@description</code></p></li>
-<li><p><code>user_prompt</code>: character, the user message to send to the LLM</p></li>
+<li><p><code>user_prompt</code>: character, the user message
+to send to the <code>LLM</code></p></li>
 <li><p><code>keep_turns</code>: logical, if <code>TRUE</code>, retains conversation
 history across executions (default <code>FALSE</code>)</p></li>
 <li><p><code>return_type</code>: an <span class="pkg">ellmer</span> type indicator (e.g.,

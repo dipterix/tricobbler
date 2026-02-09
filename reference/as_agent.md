@@ -4,7 +4,7 @@ Generic function to convert various object types into
 [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md) objects for
 use with the
 [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md).
-Supports conversion from ellmer Chat objects, functions, MCP tool
+Supports conversion from ellmer Chat objects, functions, `MCP` tool
 specifications, and package function references.
 
 ## Usage
@@ -21,33 +21,22 @@ as_agent(x, ...)
 
   - An `Agent` object (returned as-is)
 
-  - An ellmer `Chat` object (creates an LLM-backed agent)
+  - An ellmer `Chat` object (creates an `LLM`-backed agent)
 
-  - A function with signature `function(self, policy, context)`
+  - A function with signature `function(runtime)`, where `runtime` is an
+    `AgentRuntime` object
 
   - A character string referencing a package function (`"pkg::fun"`)
 
-  - An MCP tool definition (class `tricobbler_mcp_tool`)
+  - An `MCP` tool definition (class `tricobbler_mcp_tool`)
 
 - ...:
 
-  Additional arguments passed to
-  [`Agent`](http://dipterix.org/tricobbler/reference/Agent.md).
-
-- id:
-
-  Character. Unique identifier for the agent. Required for non-Agent
-  inputs. For Chat objects, defaults to `"chat_<provider>_<model>"`.
-
-- description:
-
-  Character. Human-readable description. For Chat objects,
-  auto-generated from model info if not provided.
-
-- describe:
-
-  Function or NULL. Result formatting function for logging. Defaults to
-  [`mcp_describe`](http://dipterix.org/tricobbler/reference/mcp_describe.md).
+  Additional arguments passed to methods. Common arguments include `id`
+  (character, unique agent identifier), `description` (character,
+  human-readable description), and `describe` (function, result
+  formatting for logging; defaults to
+  [`mcp_describe`](http://dipterix.org/tricobbler/reference/mcp_describe.md)).
 
 ## Value
 
@@ -57,7 +46,7 @@ An `Agent` object.
 
 [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
 for details on how to set additional arguments via `parameters` for
-deterministic agents (functions, MCP tools) and AI agents (ellmer Chat
+deterministic agents (functions, `MCP` tools) and AI agents (ellmer Chat
 objects).
 
 ## Examples

@@ -11,6 +11,11 @@
 - [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
   : Agent Runtime Environment for State Execution
 
+- [`AsyncScheduler`](http://dipterix.org/tricobbler/reference/AsyncScheduler.md)
+  :
+
+  `Async` Workflow Execution Scheduler
+
 - [`AttachmentIndex`](http://dipterix.org/tricobbler/reference/AttachmentIndex.md)
   : Attachment Index for Workflow Result Tracking
 
@@ -21,9 +26,9 @@
   : Master Workflow Policy Defining Stages and Version
 
 - [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md) :
-  Workflow Execution Scheduler
+  Synchronous Workflow Scheduler
 
-- [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+- [`StatePolicy()`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
   : State-Level Policy Implementation for Workflow Stages
 
 - [`as_agent()`](http://dipterix.org/tricobbler/reference/as_agent.md) :
@@ -34,7 +39,9 @@
   : Read or Write Manifest from or to a YAML File
 
 - [`map_type_to_ellmer()`](http://dipterix.org/tricobbler/reference/map_type_to_ellmer.md)
-  : Convert Type Definitions to ellmer Type Indicators
+  :
+
+  Convert Type Definitions to ellmer Type Indicators
 
 - [`mcp_attach()`](http://dipterix.org/tricobbler/reference/mcp_attach.md)
   : Attach Context to Chat Messages

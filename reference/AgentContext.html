@@ -103,8 +103,9 @@ directory (read-only)</p></dd>
 
 
 <dt><code>index</code></dt>
-<dd><p>AttachmentIndex, the attachment index (read-only).
-Available after <code>init_resources()</code> is called.</p></dd>
+<dd><p><code><a href="AttachmentIndex.html">AttachmentIndex</a></code>, the attachment
+index (read-only). Available after
+<code>init_resources()</code> is called.</p></dd>
 
 
 </dl><p></p></div>
@@ -217,12 +218,25 @@ output without styling.</p></dd>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-record_attachment"></a><div class="section">
 <h3 id="method-record-attachment-">Method <code>record_attachment()</code><a class="anchor" aria-label="anchor" href="#method-record-attachment-"></a></h3>
-
-<div class="section">
+<p>Record an attachment result from a completed runtime</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">record_attachment</span><span class="op">(</span><span class="va">runtime</span>, <span class="va">succeed</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>runtime</code></dt>
+<dd><p><code><a href="AgentRuntime.html">AgentRuntime</a></code> object that
+produced the attachment</p></dd>
+
+
+<dt><code>succeed</code></dt>
+<dd><p>logical, whether the agent execution
+succeeded</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-last_results"></a><div class="section">
 <h3 id="method-last-results-">Method <code>last_results()</code><a class="anchor" aria-label="anchor" href="#method-last-results-"></a></h3>
@@ -232,7 +246,7 @@ output without styling.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>items</code></dt>
 <dd><p>integer, number of results to retrieve</p></dd>
 
@@ -252,7 +266,7 @@ output without styling.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
 (filename from record_result). Or a <code>StatePolicy</code> object to
@@ -270,7 +284,7 @@ retrieve the latest attachment for that state.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>state</code></dt>
 <dd><p>character, the name of the state</p></dd>
 
@@ -290,7 +304,7 @@ retrieve the latest attachment for that state.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>reindex</code></dt>
 <dd><p>logical, currently unused (index is always live);
 kept for backward compatibility</p></dd>
@@ -307,7 +321,7 @@ kept for backward compatibility</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier</p></dd>
 
@@ -327,7 +341,7 @@ kept for backward compatibility</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>timeout_secs</code></dt>
 <dd><p>numeric or <code>NULL</code>, seconds after which
 init/running entries are considered incomplete. If <code>NULL</code>,
@@ -343,16 +357,16 @@ returns all init/running entries.</p></dd>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-get_runtime_log"></a><div class="section">
 <h3 id="method-get-runtime-log-">Method <code>get_runtime_log()</code><a class="anchor" aria-label="anchor" href="#method-get-runtime-log-"></a></h3>
-<p>Read a specific runtime's per-execution log file</p><div class="section">
+<p>Read the per-execution log file for a specific runtime</p><div class="section">
 <h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">get_runtime_log</span><span class="op">(</span><span class="va">attachment_id</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
-(which is also the runtime's log file prefix)</p></dd>
+(which is also the log file prefix for the runtime)</p></dd>
 
 
 </dl><p></p></div>
@@ -376,7 +390,7 @@ returns all init/running entries.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>method</code></dt>
 <dd><p>character, read from "tail" (end) or "head" (beginning)</p></dd>
 

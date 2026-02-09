@@ -7,21 +7,23 @@ ordering when multiple states share the same stage.
 
 ## Usage
 
-    StatePolicy(
-      name = character(0),
-      description = character(0),
-      stage = character(0),
-      agent_id = character(0),
-      resources = character(0),
-      accessibility = "all",
-      parameters = list(),
-      max_retry = 0L,
-      priority = 100L,
-      critical = FALSE,
-      final = FALSE,
-      on_failure = NA_character_,
-      depends_on = <object>
-    )
+``` r
+StatePolicy(
+  name = character(0),
+  description = character(0),
+  stage = character(0),
+  agent_id = character(0),
+  resources = character(0),
+  accessibility = "all",
+  parameters = list(),
+  max_retry = 0L,
+  priority = 100L,
+  critical = FALSE,
+  final = FALSE,
+  on_failure = NA_character_,
+  depends_on = StateDeps()
+)
+```
 
 ## Arguments
 
@@ -57,8 +59,8 @@ ordering when multiple states share the same stage.
 
 - parameters:
 
-  list, state-specific parameters passed to the agent. See
-  \strongParameters for Different Agent Types in Details
+  list, state-specific parameters passed to the agent. See **Parameters
+  for Different Agent Types** in Details
 
 - max_retry:
 
@@ -104,7 +106,7 @@ ordering when multiple states share the same stage.
   `StateDeps` object or named list specifying explicit dependencies on
   prior state outputs. Each entry maps a parameter name to a dependency:
   `list(param = list(state = "state_name", field = "result", stage = NULL))`.
-  Used with `accessibility = "explicit"` for async execution. See
+  Used with `accessibility = "explicit"` for `async` execution. See
   [`StateDeps`](http://dipterix.org/tricobbler/reference/StateDeps.md)
   for format details
 
@@ -178,7 +180,7 @@ The `parameters` list is interpreted differently based on the agent type
 created via
 [`as_agent`](http://dipterix.org/tricobbler/reference/as_agent.md):
 
-**Deterministic Agents** (from functions or MCP tools):
+**Deterministic Agents** (from functions or `MCP` tools):
 
 - `args`: list, function arguments passed via `do.call(fun, args)`. Kept
   separate from other parameters to avoid conflicts with functions that
@@ -203,7 +205,7 @@ run as no-op (returning debug information instead of executing).
 - `system_prompt`: character, additional system prompt appended to
   `@description`
 
-- `user_prompt`: character, the user message to send to the LLM
+- `user_prompt`: character, the user message to send to the `LLM`
 
 - `keep_turns`: logical, if `TRUE`, retains conversation history across
   executions (default `FALSE`)

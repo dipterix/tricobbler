@@ -39,7 +39,7 @@ Each entry in a `StateDeps` object is a named list element where:
 
 ### Validation Rules (Property-Level)
 
-The property-level validator checks structural correctness:
+The property-level `validator` checks structural correctness:
 
 - Must be a named list (names become parameter names)
 

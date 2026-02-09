@@ -40,26 +40,26 @@ access uses open/close-per-operation pattern for safety."></head><body>
     <div class="ref-description section level2">
     <p>R6 class that manages the attachment index for workflow
 execution. Backed by <span class="pkg">RSQLite</span>, this class provides atomic,
-query-friendly tracking of attachment lifecycle status. All database
+query-friendly tracking of attachment <code>lifecycle</code> status. All database
 access uses open/close-per-operation pattern for safety.</p>
     </div>
 
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The index tracks each attachment through its lifecycle:</p><dl><dt>init</dt>
+    <p>The index tracks each attachment through its <code>lifecycle</code>:</p><dl><dt><code>init</code></dt>
 <dd><p>Runtime created, execution not yet started</p></dd>
 
-<dt>running</dt>
+<dt><code>running</code></dt>
 <dd><p>Agent execution in progress</p></dd>
 
-<dt>finished</dt>
+<dt><code>finished</code></dt>
 <dd><p>Execution completed successfully</p></dd>
 
-<dt>errored</dt>
+<dt><code>errored</code></dt>
 <dd><p>Execution completed with error</p></dd>
 
-<dt>skipped</dt>
+<dt><code>skipped</code></dt>
 <dd><p>Execution was skipped (reserved for future use)</p></dd>
 
 
@@ -159,7 +159,7 @@ only <code>$.with_db()</code> and <code>$.init_db()</code> need modification.</p
 
 </div><p></p><hr><a id="method-TricobblerAttachmentIndex-mark_finished"></a><div class="section">
 <h3 id="method-mark-finished-">Method <code>mark_finished()</code><a class="anchor" aria-label="anchor" href="#method-mark-finished-"></a></h3>
-<p>Mark an attachment as finished or errored</p><div class="section">
+<p>Mark an attachment as finished or <code>errored</code></p><div class="section">
 <h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AttachmentIndex</span><span class="op">$</span><span class="fu">mark_finished</span><span class="op">(</span><span class="va">attachment_id</span>, <span class="va">succeed</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>

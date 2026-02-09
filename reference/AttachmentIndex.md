@@ -2,30 +2,30 @@
 
 R6 class that manages the attachment index for workflow execution.
 Backed by RSQLite, this class provides atomic, query-friendly tracking
-of attachment lifecycle status. All database access uses
+of attachment `lifecycle` status. All database access uses
 open/close-per-operation pattern for safety.
 
 ## Details
 
-The index tracks each attachment through its lifecycle:
+The index tracks each attachment through its `lifecycle`:
 
-- init:
+- `init`:
 
   Runtime created, execution not yet started
 
-- running:
+- `running`:
 
   Agent execution in progress
 
-- finished:
+- `finished`:
 
   Execution completed successfully
 
-- errored:
+- `errored`:
 
   Execution completed with error
 
-- skipped:
+- `skipped`:
 
   Execution was skipped (reserved for future use)
 
@@ -131,7 +131,7 @@ Update the status of an existing attachment
 
 ### Method `mark_finished()`
 
-Mark an attachment as finished or errored
+Mark an attachment as finished or `errored`
 
 #### Usage
 

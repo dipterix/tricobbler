@@ -56,8 +56,9 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - `index`:
 
-  AttachmentIndex, the attachment index (read-only). Available after
-  `init_resources()` is called.
+  [`AttachmentIndex`](http://dipterix.org/tricobbler/reference/AttachmentIndex.md),
+  the attachment index (read-only). Available after `init_resources()`
+  is called.
 
 ## Methods
 
@@ -182,9 +183,22 @@ Write time-stamped messages to log file
 
 ### Method `record_attachment()`
 
+Record an attachment result from a completed runtime
+
 #### Usage
 
     AgentContext$record_attachment(runtime, succeed)
+
+#### Arguments
+
+- `runtime`:
+
+  [`AgentRuntime`](http://dipterix.org/tricobbler/reference/AgentRuntime.md)
+  object that produced the attachment
+
+- `succeed`:
+
+  logical, whether the agent execution succeeded
 
 ------------------------------------------------------------------------
 
@@ -306,7 +320,7 @@ A data.frame of incomplete index entries
 
 ### Method `get_runtime_log()`
 
-Read a specific runtime's per-execution log file
+Read the per-execution log file for a specific runtime
 
 #### Usage
 
@@ -316,8 +330,8 @@ Read a specific runtime's per-execution log file
 
 - `attachment_id`:
 
-  character, the attachment identifier (which is also the runtime's log
-  file prefix)
+  character, the attachment identifier (which is also the log file
+  prefix for the runtime)
 
 #### Returns
 
