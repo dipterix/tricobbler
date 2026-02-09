@@ -66,7 +66,6 @@ in the context logs}
 \item \href{#method-TricobblerAgentRuntime-new}{\code{AgentRuntime$new()}}
 \item \href{#method-TricobblerAgentRuntime-logger}{\code{AgentRuntime$logger()}}
 \item \href{#method-TricobblerAgentRuntime-run_async}{\code{AgentRuntime$run_async()}}
-\item \href{#method-TricobblerAgentRuntime-run}{\code{AgentRuntime$run()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -126,15 +125,6 @@ NULL invisibly
 \subsection{Method \code{run_async()}}{
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run_async()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TricobblerAgentRuntime-run"></a>}}
-\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run}{}}}
-\subsection{Method \code{run()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run()}\if{html}{\out{</div>}}
 }
 
 }

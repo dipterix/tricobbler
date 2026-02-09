@@ -120,83 +120,8 @@ AgentRuntime <- R6::R6Class(
       private$.context$record_attachment(self, succeed)
 
       invisible(attachment)
-    },
-
-    .create_run_impl = function(now = TRUE) {
-      state_name <- private$.policy@name
-      stage <- private$.policy@stage
-      agent <- private$.agent
-      attempt <- private$.attempt
-
-      # logger runs in main session
-      private$.context$logger(
-        "starting (attempt ", attempt, ")",
-        caller = self, level = "TRACE"
-      )
-      succeed <- FALSE
-      result_description <- structure(list(), class = "missing")
-
-      # async part
-      impl <- function() {
-        if (now) {
-          private$.status <- "running"
-        } else {
-          private$.status <- "running (async)"
-        }
-        time_started <- Sys.time()
-
-        # Update index status to 'running'
-        private$.context$index$update_status(
-          private$.attachment_id, "running"
-        )
-
-        self$logger(
-          sprintf(
-            "Runtime started: Agent=%s, Stage=%s, State=%s, Attempt=%d, Attachment=%s",  # nolint: line_length_linter.
-            agent@id, stage, state_name, attempt, self$attachment_id),
-          role = sprintf("Runtime %s", self$id), level = "TRACE"
-        )
-
-        result <- tryCatch(
-          {
-            result <- agent(runtime = self)
-            if (!now) {
-              # check if result is a promise
-              is_promise <- promises::is.promise(result)
-              if (!is_promise && promises::is.promising(result)) {
-                result <- promises::as.promise(result)
-                is_promise <- TRUE
-              }
-              if (is_promise) {
-                result <- await(result)
-              }
-            }
-            succeed <- TRUE
-            private$.status <- "finished"
-            result
-          },
-          error = function(e) {
-            private$.last_error <- e
-            private$.status <- "errored"
-            e
-          }
-        )
-
-        return(
-          private$.record_result(
-            result,
-            succeed,
-            started = time_started,
-            duration = Sys.time() - time_started
-          )
-        )
-      }
-      if (now) {
-        return(impl)
-      } else {
-        return(async(impl))
-      }
     }
+
   ),
   active = list(
     #' @field agent Agent object, the agent being executed (who)
@@ -375,6 +300,61 @@ AgentRuntime <- R6::R6Class(
           )
         }
       )
+    },
+
+    run = function() {
+      state_name <- private$.policy@name
+      stage <- private$.policy@stage
+      agent <- private$.agent
+      attempt <- private$.attempt
+
+      # logger runs in main session
+      private$.context$logger(
+        "starting (attempt ", attempt, ")",
+        caller = self, level = "TRACE"
+      )
+
+
+      private$.status <- "running"
+
+      # Update index status to 'running'
+      private$.context$index$update_status(
+        private$.attachment_id, "running"
+      )
+
+      self$logger(
+        sprintf(
+          "Runtime started: Agent=%s, Stage=%s, State=%s, Attempt=%d, Attachment=%s",  # nolint: line_length_linter.
+          agent@id, stage, state_name, attempt, self$attachment_id),
+        role = sprintf("Runtime %s", self$id), level = "TRACE"
+      )
+
+      time_started <- Sys.time()
+
+      attachment <- tryCatch(
+        {
+          result <- agent(runtime = self)
+          private$.status <- "finished"
+          private$.record_result(
+            result,
+            succeed = TRUE,
+            started = time_started,
+            duration = Sys.time() - time_started
+          )
+        },
+        error = function(e) {
+          private$.last_error <- e
+          private$.status <- "errored"
+          private$.record_result(
+            e,
+            succeed = FALSE,
+            started = time_started,
+            duration = Sys.time() - time_started
+          )
+        }
+      )
+
+      return(attachment)
     }
   )
 )

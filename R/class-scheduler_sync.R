@@ -5,33 +5,13 @@
 #' @include class-event-dispatcher.R
 NULL
 
+
+
+
 # DIPSAUS DEBUG START
 # source("~/Dropbox (Personal)/projects/tricobbler/adhoc/simple-example.R", echo = TRUE)
 
-#' Workflow Execution Scheduler
-#'
-#' @description R6 class that orchestrates workflow execution by managing stage
-#'   progression, state execution, and agent coordination. This is the primary
-#'   runtime component in the Runtime Layer (Tier 2) that brings together the
-#'   immutable policy definitions (\code{Manifest}) with executable agents.
-#'
-#' @details
-#' The scheduler uses a queue + waiting-pool dispatch model.
-#' Within each stage, independent states are dispatched concurrently
-#' via \code{AgentRuntime$run_async()}, bounded by
-#' \code{max_concurrency}. Stages themselves are executed
-#' sequentially.
-#'
-#' \describe{
-#'   \item{\code{start()}}{Blocks until all stages complete (runs the
-#'     event loop inline).}
-#'   \item{\code{start_async()}}{Returns a promise that resolves when
-#'     all stages complete.}
-#'   \item{\code{run_stage(stage)}}{Executes a single named stage
-#'     using the queue + pool model. Returns a promise
-#'     (\code{coro::async}).}
-#' }
-#'
+
 #' @export
 Scheduler <- R6::R6Class(
   classname = "TricobblerScheduler",
@@ -41,10 +21,6 @@ Scheduler <- R6::R6Class(
     .run_flag = NULL,
     .last_error = NULL,
     .dispatcher = NULL,
-    # Stage promise settlement functions; set by run_stage(),
-    # called by advance() when the stage completes or fails
-    .stage_resolve = NULL,
-    .stage_reject = NULL,
     # Snapshot of .run_flag at stage start; if .run_flag changes
     # (via stop() or a new start()), advance() detects cancellation
     .stage_flag = NULL,
@@ -139,12 +115,12 @@ Scheduler <- R6::R6Class(
     suspend_info = NULL,
 
     #' @field draining logical, when \code{TRUE} a \code{final} state
-    #'   has completed; no new runtimes are dispatched but in-flight
-    #'   promises are allowed to finish
+    #'   has completed; no new runtimes are dispatched and any
+    #'   remaining queued items are abandoned
     draining = FALSE,
 
-    #' @field max_concurrency integer, maximum number of simultaneous
-    #'   promises in the waiting pool (default: \code{100L})
+    #' @field max_concurrency integer, maximum number of states to
+    #'   dispatch per advance cycle (default: \code{100L})
     max_concurrency = 100L,
 
     # all tasks will be stored here before joining the ready_queue
@@ -154,7 +130,8 @@ Scheduler <- R6::R6Class(
     #   all to-do tasks will be saved here
     ready_queue = NULL,
 
-    # waiting_pool: named list, state_name -> promise
+    # waiting_pool: named list, state_name -> list(runtime = runtime)
+    #   tracks the currently executing state (at most one in sync)
     #   storing running agents
     waiting_pool = NULL,
 
@@ -174,9 +151,9 @@ Scheduler <- R6::R6Class(
     #' @param context Context object, execution environment
     #'    (default: new \code{\link{AgentContext}})
     initialize = function(
-      manifest,
-      agents = list(),
-      context = AgentContext$new()
+    manifest,
+    agents = list(),
+    context = AgentContext$new()
     ) {
       stopifnot(S7::S7_inherits(manifest, Manifest))
 
@@ -278,20 +255,43 @@ Scheduler <- R6::R6Class(
       re
     },
 
-    #' @description Stop the workflow execution
+    #' @description Stop the workflow execution, clearing all
+    #'   in-progress work and invalidating outstanding promises.
+    #'   After calling \code{stop()}, the scheduler is in the
+    #'   \code{"ready"} state and \code{start()} may be called
+    #'   immediately.
     stop = function() {
+      was_running <- self$current_stage != "ready"
       private$.run_flag <- Sys.time()
-      if (self$current_stage != "ready") {
+      self$current_stage <- "ready"
+
+      # Clear suspension state
+      self$suspended <- FALSE
+      self$suspend_info <- NULL
+      self$draining <- FALSE
+
+      # Clear all per-stage data structures
+      self$runtime_map$reset()
+      self$ready_queue$reset()
+      self$waiting_pool$reset()
+      self$completed_map$reset()
+      self$retry_map$reset()
+
+      # surfaces the cancellation immediately
+      private$.stage_flag <- NULL
+
+      if (was_running) {
         self$context$logger("Stopping...", caller = self)
-        self$current_stage <- "ready"
+        self$dispatch_event(
+          type = "scheduler.stopped",
+          message = "Scheduler stopped by user"
+        )
       }
-      # TODO: stop current work
+
+      invisible(self)
     },
 
     #' @description Start the workflow execution
-    #' @return A \code{promise} that resolves when all stages complete.
-    #'   Callers may block on the result via \code{later::run_now()}
-    #'   or \code{await()} inside a \code{coro::async} context.
     start = function() {
       if (!identical(self$current_stage, "ready")) {
         stop(
@@ -314,28 +314,35 @@ Scheduler <- R6::R6Class(
 
       stages <- self$manifest@master@stages
 
-      impl <- async(function() {
-        for (stage in stages) {
-          if (!identical(private$.run_flag, private$.stage_flag) &&
-              !is.null(private$.stage_flag)) {
-            stop("Scheduler cancelled; aborting.")
-          }
 
-          await(self$run_stage(stage))
-        }
-        invisible()
-      })
+      tryCatch(
+        {
 
-      impl()$then(
-        onFulfilled = function(...) {
-          message("Done.")
+          lapply(stages, function(stage) {
+            if (!identical(private$.run_flag, private$.stage_flag) &&
+                !is.null(private$.stage_flag)) {
+              stop("Scheduler cancelled; aborting.")
+            }
+
+            self$run_stage(stage)
+          })
+
+          self$current_stage <- "ready"
+          self$dispatch_event(
+            type = "scheduler.completed",
+            message = "All stages completed"
+          )
         },
-        onRejected = function(e) {
-          msg <- conditionMessage(e)
-          message(msg)
-          message("Abort.")
+        error = function(e) {
+          self$dispatch_event(
+            type = "scheduler.aborted",
+            message = sprintf("Scheduler aborted: %s", conditionMessage(e)),
+            error = e
+          )
+          stop(e)
         }
       )
+      invisible(self)
     },
 
     #' @description Initialize resources and prepare for execution
@@ -398,7 +405,7 @@ Scheduler <- R6::R6Class(
     enqueue_runtime = function() {
 
       # Don't enqueue new runtimes while draining (a final state
-      # has completed); in-flight promises will finish on their own
+      # has completed); no new runtimes are dispatched
       if (self$draining || self$suspended) {
         return(invisible(FALSE))
       }
@@ -513,187 +520,228 @@ Scheduler <- R6::R6Class(
 
       if (self$ready_queue$size() == 0) { return(invisible(0L)) }
 
-      available_slots <- min(available_slots, self$ready_queue$size())
+      runtime <- self$ready_queue$remove()
+      state_name <- runtime$policy@name
 
-      scheduled_names <- lapply(seq_len(available_slots), function(ii) {
-        runtime <- self$ready_queue$remove()
+      self$dispatch_event(
+        type = "runtime.dispatch",
+        message = sprintf(
+          "Dispatching state '%s' (attempt %d)",
+          state_name, runtime$attempt
+        ),
+        state_name = state_name,
+        stage = runtime$policy@stage,
+        attempt = runtime$attempt
+      )
+
+      # Capture the run flag so we can detect if stop() was
+      # called during execution (e.g. from a suspend handler)
+      dispatch_run_flag <- private$.run_flag
+
+      # Mark as in-flight (for concurrency accounting)
+      self$waiting_pool$set(state_name, list(
+        runtime = runtime
+      ))
+
+      # Run synchronously; runtime$run() executes the agent
+      # and calls .record_result(), returning the attachment
+      result <- tryCatch(
+        runtime$run(),
+        error = function(e) {
+          structure(
+            list(succeed = FALSE, error = e,
+                 ._unexpected = TRUE),
+            class = "tricobbler_unexpected_error"
+          )
+        }
+      )
+
+      # Guard: if the scheduler was stopped or restarted
+      # since this dispatch began, discard silently
+      if (!identical(dispatch_run_flag, private$.run_flag)) {
+        return(invisible(0L))
+      }
+
+      self$waiting_pool$remove(state_name)
+
+      # --- Handle unexpected error (e.g. .record_result() threw) ---
+      if (inherits(result, "tricobbler_unexpected_error")) {
+        runtime_summary <- list(
+          policy = runtime$policy,
+          agent = runtime$agent,
+          attempt = runtime$attempt,
+          attachment_id = runtime$attachment_id,
+          status = "errored"
+        )
+        self$completed_map$set(
+          key = state_name,
+          value = runtime_summary
+        )
 
         self$dispatch_event(
-          type = "runtime.dispatch",
+          type = "runtime.errored",
           message = sprintf(
-            "Dispatching state '%s' (attempt %d)",
-            runtime$policy@name, runtime$attempt
+            "State '%s' failed unexpectedly: %s",
+            state_name, conditionMessage(result$error)
           ),
-          state_name = runtime$policy@name,
+          state_name = state_name,
           stage = runtime$policy@stage,
-          attempt = runtime$attempt
+          error = result$error
+        )
+        return(invisible(1L))
+      }
+
+      # --- Normal result from .record_result() ---
+      succeed <- result$succeed
+      policy <- runtime$policy
+
+      runtime_summary <- list(
+        policy = policy,
+        agent = runtime$agent,
+        attempt = runtime$attempt,
+        attachment_id = runtime$attachment_id
+      )
+
+      if (succeed) {
+        runtime_summary$status <- "finished"
+        self$completed_map$set(
+          key = state_name,
+          value = runtime_summary
         )
 
-        promise <- runtime$run_async()
-        promise <- promise$then(
-          onFulfilled = function(result) {
+        self$dispatch_event(
+          type = "runtime.resolved",
+          message = sprintf(
+            "State '%s' completed (success)", state_name
+          ),
+          runtime = runtime,
+          result = result
+        )
 
-            succeed <- result$succeed
-            state_name <- runtime$policy@name
-            policy <- runtime$policy
+        # Final flag: stop dispatching new runtimes
+        if (isTRUE(policy@final)) {
+          self$draining <- TRUE
+          self$ready_queue$reset()
+          self$dispatch_event(
+            type = "runtime.final",
+            message = sprintf(
+              "Final state '%s' completed; draining",
+              state_name
+            ),
+            state_name = state_name
+          )
+        }
+      } else {
+        # --- Failure handling ---
+        max_retry <- max(policy@max_retry, 0L)
 
-            # only save the runtime summary rather than the result
-            runtime_summary <- list(
-              policy = policy,
-              agent = runtime$agent,
-              attempt = runtime$attempt,
-              attachment_id = runtime$attachment_id
+        if (runtime$attempt >= max_retry) {
+          # Retries exhausted
+
+          self$dispatch_event(
+            type = "runtime.exhausted",
+            message = sprintf(
+              "State '%s' exhausted retries (%d/%d)",
+              state_name, runtime$attempt, max_retry
+            ),
+            runtime = runtime,
+            result = result
+          )
+
+          if (isTRUE(policy@critical)) {
+            private$.last_error <- result$error
+            # suspend() sets the action synchronously (via
+            # injected handler). For "abort", it throws an error
+            # that propagates to start()'s tryCatch. For other
+            # actions it returns and the advance() loop continues.
+            self$suspend(
+              error = result$error,
+              state_name = state_name,
+              stage = policy@stage,
+              runtime_summary = runtime_summary
             )
+            return(invisible(1L))
+          } else {
+            # Non-critical exhausted: mark as errored
+            runtime_summary$status <- "errored"
+            self$completed_map$set(
+              key = state_name,
+              value = runtime_summary
+            )
+          }
+        } else if (!is.na(policy@on_failure)) {
+          # Redirect to on_failure target
+          target <- policy@on_failure
 
-            self$waiting_pool$remove(state_name)
+          # Mark the failed state as errored in completed_map
+          # so the target's depends_on (if it references this
+          # state) is satisfied and doesn't deadlock
+          if (!self$completed_map$has(state_name)) {
+            runtime_summary$status <- "errored"
+            self$completed_map$set(
+              key = state_name,
+              value = runtime_summary
+            )
+          }
 
-            if (succeed) {
-              runtime_summary$status <- "finished"
-              self$completed_map$set(
-                key = state_name,
-                value = runtime_summary
-              )
-
-              self$dispatch_event(
-                type = "runtime.resolved",
-                message = sprintf(
-                  "State '%s' completed (success)", state_name
-                ),
-                runtime = runtime,
-                result = result
-              )
-
-              # Final flag: stop dispatching new runtimes, let
-              # in-flight promises drain
-              if (isTRUE(policy@final)) {
-                self$draining <- TRUE
-                self$ready_queue$reset()
-                self$dispatch_event(
-                  type = "runtime.final",
-                  message = sprintf(
-                    "Final state '%s' completed; draining",
-                    state_name
-                  ),
-                  state_name = state_name
-                )
-              }
-            } else {
-              # --- Failure handling ---
-              max_retry <- max(policy@max_retry, 0L)
-
-              if (runtime$attempt >= max_retry) {
-                # Retries exhausted
-
-                self$dispatch_event(
-                  type = "runtime.exhausted",
-                  message = sprintf(
-                    "State '%s' exhausted retries (%d/%d)",
-                    state_name, runtime$attempt, max_retry
-                  ),
-                  runtime = runtime,
-                  result = result
-                )
-
-                if (isTRUE(policy@critical)) {
-                  private$.last_error <- result$error
-                  # suspend() returns the chosen action; do NOT
-                  # add to completed_map before the user decides
-                  suspend_action <- self$suspend(
-                    error = result$error,
-                    state_name = state_name,
-                    stage = policy@stage,
-                    runtime_summary = runtime_summary
-                  )
-                  # suspend() already called advance() or ended
-                  # the stage; skip the trailing advance()
-                  return(invisible())
-                } else {
-                  # Non-critical exhausted: mark as errored
-                  runtime_summary$status <- "errored"
-                  self$completed_map$set(
-                    key = state_name,
-                    value = runtime_summary
-                  )
-                }
-              } else if (!is.na(policy@on_failure)) {
-                # Redirect to on_failure target
-                target <- policy@on_failure
-                if (
-                  !self$completed_map$has(target) &&
-                    !self$waiting_pool$has(target)
-                ) {
-                  # Create a runtime for the target state
-                  target_policy <- NULL
-                  for (sp in self$manifest@states) {
-                    if (identical(sp@name, target)) {
-                      target_policy <- sp
-                      break
-                    }
-                  }
-                  if (!is.null(target_policy)) {
-                    target_agent <- self$agents$get(
-                      target_policy@agent_id
-                    )
-                    # TODO: need to check if the on_failure depends on the current runtime when manifest is created
-                    self$runtime_map$set(
-                      target,
-                      AgentRuntime$new(
-                        agent = target_agent,
-                        context = self$context,
-                        policy = target_policy,
-                        attempt = 0L
-                      )
-                    )
-                  }
-                }
-
-                self$dispatch_event(
-                  type = "runtime.redirect",
-                  message = sprintf(
-                    "State '%s' failed; redirecting to '%s'",
-                    state_name, target
-                  ),
-                  runtime = runtime,
-                  result = result,
-                  target = target
-                )
-              } else {
-                # Re-queue for retry
-                self$retry_map$set(
-                  key = state_name,
-                  value = runtime_summary
-                )
-
-                self$dispatch_event(
-                  type = "runtime.errored",
-                  message = sprintf(
-                    "State '%s' failed (attempt %d/%d); will retry",
-                    state_name, runtime$attempt, max_retry
-                  ),
-                  runtime = runtime,
-                  result = result
-                )
+          if (
+            !self$completed_map$has(target) &&
+            !self$waiting_pool$has(target)
+          ) {
+            # Create a runtime for the target state
+            target_policy <- NULL
+            for (sp in self$manifest@states) {
+              if (identical(sp@name, target)) {
+                target_policy <- sp
+                break
               }
             }
-
-            # Event-driven: this resolution triggers the next cycle
-            self$advance()
-          },
-          onRejected = function(e) {
-            # TODO: suspend as this is unexpected
-
-            # Event-driven: this resolution triggers the next cycle
-            self$advance()
+            if (!is.null(target_policy)) {
+              target_agent <- self$agents$get(
+                target_policy@agent_id
+              )
+              self$runtime_map$set(
+                target,
+                AgentRuntime$new(
+                  agent = target_agent,
+                  context = self$context,
+                  policy = target_policy,
+                  attempt = 0L
+                )
+              )
+            }
           }
-        )
-        self$waiting_pool$set(runtime$policy@name, list(
-          runtime = runtime,
-          promise = promise
-        ))
-        return(runtime$policy@name)
-      })
 
-      return(invisible(available_slots))
+          self$dispatch_event(
+            type = "runtime.redirect",
+            message = sprintf(
+              "State '%s' failed; redirecting to '%s'",
+              state_name, target
+            ),
+            runtime = runtime,
+            result = result,
+            target = target
+          )
+        } else {
+          # Re-queue for retry
+          self$retry_map$set(
+            key = state_name,
+            value = runtime_summary
+          )
+
+          self$dispatch_event(
+            type = "runtime.errored",
+            message = sprintf(
+              "State '%s' failed (attempt %d/%d); will retry",
+              state_name, runtime$attempt, max_retry
+            ),
+            runtime = runtime,
+            result = result
+          )
+        }
+      }
+
+      return(invisible(1L))
 
     },
 
@@ -785,104 +833,79 @@ Scheduler <- R6::R6Class(
         self$retry_map$size()
     },
 
-    #' @description Drive the next dispatch cycle (event-driven)
-    #' @details Called automatically when a runtime promise resolves.
-    #'   Runs the cycle: \code{retry_runtime} -> \code{enqueue_runtime}
-    #'   -> \code{execute_runtime}. If no incomplete work remains,
-    #'   resolves the stage promise and emits \code{stage.completed}.
+    #' @description Drive the dispatch loop for the current stage.
+    #' @details Loops synchronously: retry → enqueue → execute,
+    #'   then checks for stage completion. Continues until no more
+    #'   work remains or the stage is cancelled/suspended.
     advance = function() {
-      # Don't drive if suspended — suspend() will call advance()
-      # again if the user chooses resume or skip
-      if (isTRUE(self$suspended)) {
-        return(invisible())
-      }
 
-      # Check cancellation: if .run_flag changed since the stage
-      # started, this stage was cancelled (stop() or new start())
-      if (!identical(private$.run_flag, private$.stage_flag)) {
-        reject <- private$.stage_reject
-        private$.stage_resolve <- NULL
-        private$.stage_reject <- NULL
-        if (is.function(reject)) {
-          reject("Scheduler cancelled; aborting stage.")
+      repeat {
+        # Don't drive if suspended — suspend() will call
+        # advance() again if the user chooses resume or skip
+        if (isTRUE(self$suspended)) {
+          return(invisible())
         }
-        return(invisible())
-      }
 
-      # Drive the cycle
-      self$retry_runtime()
-      self$enqueue_runtime()
-      self$execute_runtime()
+        # Check cancellation: if .run_flag changed since the
+        # stage started, this stage was cancelled
+        if (!identical(private$.run_flag, private$.stage_flag)) {
+          stop("Scheduler cancelled; aborting stage.")
+        }
 
-      # Check completion: either all work is done, or we are
-      # draining (final state fired) and all in-flight promises
-      # have settled
-      stage_done <- FALSE
-      if (self$get_incomplete_size() == 0L) {
-        stage_done <- TRUE
-      } else if (isTRUE(self$draining) &&
-                 self$waiting_pool$size() == 0L) {
-        # Draining complete: abandon any items still queued
-        # (they were blocked by the final gate)
-        self$runtime_map$reset()
-        self$ready_queue$reset()
-        self$retry_map$reset()
-        stage_done <- TRUE
-      }
+        # Drive one cycle
+        self$retry_runtime()
+        self$enqueue_runtime()
+        dispatched <- self$execute_runtime()
 
-      if (stage_done && is.function(private$.stage_resolve)) {
-        stage <- self$current_stage
-        self$dispatch_event(
-          type = "stage.completed",
-          message = sprintf("Stage '%s' completed", stage),
-          stage = stage
-        )
-        resolve <- private$.stage_resolve
-        private$.stage_resolve <- NULL
-        private$.stage_reject <- NULL
-        resolve(invisible(self))
+        # Check completion
+        stage_done <- FALSE
+        if (self$get_incomplete_size() == 0L) {
+          stage_done <- TRUE
+        } else if (isTRUE(self$draining) &&
+                   self$waiting_pool$size() == 0L) {
+          self$runtime_map$reset()
+          self$ready_queue$reset()
+          self$retry_map$reset()
+          stage_done <- TRUE
+        }
+
+        if (stage_done) {
+          stage <- self$current_stage
+          self$dispatch_event(
+            type = "stage.completed",
+            message = sprintf("Stage '%s' completed", stage),
+            stage = stage
+          )
+          return(invisible())
+        }
+
+        # Nothing dispatched and stage not done — could be
+        # deadlocked (all remaining items have unmet deps)
+        if (dispatched == 0L) {
+          stop(sprintf(
+            "Deadlock: %d incomplete items but nothing dispatchable in stage '%s'",
+            self$get_incomplete_size(), self$current_stage
+          ))
+        }
       }
     },
 
     #' @description Execute a single workflow stage using the
     #'   queue + waiting-pool dispatch model
     #' @param stage character, the stage name to execute
-    #' @return A promise that resolves when all states in the stage
-    #'   have completed
     run_stage = function(stage) {
 
       self$start_stage(stage)
 
       # "ready" stage has nothing to run
       if (stage == "ready") {
-        return(promises::promise_resolve(invisible(self)))
+        return(invisible(self))
       }
 
       # Snapshot the run flag so advance() can detect cancellation
       private$.stage_flag <- private$.run_flag
 
-      # Return a promise; settlement is driven by advance(),
-      # which is called from execute_runtime()'s promise callbacks
-      promises::promise(function(resolve, reject) {
-        private$.stage_resolve <- resolve
-        private$.stage_reject <- reject
-
-        # Kick off the first dispatch; subsequent cycles are
-        # triggered by promise resolution -> advance()
-        self$execute_runtime()
-
-        # If everything resolved synchronously (empty stage)
-        if (self$get_incomplete_size() == 0L) {
-          self$dispatch_event(
-            type = "stage.completed",
-            message = sprintf("Stage '%s' completed", stage),
-            stage = stage
-          )
-          private$.stage_resolve <- NULL
-          private$.stage_reject <- NULL
-          resolve(invisible(self))
-        }
-      })
+      self$advance()
     },
 
     #' @description Suspend the workflow execution
@@ -969,14 +992,18 @@ Scheduler <- R6::R6Class(
         }
       }
 
-      # Execute the chosen action
+      # Execute the chosen action.
+      # NOTE: Do NOT call self$advance() here — the caller
+      # (execute_runtime → advance loop) will continue the
+      # loop after suspend() returns. For "abort", stop()
+      # propagates through advance() → run_stage() → start().
       switch(
         action,
         "resume" = {
           self$suspended <- FALSE
           self$suspend_info <- NULL
           # Re-add the state to runtime_map with attempt=0 so it
-          # gets retried in the next dispatch cycle
+          # gets picked up in the next advance() iteration
           if (!is.null(runtime_summary)) {
             runtime <- AgentRuntime$new(
               agent = runtime_summary$agent,
@@ -986,7 +1013,6 @@ Scheduler <- R6::R6Class(
             )
             self$runtime_map$set(state_name, runtime)
           }
-          self$advance()
         },
         "skip" = {
           self$suspended <- FALSE
@@ -1001,7 +1027,6 @@ Scheduler <- R6::R6Class(
           }
           # Transitively skip all same-stage dependents
           private$skip_dependents(state_name, stage)
-          self$advance()
         },
         "restart_stage" = {
           self$suspended <- FALSE
@@ -1010,22 +1035,14 @@ Scheduler <- R6::R6Class(
           self$start_stage(stage)
           # Re-snapshot the run flag for the restarted stage
           private$.stage_flag <- private$.run_flag
-          self$advance()
         },
         "abort" = {
           self$suspended <- FALSE
           self$suspend_info <- NULL
-          # Reject the stage promise so start() surfaces the error
-          reject <- private$.stage_reject
-          private$.stage_resolve <- NULL
-          private$.stage_reject <- NULL
-          msg <- sprintf("Scheduler aborted at stage '%s', state '%s'",
-                         stage, state_name)
-          if (is.function(reject)) {
-            reject(msg)
-          } else {
-            stop(msg)
-          }
+          # stop() propagates through advance() → start()'s
+          # tryCatch, which emits scheduler.aborted
+          stop(sprintf("Scheduler aborted at stage '%s', state '%s': Abort.",
+                       stage, state_name))
         }
       )
 
