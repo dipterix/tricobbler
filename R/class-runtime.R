@@ -11,20 +11,22 @@
 #' ## Purpose
 #'
 #' The runtime serves three main purposes:
-#' 1. **\verb{Async} safety**: Captures execution context
-#'    in closures, avoiding race
-#'    conditions with global state when agents execute concurrently
-
-#' 2. **Simplified API**: Agents receive a single `runtime` argument instead
-#'    of separate `self`, `policy`, `context` arguments
-#' 3. **Tool injection**: \verb{MCP} tools that declare a
-#'    `.runtime` parameter receive
-#'    the runtime automatically via closure capture at \verb{instantiation} time
+#' \enumerate{
+#'   \item \strong{\verb{Async} safety}: Captures execution context
+#'     in closures, avoiding race conditions with global state when agents
+#'     execute concurrently
+#'   \item \strong{Simplified API}: Agents receive a single \code{runtime}
+#'     argument instead of separate \code{agent}, \code{policy},
+#'     \code{context} arguments
+#'   \item \strong{Tool injection}: \verb{MCP} tools that declare a
+#'     \code{.runtime} parameter receive the runtime automatically via
+#'     closure capture at \verb{instantiation} time
+#' }
 #'
 #' ## Tool Runtime Injection
 #'
 #' When \code{\link{mcptool_instantiate}} creates tool wrappers, it checks if
-#' the underlying function has a `.runtime` formal parameter. If so, the
+#' the underlying function has a \code{.runtime} formal parameter. If so, the
 #' runtime is automatically injected into calls. This allows downstream
 #' packages to create \verb{MCP} tools that access the execution context:
 #'
@@ -127,17 +129,19 @@ AgentRuntime <- R6::R6Class(
 
   ),
   active = list(
-    #' @field agent Agent object, the agent being executed (who)
+    #' @field agent \code{\link{Agent}} object, the agent being executed (who)
     agent = function() {
       private$.agent
     },
 
-    #' @field context `AgentContext` object, the execution context (where)
+    #' @field context \code{\link{AgentContext}} object, the execution
+    #'   context (where)
     context = function() {
       private$.context
     },
 
-    #' @field policy `StatePolicy` object, the policy being executed (what)
+    #' @field policy \code{\link{StatePolicy}} object, the policy being
+    #'   executed (what)
     policy = function() {
       private$.policy
     },
@@ -167,7 +171,7 @@ AgentRuntime <- R6::R6Class(
   public = list(
 
     #' @description Initialize a new runtime environment
-    #' @param agent Agent object being executed
+    #' @param agent \code{\link{Agent}} object being executed
     #' @param context \code{\link{AgentContext}} object for logging and storage
     #' @param policy \code{\link{StatePolicy}} object being executed
     #' @param attempt integer, retry count (default: \code{0L})
@@ -258,7 +262,7 @@ AgentRuntime <- R6::R6Class(
     },
 
     #' @description Execute the agent asynchronously, returning a
-    #'   promise that resolves with the recorded attachment
+    #'   \code{promises::promise} that resolves with the recorded attachment
     #' @return A \code{promises::promise} object
     run_async = function() {
       state_name <- private$.policy@name

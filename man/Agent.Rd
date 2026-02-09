@@ -21,21 +21,22 @@ underscores, dashes only)}
 \item{description}{character, human-readable description of what the
 agent does}
 
-\item{describe}{function or NULL, result formatting function for logging;
-defaults to \code{\link{mcp_describe}}. If provided, should take result
-as first argument and return a character string}
+\item{describe}{function or \code{NULL}, result formatting function for
+logging; defaults to \code{\link{mcp_describe}}. If provided, should
+accept the agent's return value as its first argument and return a
+character string}
 }
 \value{
-An \code{Agent} object (S7 class inheriting from \code{function})
+An \code{Agent} object (S7 class inheriting from
+\code{\link{function}})
 }
 \description{
 Creates an executable agent that can be registered with a
-\code{Scheduler} to execute state-specific logic. The agent wraps a
-user-defined function with metadata (id, description) and result
-formatting. Agents are the execution units in the Runtime Layer
-(Tier 2) that implement the logic defined in \code{StatePolicy}
-
-objects from the Policy Layer (Tier 1).
+\code{\link{Scheduler}} to execute state-specific logic. The agent wraps
+a user-defined function with metadata (\code{id}, \code{description}) and
+result formatting. Agents are the execution units in the Runtime Layer
+(Tier 2) that implement the logic defined in
+\code{\link{StatePolicy}} objects from the Policy Layer (Tier 1).
 }
 \details{
 \subsection{Agent Function Signature}{
@@ -46,8 +47,7 @@ function(runtime, ...) {
   # Agent implementation
   # runtime$agent - the Agent object itself
   # runtime$policy - the StatePolicy being executed
-
-  # runtime$context - the Context for logging
+  # runtime$context - the AgentContext for logging
   # runtime$logger() - shorthand for logging
   # Return value will be logged to context via @describe
 }
@@ -55,11 +55,14 @@ function(runtime, ...) {
 
 \strong{Required arguments:}
 \itemize{
-\item \code{runtime}: An \code{AgentRuntime} object containing:
+\item \code{runtime}: An \code{\link{AgentRuntime}} object containing:
 \itemize{
-\item \code{runtime$agent}: Reference to the agent object itself
-\item \code{runtime$policy}: The \code{StatePolicy} object being executed
-\item \code{runtime$context}: The \code{Context} object for logging
+\item \code{runtime$agent}: Reference to the \code{Agent} object
+itself
+\item \code{runtime$policy}: The \code{\link{StatePolicy}} object
+being executed
+\item \code{runtime$context}: The \code{\link{AgentContext}} object
+for logging and storage
 \item \code{runtime$logger()}: Method to log messages
 }
 \item \code{...}: Additional arguments (optional)
@@ -68,14 +71,15 @@ function(runtime, ...) {
 
 \subsection{Agent Execution Flow}{
 
-When a \code{Scheduler} executes a state:
+When a \code{\link{Scheduler}} executes a state:
 \enumerate{
 \item Looks up the agent by \code{StatePolicy@agent_id}
-\item Creates an \code{AgentRuntime} with agent, policy, and context
+\item Creates an \code{\link{AgentRuntime}} with agent, policy, and
+context
 \item Calls the agent function with \code{(runtime)}
 \item Captures the return value
-\item Uses \code{describe} function to format result for logging
-\item Logs formatted result to \code{Context}
+\item Uses the \code{describe} function to format the result for logging
+\item Logs formatted result to \code{\link{AgentContext}}
 }
 }
 
@@ -88,16 +92,17 @@ three purposes: first, the function allows the agent to format the
 output for better AI-readability. The formatted results will be logged
 into a public log file along with the scheduling messages;
 second, the agent can choose to redact sensitive information and avoid
-insecure agents to access those data - reading attachments
-requires permissions and those agents (according to how they are implemented)
-should not access the attachments; finally, because the output description
-will be recorded into the public log file so the other agents can still refer
-to the context without reading the corresponding attachment file. For example
-If a local agent's the output contains user-sensitive data, its
-\code{describe} function may hide those information by string replacement,
-or simply show the data format and schema. Other online-agents may still see
-the redacted outputs from the log files and work on the output (such as
-writing code or executing the tools).
+insecure agents from accessing those data - reading attachments
+requires permissions and those agents (according to how they are
+implemented) should not access the attachments; finally, because the
+output description will be recorded into the public log file so the other
+agents can still refer to the context without reading the corresponding
+attachment file. For example, if a local agent's output contains
+user-sensitive data, its \code{describe} function may hide those
+information by string replacement, or simply show the data format and
+schema. Other online agents may still see the redacted outputs from the
+log files and work on the output (such as writing code or executing
+the tools).
 }
 }
 \examples{

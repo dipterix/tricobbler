@@ -12,11 +12,11 @@ access uses open/close-per-operation pattern for safety.
 \details{
 The index tracks each attachment through its \verb{lifecycle}:
 \describe{
-\item{\code{init}}{Runtime created, execution not yet started}
-\item{\code{running}}{Agent execution in progress}
-\item{\code{finished}}{Execution completed successfully}
-\item{\code{errored}}{Execution completed with error}
-\item{\code{skipped}}{Execution was skipped (reserved for future use)}
+\item{\code{"init"}}{Runtime created, execution not yet started}
+\item{\code{"running"}}{Agent execution in progress}
+\item{\code{"finished"}}{Execution completed successfully}
+\item{\code{"errored"}}{Execution completed with error}
+\item{\code{"skipped"}}{Execution was skipped (reserved for future use)}
 }
 \subsection{Backend Abstraction}{
 
@@ -61,7 +61,7 @@ Initialize the attachment index
 \if{html}{\out{<a id="method-TricobblerAttachmentIndex-register"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAttachmentIndex-register}{}}}
 \subsection{Method \code{register()}}{
-Register a new attachment entry with status 'init'
+Register a new attachment entry with status \code{init}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AttachmentIndex$register(attachment_id, stage, state, agent_id, attempt = 0L)}\if{html}{\out{</div>}}
 }
@@ -96,7 +96,9 @@ Update the status of an existing attachment
 \describe{
 \item{\code{attachment_id}}{character, attachment identifier}
 
-\item{\code{status}}{character, new status}
+\item{\code{status}}{character, new status (one of \code{"init"},
+\code{"running"}, \code{"finished"}, \code{"errored"},
+\code{"skipped"})}
 }
 \if{html}{\out{</div>}}
 }
@@ -105,7 +107,8 @@ Update the status of an existing attachment
 \if{html}{\out{<a id="method-TricobblerAttachmentIndex-mark_finished"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAttachmentIndex-mark_finished}{}}}
 \subsection{Method \code{mark_finished()}}{
-Mark an attachment as finished or \verb{errored}
+Mark an attachment as \code{"finished"} or
+\code{"errored"}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AttachmentIndex$mark_finished(attachment_id, succeed)}\if{html}{\out{</div>}}
 }
@@ -157,7 +160,7 @@ List all index entries
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A data.frame of all matching entries (most recent first)
+A \code{data.frame} of all matching entries (most recent first)
 }
 }
 \if{html}{\out{<hr>}}
@@ -181,14 +184,15 @@ Query index entries by state and/or stage
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A data.frame of matching entries (most recent first)
+A \code{data.frame} of matching entries (most recent first)
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAttachmentIndex-list_incomplete"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAttachmentIndex-list_incomplete}{}}}
 \subsection{Method \code{list_incomplete()}}{
-Find incomplete entries (init or running past timeout)
+Find incomplete entries (\code{"init"} or
+\code{"running"} past timeout)
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AttachmentIndex$list_incomplete(timeout_secs = NULL)}\if{html}{\out{</div>}}
 }
@@ -196,14 +200,15 @@ Find incomplete entries (init or running past timeout)
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{timeout_secs}}{numeric, seconds after which init/running entries
-are considered incomplete. If \code{NULL} (default), returns all
-entries with status 'init' or 'running' regardless of age.}
+\item{\code{timeout_secs}}{numeric, seconds after which
+\code{"init"}/\code{"running"} entries are considered incomplete.
+If \code{NULL} (default), returns all entries with status
+\code{"init"} or \code{"running"} regardless of age.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A data.frame of incomplete entries
+A \code{data.frame} of incomplete entries
 }
 }
 \if{html}{\out{<hr>}}

@@ -43,12 +43,13 @@
 
 #' @title Abstract Base Class for Policy Objects
 #' @description Internal abstract base class for all policy objects. It defines
-#'   common properties `name` and `description` that are shared by concrete
-#'   subclasses. This class is not exported and is intended for internal use
-#'   only.
-#' @param name Character. Must be a non-blank single string.
-#' @param description Character. Human-readable description; multiple values are
-#'   collapsed into a single space-separated string.
+#'   common properties \code{name} and \code{description} that are shared by
+#'   concrete subclasses such as \code{\link{MasterPolicy}} and
+#'   \code{\link{StatePolicy}}. This class is not exported and is intended
+#'   for internal use only.
+#' @param name character, must be a non-blank single string
+#' @param description character, human-readable description; multiple values
+#'   are collapsed into a single space-separated string
 #' @keywords internal
 BasePolicy <- S7::new_class(
   name = "Policy",
@@ -78,35 +79,44 @@ BasePolicy <- S7::new_class(
 
 #' @title Master Workflow Policy Defining Stages and Version
 #' @description Concrete policy that defines the overall workflow version and
-#'   the set of allowed stages. Inherits from `BasePolicy`.
+#'   the set of allowed stages. Inherits from \code{\link{BasePolicy}}.
 #' @details
 #' ## Stages as Workflow Vocabulary
 #'
-#' The `stages` property defines the symbolic vocabulary of workflow phases
-#' (e.g., "triage", "planning", "executing"). These are macro-level phase names
-#' that must be implemented by at least one \code{StatePolicy} object in the
-#' \code{Manifest}.
+#' The \code{stages} property defines the symbolic vocabulary of workflow
+#' phases (e.g., \code{"triage"}, \code{"planning"}, \code{"executing"}).
+#' These are macro-level phase names that must be implemented by at least one
+#' \code{\link{StatePolicy}} object in the \code{\link{Manifest}}.
+#'
+#' The reserved stage names \code{"ready"}, \code{"error"}, and
+#' \code{"human"} cannot be used because they are managed internally by
+#' the \code{\link{Scheduler}}.
 #'
 #' ## Stage Naming Conventions
 #'
-#' - Stages are automatically converted to lowercase for consistency
-#' - Must contain only letters (a-z), digits (0-9), underscores (_), or
-#'   dashes (-)
-#' - Must be unique (case-insensitive) within a workflow
-#' - Cannot be blank or NA
+#' \itemize{
+#'   \item Stages are automatically converted to lowercase for consistency
+#'   \item Must contain only letters (a-z), digits (0-9), underscores
+#'     (\verb{_}), or dashes (\verb{-})
+#'   \item Must be unique (case-insensitive) within a workflow
+#'   \item Cannot be blank or \code{NA}
+#' }
 #'
 #' ## Immutability
 #'
-#' \code{MasterPolicy} objects are immutable (S7 value semantics). Once created,
-#' they serve as a stable reference for \code{Contract} objects. Use the
-#' \code{@@} accessor to read properties (e.g., `policy@stages`).
+#' \code{MasterPolicy} objects are immutable (S7 value semantics). Once
+#' created, they serve as a stable reference for the \code{\link{Manifest}}.
+#' Use the \code{@@} accessor to read properties
+#' (e.g., \code{policy@@stages}).
 #'
-#' @param name Character. Name of the policy (non-blank).
-#' @param description Character. Human-readable description.
-#' @param version Character. Version string validated by `property_version()`.
-#' @param stages Character vector. Non-empty, lower-cased, unique, and each
-#'   element may contain only letters, digits, underscores or dashes.
-#' @param parameters List. Additional free-form parameters for the workflow.
+#' @param name character, name of the policy (non-blank)
+#' @param description character, human-readable description
+#' @param version character, version string in \code{"major.minor.patch"}
+#'   format (e.g., \code{"1.0.0"})
+#' @param stages character, non-empty vector of unique, lowercase stage names.
+#'   Each element may contain only letters, digits, underscores, or dashes.
+#'   Defaults to \code{c("triage", "planning", "executing")}
+#' @param parameters list, additional free-form parameters for the workflow
 #' @examples
 #'
 #' MasterPolicy(

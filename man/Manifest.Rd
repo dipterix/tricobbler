@@ -7,78 +7,81 @@
 Manifest(master = MasterPolicy(), states = list())
 }
 \arguments{
-\item{master}{\code{MasterPolicy} object}
+\item{master}{\code{\link{MasterPolicy}} object}
 
-\item{states}{list of \code{StatePolicy} objects}
+\item{states}{list of \code{\link{StatePolicy}} objects}
 }
 \description{
-Container that ties a \code{MasterPolicy} together with a list
-of \code{StatePolicy} objects. The validation ensures that every stage
-defined in the master policy is represented by at least one state.
+Container that ties a \code{\link{MasterPolicy}} together
+with a list of \code{\link{StatePolicy}} objects. The validation ensures
+that every stage defined in the master policy is represented by at least
+one state.
 }
 \details{
 \subsection{Two-Tier Architecture}{
 
 The \code{Manifest} class represents the validated blueprint layer (Tier 1)
 in the package two-tier design:
+
 \enumerate{
 \item \strong{Policy Layer (Tier 1 - Immutable S7)}: Blueprint definitions
 \itemize{
-\item \code{Manifest}: Validated container linking \code{MasterPolicy} to
-\code{StatePolicy} list
-\item \code{MasterPolicy}: Workflow version + allowed stages (macro-level
-phases)
-\item \code{StatePolicy}: Individual state metadata (stage, description,
-parameters, priority)
+\item \code{Manifest}: Validated container linking
+\code{MasterPolicy} to \code{StatePolicy} list
+\item \code{MasterPolicy}: Workflow version + allowed stages
+(macro-level phases)
+\item \code{StatePolicy}: Individual state metadata (stage,
+description, parameters, priority)
 }
-\item \strong{Runtime Layer (Tier 2 - Mutable R6)}: Execution orchestration
+\item \strong{Runtime Layer (Tier 2 - Mutable R6)}: Execution
+orchestration
 \itemize{
-\item \code{Scheduler}: Orchestrates all stage/state progression and
-workflow execution
-\item \code{Context}: Manages execution environment (logging, storage,
-attachments)
-\item \code{Agent}: Executes state-specific logic
+\item \code{\link{Scheduler}}: Orchestrates all stage/state
+progression and workflow execution
+\item \code{\link{AgentContext}}: Manages execution environment
+(logging, storage, attachments)
+\item \code{\link{Agent}}: Executes state-specific logic
 }
 }
 }
 
 \subsection{Stages vs States: Critical Distinction}{
+
 \itemize{
-\item \strong{Stages} (symbolic vocabulary): Workflow phase names defined in
-\code{MasterPolicy@stages}
-(e.g., "triage", "planning", "executing")
-\item \strong{States} (concrete implementations): \code{StatePolicy} objects that
-reference stages and add execution metadata (description, parameters,
-priority)
-\item \strong{Multiple states per stage}: Enables different execution patterns:
+\item \strong{Stages} (symbolic vocabulary): Workflow phase names defined
+in \code{MasterPolicy@stages}
+(e.g., \code{"triage"}, \code{"planning"}, \code{"executing"})
+\item \strong{States} (concrete implementations): \code{StatePolicy}
+objects that reference stages and add execution metadata (description,
+parameters, priority)
+\item \strong{Multiple states per stage}: Enables different execution
+patterns:
 \itemize{
-\item \strong{Sequential fallback}: Different priorities create ordered execution
-\item \strong{Critical gates}: Critical states enforce fail-fast validation
-semantics
+\item \strong{Sequential fallback}: Different priorities create
+ordered execution
+\item \strong{Critical gates}: Critical states enforce fail-fast
+validation semantics
 }
-\item \strong{Validation rule}: Every stage in \code{MasterPolicy@stages} MUST have
-at least one corresponding \code{StatePolicy} (enforced by validation)
+\item \strong{Validation rule}: Every stage in
+\code{MasterPolicy@stages} \strong{must} have at least one
+corresponding \code{StatePolicy} (enforced by validation)
 }
 }
 
 \subsection{Validation Rules}{
 
 The \code{Manifest} validation performs critical cross-checks:
+
 \enumerate{
-\item \strong{Completeness}: Every \code{MasterPolicy} stage has at least one
-\code{StatePolicy}
-\itemize{
-\item Prevents "orphaned" stages with no implementation
-\item Error message: "Missing stages: ..."
-}
-\item \strong{Critical priority uniqueness}: Critical states cannot share priorities
-\itemize{
-\item If \code{StatePolicy@critical = TRUE}, no other state in the same stage can
-have the same \code{priority} value
-\item Prevents ambiguity about which critical state blocks lower-priority
-states
-\item Error message: "Critical state ... cannot share its priority with ..."
-}
+\item \strong{Completeness}: Every \code{MasterPolicy} stage has at
+least one \code{StatePolicy}. Prevents "orphaned" stages with no
+implementation. Error message: \code{"Missing stages: ..."}
+\item \strong{Critical priority uniqueness}: Critical states cannot
+share priorities. If \code{StatePolicy@critical = TRUE}, no other
+state in the same stage can have the same \code{priority} value.
+Prevents ambiguity about which critical state blocks lower-priority
+states. Error message:
+\code{"Critical state ... cannot share its priority with ..."}
 }
 }
 
@@ -86,20 +89,23 @@ states
 
 Once created, \code{Manifest} objects are immutable (S7 value semantics),
 providing a stable reference for runtime execution. Manifests can be
-serialized to/from YAML for version control:
+serialized to/from \verb{YAML} for version control:
+
 \itemize{
-\item \code{manifest_write(manifest, file)}: Save to human-readable YAML
-\item \code{manifest_read(file)}: Load with full validation
-\item All validation rules apply when reading YAML
+\item \code{\link{manifest_write}(manifest, file)}: Save to
+human-readable \verb{YAML}
+\item \code{\link{manifest_read}(file)}: Load with full validation
+\item All validation rules apply when reading \verb{YAML}
 }
 }
 
 \subsection{Policy vs Runtime Separation}{
 
-The \code{Manifest} is a policy-level blueprint that defines WHAT the
-workflow should do (stages and states), not HOW it executes. The actual
-execution (orchestration, logging, state management) is handled by
-\code{Scheduler} and \code{Context} in the Runtime layer.
+The \code{Manifest} is a policy-level blueprint that defines \emph{what}
+the workflow should do (stages and states), not \emph{how} it executes.
+The actual execution (orchestration, logging, state management) is handled
+by \code{\link{Scheduler}} and \code{\link{AgentContext}} in the Runtime
+layer.
 }
 }
 \examples{

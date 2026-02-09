@@ -10,7 +10,38 @@ NULL
 #'   \code{max_concurrency}. Stages are executed sequentially.
 #'
 #' @details
-#' TODO: explain the cycle
+#' ## \verb{Async} Dispatch Cycle
+#'
+#' Each stage follows a promise-driven dispatch loop:
+#' \enumerate{
+#'   \item \code{start()} validates the manifest, initializes resources,
+#'     and iterates through stages sequentially using
+#'     \code{coro::async}
+#'   \item \code{run_stage(stage)} initializes runtimes for all state
+#'     policies in the stage, creates a stage-level promise, and calls
+#'     \code{advance()}
+#'   \item \code{advance()} drives the cycle: retry failed runtimes,
+#'     \verb{enqueue} ready runtimes, then dispatch up to
+#'     \code{max_concurrency} concurrent executions
+#'   \item When a runtime settles (fulfills or rejects), its promise
+#'     callback processes the result (success, retry, redirect, or
+#'     suspend) and calls \code{advance()} again
+#'   \item When no incomplete work remains, \code{advance()} resolves
+#'     the stage promise and the next stage begins
+#' }
+#'
+#' ## Differences from \code{\link{Scheduler}}
+#'
+#' \itemize{
+#'   \item \code{start()} returns a \code{promises::promise} instead
+#'     of blocking
+#'   \item \code{execute_runtime()} dispatches multiple runtimes
+#'     concurrently (up to \code{max_concurrency})
+#'   \item \code{stop()} rejects the active stage promise in addition
+#'     to resetting state
+#'   \item \code{suspend()} resolves actions via the event dispatcher
+#'     and manipulates promise settlement functions
+#' }
 #'
 #' @export
 AsyncScheduler <- R6::R6Class(
@@ -388,7 +419,7 @@ AsyncScheduler <- R6::R6Class(
 
     #' @description Drive the next \verb{async} dispatch cycle.
     #' @details Called by promise callbacks when a runtime settles.
-    #'   Runs: retry -> \verb{enqueue} -> execute. If no incomplete work
+    #'   Runs: retry, \verb{enqueue}, then execute. If no incomplete work
     #'   remains, resolves the stage promise.
     advance = function() {
       if (isTRUE(self$suspended)) {

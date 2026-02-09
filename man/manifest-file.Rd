@@ -11,29 +11,32 @@ manifest_write(x, file, ...)
 manifest_read(file, ...)
 }
 \arguments{
-\item{x}{a \code{Manifest} object to serialize (for \code{manifest_write})}
+\item{x}{a \code{\link{Manifest}} object to serialize
+(for \code{manifest_write})}
 
-\item{file}{Character. Path to the YAML file (input for \code{manifest_read},
-output for \code{manifest_write}).}
+\item{file}{character, path to the \verb{YAML} file (input for
+\code{manifest_read}, output for \code{manifest_write})}
 
-\item{...}{Additional arguments passed to \code{yaml::read_yaml()} or
-\code{yaml::write_yaml()}.}
+\item{...}{additional arguments passed to \code{yaml::read_yaml()} or
+\code{yaml::write_yaml()}}
 }
 \value{
 \itemize{
-\item \code{manifest_write()}: Invisibly returns the path to the written file.
+\item \code{manifest_write()}: Invisibly returns the path to the written
+file
 \item \code{manifest_read()}: A validated \code{Manifest} object
 }
 }
 \description{
-Serialize and read \code{Manifest} objects to and from YAML files. This
-enables version control and sharing of workflow policy definitions. The
-resulting YAML files are human-readable and can be edited manually, though
-changes must still pass validation when read back.
+Serialize and read \code{\link{Manifest}} objects to and from \verb{YAML}
+files. This enables version control and sharing of workflow policy
+definitions. The resulting \verb{YAML} files are human-readable and can be
+edited manually, though changes must still pass validation when read back.
 
-\code{manifest_write()} serializes a \code{Manifest} object to a YAML file.
+\code{manifest_write()} serializes a \code{Manifest} object to a
+\verb{YAML} file.
 
-\code{manifest_read()} reads a YAML file back into a validated
+\code{manifest_read()} reads a \verb{YAML} file back into a validated
 \code{Manifest} object, reconstructing the \code{MasterPolicy} and
 \code{StatePolicy} objects and enforcing all validation rules (e.g.,
 every stage must have a corresponding state).

@@ -3,7 +3,7 @@
 #' @description R6 class that manages the execution environment for workflow
 #'   states. Provides logging, result storage, and attachment management during
 #'   workflow execution. This is part of the Runtime Layer (Tier 2) alongside
-#'   \code{Scheduler}.
+#'   \code{\link{Scheduler}}.
 #' @export
 AgentContext <- R6::R6Class(
   classname = "TricobblerAgentContext",
@@ -42,14 +42,14 @@ AgentContext <- R6::R6Class(
       private$.rootpath
     },
 
-    #' @field current_stage character, currently executing stage from scheduler
-    #' (read-only)
+    #' @field current_stage character, currently executing stage from the
+    #' scheduler (read-only)
     current_stage = function() {
       private$.scheduler$current_stage
     },
 
-    #' @field current_state character, currently executing state from scheduler
-    #' (read-only)
+    #' @field current_state character, currently executing state from the
+    #' scheduler (read-only)
     current_state = function() {
       private$.scheduler$current_state
     },
@@ -70,7 +70,8 @@ AgentContext <- R6::R6Class(
       private$.is_default
     },
 
-    #' @field cache map, stores and persists temporary data
+    #' @field cache \code{fastmap::fastmap()} object, stores and persists
+    #' temporary data
     cache = function() {
       private$.cache
     },
@@ -108,7 +109,7 @@ AgentContext <- R6::R6Class(
     debug = FALSE,
 
     #' @description Associate a scheduler with this context
-    #' @param scheduler Scheduler object to associate
+    #' @param scheduler \code{\link{Scheduler}} object to associate
     set_scheduler = function(scheduler) {
       stopifnot(
         R6::is.R6(scheduler) && inherits(scheduler, "TricobblerScheduler")
@@ -117,8 +118,9 @@ AgentContext <- R6::R6Class(
     },
 
     #' @description Initialize a new context
-    #' @param id character, unique identifier (NULL to auto-generate)
-    #' @param path character, root directory path (NULL for default cache)
+    #' @param id character, unique identifier (\code{NULL} to auto-generate)
+    #' @param path character, root directory path (defaults to a temporary
+    #'   directory under \code{tempdir()})
     initialize = function(
       id = NULL,
       path = file.path(tempdir(), "tricobbler", "context")
@@ -251,7 +253,8 @@ AgentContext <- R6::R6Class(
 
     #' @description Retrieve the most recent result(s)
     #' @param items integer, number of results to retrieve
-    #' @param simplify logical, return single result if items == 1
+    #' @param simplify logical, if \code{TRUE} and \code{items == 1}, return
+    #'   a single result instead of a list
     last_results = function(items = 1, simplify = length(items) == 1) {
       idx <- private$.index$list()
       if (!is.data.frame(idx) || !nrow(idx)) {
@@ -276,8 +279,9 @@ AgentContext <- R6::R6Class(
 
     #' @description Retrieve a specific attachment by its identifier
     #' @param attachment_id character, the attachment identifier
-    #'    (filename from record_result). Or a \code{StatePolicy} object to
-    #'    retrieve the latest attachment for that state.
+    #'    (filename from \code{record_attachment}). Alternatively, a
+    #'    \code{\link{StatePolicy}} object to retrieve the latest attachment
+    #'    for that state.
     get_attachment = function(attachment_id) {
       if (missing(attachment_id)) {
         stop("AgentContext$get_attachment(): `attachment_id` is required")
@@ -399,9 +403,9 @@ AgentContext <- R6::R6Class(
 
     #' @description Find incomplete executions (crashed or in-progress)
     #' @param timeout_secs numeric or \code{NULL}, seconds after which
-    #'   init/running entries are considered incomplete. If \code{NULL},
-    #'   returns all init/running entries.
-    #' @return A data.frame of incomplete index entries
+    #'   \code{"init"}/\code{"running"} entries are considered incomplete.
+    #'   If \code{NULL}, returns all \code{"init"}/\code{"running"} entries.
+    #' @return A \code{data.frame} of incomplete index entries
     list_incomplete = function(timeout_secs = NULL) {
       private$.index$list_incomplete(timeout_secs)
     },
@@ -423,17 +427,21 @@ AgentContext <- R6::R6Class(
     },
 
     #' @description Read and parse log file contents
-    #' @param method character, read from "tail" (end) or "head" (beginning)
+    #' @param method character, read from \code{"tail"} (end of file) or
+    #'   \code{"head"} (beginning of file)
     #' @param skip_lines integer, skipping lines relative to the end or start;
-    #'   If `method` is `"head"`, then `skip` skips the first several lines,
-    #'   otherwise skipping the last several lines; default is `0L`
-    #'   (no skipping).
-    #' @param max_lines integer, maximum number of lines to read (default 300)
-    #' @param pattern character, optional regex pattern to filter log content
+    #'   If \code{method} is \code{"head"}, then \code{skip_lines} skips the
+    #'   first several lines, otherwise skipping the last several lines;
+    #'   default is \code{0L} (no skipping).
+    #' @param max_lines integer, maximum number of lines to read
+    #'   (default \code{300L})
+    #' @param pattern character or \code{NULL}, optional regex pattern to
+    #'   filter log content
     #' @param levels character, log levels to include
     #'   (default: all levels)
-    #' @return data.frame with columns: line_no, level, time, caller, content.
-    #'   Returns empty data.frame if file missing or no matches.
+    #' @return \code{data.frame} with columns: \code{line_no}, \code{level},
+    #'   \code{time}, \code{caller}, \code{content}.
+    #'   Returns empty \code{data.frame} if file missing or no matches.
     read_logs = function(
       method = c("tail", "head"),
       skip_lines = 0L,

@@ -17,13 +17,14 @@ relying on global state.
 The runtime serves three main purposes:
 \enumerate{
 \item \strong{\verb{Async} safety}: Captures execution context
-in closures, avoiding race
-conditions with global state when agents execute concurrently
-\item \strong{Simplified API}: Agents receive a single \code{runtime} argument instead
-of separate \code{self}, \code{policy}, \code{context} arguments
+in closures, avoiding race conditions with global state when agents
+execute concurrently
+\item \strong{Simplified API}: Agents receive a single \code{runtime}
+argument instead of separate \code{agent}, \code{policy},
+\code{context} arguments
 \item \strong{Tool injection}: \verb{MCP} tools that declare a
-\code{.runtime} parameter receive
-the runtime automatically via closure capture at \verb{instantiation} time
+\code{.runtime} parameter receive the runtime automatically via
+closure capture at \verb{instantiation} time
 }
 }
 
@@ -48,11 +49,13 @@ my_mcp_tool <- function(arg1, arg2, .runtime = NULL) {
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{agent}}{Agent object, the agent being executed (who)}
+\item{\code{agent}}{\code{\link{Agent}} object, the agent being executed (who)}
 
-\item{\code{context}}{\code{AgentContext} object, the execution context (where)}
+\item{\code{context}}{\code{\link{AgentContext}} object, the execution
+context (where)}
 
-\item{\code{policy}}{\code{StatePolicy} object, the policy being executed (what)}
+\item{\code{policy}}{\code{\link{StatePolicy}} object, the policy being
+executed (what)}
 
 \item{\code{attempt}}{integer, retry count if failed}
 
@@ -87,7 +90,7 @@ Initialize a new runtime environment
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{agent}}{Agent object being executed}
+\item{\code{agent}}{\code{\link{Agent}} object being executed}
 
 \item{\code{context}}{\code{\link{AgentContext}} object for logging and storage}
 
@@ -137,7 +140,7 @@ NULL invisibly
 \if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-run_async}{}}}
 \subsection{Method \code{run_async()}}{
 Execute the agent asynchronously, returning a
-promise that resolves with the recorded attachment
+\code{promises::promise} that resolves with the recorded attachment
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$run_async()}\if{html}{\out{</div>}}
 }

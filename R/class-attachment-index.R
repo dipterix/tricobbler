@@ -11,11 +11,11 @@ NULL
 #' @details
 #' The index tracks each attachment through its \verb{lifecycle}:
 #' \describe{
-#'   \item{`init`}{Runtime created, execution not yet started}
-#'   \item{`running`}{Agent execution in progress}
-#'   \item{`finished`}{Execution completed successfully}
-#'   \item{`errored`}{Execution completed with error}
-#'   \item{`skipped`}{Execution was skipped (reserved for future use)}
+#'   \item{\code{"init"}}{Runtime created, execution not yet started}
+#'   \item{\code{"running"}}{Agent execution in progress}
+#'   \item{\code{"finished"}}{Execution completed successfully}
+#'   \item{\code{"errored"}}{Execution completed with error}
+#'   \item{\code{"skipped"}}{Execution was skipped (reserved for future use)}
 #' }
 #'
 #' ## Backend Abstraction
@@ -110,7 +110,9 @@ AttachmentIndex <- R6::R6Class(
 
     #' @description Update the status of an existing attachment
     #' @param attachment_id character, attachment identifier
-    #' @param status character, new status
+    #' @param status character, new status (one of \code{"init"},
+    #'   \code{"running"}, \code{"finished"}, \code{"errored"},
+    #'   \code{"skipped"})
     update_status = function(attachment_id, status) {
       valid_statuses <- c("init", "running", "finished", "errored", "skipped")
       status <- match.arg(status, valid_statuses)
@@ -125,7 +127,8 @@ AttachmentIndex <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Mark an attachment as `finished` or `errored`
+    #' @description Mark an attachment as \code{"finished"} or
+    #'   \code{"errored"}
     #' @param attachment_id character, attachment identifier
     #' @param succeed logical, whether execution succeeded
     mark_finished = function(attachment_id, succeed) {
@@ -160,7 +163,7 @@ AttachmentIndex <- R6::R6Class(
 
     #' @description List all index entries
     #' @param status character or \code{NULL}, optional status filter
-    #' @return A data.frame of all matching entries (most recent first)
+    #' @return A \code{data.frame} of all matching entries (most recent first)
     list = function(status = NULL) {
       private$.with_db(function(con) {
         if (!is.null(status)) {
@@ -186,7 +189,7 @@ AttachmentIndex <- R6::R6Class(
     #' @param state character, state name to filter by
     #' @param stage character or \code{NULL}, optional stage filter
     #' @param status character or \code{NULL}, optional status filter
-    #' @return A `data.frame` of matching entries (most recent first)
+    #' @return A \code{data.frame} of matching entries (most recent first)
     query = function(state, stage = NULL, status = NULL) {
       private$.with_db(function(con) {
         sql <- "SELECT * FROM attachment_index WHERE state = ?"
@@ -208,11 +211,13 @@ AttachmentIndex <- R6::R6Class(
       })
     },
 
-    #' @description Find incomplete entries (init or running past timeout)
-    #' @param timeout_secs numeric, seconds after which init/running entries
-    #'   are considered incomplete. If \code{NULL} (default), returns all
-    #'   entries with status 'init' or 'running' regardless of age.
-    #' @return A data.frame of incomplete entries
+    #' @description Find incomplete entries (\code{"init"} or
+    #'   \code{"running"} past timeout)
+    #' @param timeout_secs numeric, seconds after which
+    #'   \code{"init"}/\code{"running"} entries are considered incomplete.
+    #'   If \code{NULL} (default), returns all entries with status
+    #'   \code{"init"} or \code{"running"} regardless of age.
+    #' @return A \code{data.frame} of incomplete entries
     list_incomplete = function(timeout_secs = NULL) {
       private$.with_db(function(con) {
         if (is.null(timeout_secs)) {

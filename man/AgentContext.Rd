@@ -7,7 +7,7 @@
 R6 class that manages the execution environment for workflow
 states. Provides logging, result storage, and attachment management during
 workflow execution. This is part of the Runtime Layer (Tier 2) alongside
-\code{Scheduler}.
+\code{\link{Scheduler}}.
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -24,11 +24,11 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 \item{\code{rootpath}}{character, root directory for all context storage
 (read-only)}
 
-\item{\code{current_stage}}{character, currently executing stage from scheduler
-(read-only)}
+\item{\code{current_stage}}{character, currently executing stage from the
+scheduler (read-only)}
 
-\item{\code{current_state}}{character, currently executing state from scheduler
-(read-only)}
+\item{\code{current_state}}{character, currently executing state from the
+scheduler (read-only)}
 
 \item{\code{memory_path}}{character, path to shared memory directory,
 used to store agent memories across the sessions (read-only)}
@@ -36,7 +36,8 @@ used to store agent memories across the sessions (read-only)}
 \item{\code{is_default_context}}{logical, whether this is the default context
 (read-only)}
 
-\item{\code{cache}}{map, stores and persists temporary data}
+\item{\code{cache}}{\code{fastmap::fastmap()} object, stores and persists
+temporary data}
 
 \item{\code{store_path}}{character, path to this context's conversation
 directory (read-only)}
@@ -82,7 +83,7 @@ Associate a scheduler with this context
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{scheduler}}{Scheduler object to associate}
+\item{\code{scheduler}}{\code{\link{Scheduler}} object to associate}
 }
 \if{html}{\out{</div>}}
 }
@@ -102,9 +103,10 @@ Initialize a new context
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{id}}{character, unique identifier (NULL to auto-generate)}
+\item{\code{id}}{character, unique identifier (\code{NULL} to auto-generate)}
 
-\item{\code{path}}{character, root directory path (NULL for default cache)}
+\item{\code{path}}{character, root directory path (defaults to a temporary
+directory under \code{tempdir()})}
 }
 \if{html}{\out{</div>}}
 }
@@ -189,7 +191,8 @@ Retrieve the most recent result(s)
 \describe{
 \item{\code{items}}{integer, number of results to retrieve}
 
-\item{\code{simplify}}{logical, return single result if items == 1}
+\item{\code{simplify}}{logical, if \code{TRUE} and \code{items == 1}, return
+a single result instead of a list}
 }
 \if{html}{\out{</div>}}
 }
@@ -207,8 +210,9 @@ Retrieve a specific attachment by its identifier
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{attachment_id}}{character, the attachment identifier
-(filename from record_result). Or a \code{StatePolicy} object to
-retrieve the latest attachment for that state.}
+(filename from \code{record_attachment}). Alternatively, a
+\code{\link{StatePolicy}} object to retrieve the latest attachment
+for that state.}
 }
 \if{html}{\out{</div>}}
 }
@@ -283,13 +287,13 @@ Find incomplete executions (crashed or in-progress)
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{timeout_secs}}{numeric or \code{NULL}, seconds after which
-init/running entries are considered incomplete. If \code{NULL},
-returns all init/running entries.}
+\code{"init"}/\code{"running"} entries are considered incomplete.
+If \code{NULL}, returns all \code{"init"}/\code{"running"} entries.}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A data.frame of incomplete index entries
+A \code{data.frame} of incomplete index entries
 }
 }
 \if{html}{\out{<hr>}}
@@ -331,16 +335,19 @@ Read and parse log file contents
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{method}}{character, read from "tail" (end) or "head" (beginning)}
+\item{\code{method}}{character, read from \code{"tail"} (end of file) or
+\code{"head"} (beginning of file)}
 
 \item{\code{skip_lines}}{integer, skipping lines relative to the end or start;
-If \code{method} is \code{"head"}, then \code{skip} skips the first several lines,
-otherwise skipping the last several lines; default is \code{0L}
-(no skipping).}
+If \code{method} is \code{"head"}, then \code{skip_lines} skips the
+first several lines, otherwise skipping the last several lines;
+default is \code{0L} (no skipping).}
 
-\item{\code{max_lines}}{integer, maximum number of lines to read (default 300)}
+\item{\code{max_lines}}{integer, maximum number of lines to read
+(default \code{300L})}
 
-\item{\code{pattern}}{character, optional regex pattern to filter log content}
+\item{\code{pattern}}{character or \code{NULL}, optional regex pattern to
+filter log content}
 
 \item{\code{levels}}{character, log levels to include
 (default: all levels)}
@@ -348,8 +355,9 @@ otherwise skipping the last several lines; default is \code{0L}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-data.frame with columns: line_no, level, time, caller, content.
-Returns empty data.frame if file missing or no matches.
+\code{data.frame} with columns: \code{line_no}, \code{level},
+\code{time}, \code{caller}, \code{content}.
+Returns empty \code{data.frame} if file missing or no matches.
 }
 }
 }

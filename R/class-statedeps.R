@@ -32,10 +32,10 @@ NULL
 #' Each entry in a \code{StateDeps} object is a named list element where:
 #' \itemize{
 #'   \item \strong{Name}: The parameter name passed to the agent function
-#'   \item \strong{state}: (required) Name of the state to depend on
-#'   \item \strong{field}: (optional) What to extract - \code{"result"}
+#'   \item \code{state}: (required) Name of the state to depend on
+#'   \item \code{field}: (optional) What to extract - \code{"result"}
 #'     (default) or \code{"description"}
-#'   \item \strong{stage}: (optional) Stage of the dependency. If \code{NULL}
+#'   \item \code{stage}: (optional) Stage of the dependency. If \code{NULL}
 #'     or omitted, the dependency must be in the same stage with higher
 #'     priority. If specified, must be an earlier stage in the workflow
 #' }
@@ -43,12 +43,13 @@ NULL
 #' ## Same-Stage vs Cross-Stage Dependencies
 #'
 #' \itemize{
-#'   \item \strong{Same-stage} (stage = NULL): The dependent state must have
-#'     higher priority (lower number = runs later). This ensures the dependency
-#'     executes before the dependent within parallel priority groups
-#'   \item \strong{Cross-stage} (stage = "earlier_stage"): The dependency is
-#'     in a previous stage. Since stages execute sequentially, the dependency
-#'     is guaranteed to complete before the dependent stage begins
+#'   \item \strong{Same-stage} (\code{stage = NULL}): The dependency state
+#'     must have higher priority (higher number = runs first). This ensures
+#'     the dependency executes before the dependent within the same stage
+#'   \item \strong{Cross-stage} (\code{stage = "earlier_stage"}): The
+#'     dependency is in a previous stage. Since stages execute sequentially,
+#'     the dependency is guaranteed to complete before the dependent stage
+#'     begins
 #' }
 #'
 #' ## Validation Rules (Property-Level)
@@ -60,13 +61,15 @@ NULL
 #'   \item \code{state} must be a single non-blank character string
 #'   \item \code{field} (if present) must be \code{"result"} or
 #'     \code{"description"}
-#'   \item \code{stage} (if present) must be a single character string or NULL
+#'   \item \code{stage} (if present) must be a single character string
+#'     or \code{NULL}
 #'   \item Parameter names must be valid R identifiers
 #' }
 #'
 #' ## Cross-Validation (Manifest-Level)
 #'
-#' Additional validation is performed at the \code{Manifest} level to check:
+#' Additional validation is performed at the \code{\link{Manifest}} level
+#' to check:
 #' \itemize{
 #'   \item Referenced states exist in the manifest
 #'   \item Same-stage dependencies have higher priority

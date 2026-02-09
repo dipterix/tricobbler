@@ -101,23 +101,25 @@ Scheduler <- R6::R6Class(
   ),
   public = list(
     # What: this must set before running the contract
-    #' @field manifest Manifest, the workflow blueprint
+    #' @field manifest \code{\link{Manifest}}, the workflow blueprint
     manifest = NULL,
 
     # Who: this may change during the run so
-    #' @field agents \code{fastmap::fastmap()} object, registry of Agent
-    #'    objects keyed by agent_id
+    #' @field agents \code{fastmap::fastmap()} object, registry of
+    #'    \code{\link{Agent}} objects keyed by \code{agent_id}
     agents = NULL,
 
     # Where
-    #' @field context Context, the execution environment for logging and storage
+    #' @field context \code{\link{AgentContext}}, the execution environment
+    #'   for logging and storage
     context = NULL,
 
     # ready, ... (from manifest), finish
     #' @field current_stage character, the currently executing stage name
     current_stage = character(),
 
-    #' @field stage_started \code{POSIXct}, timestamp when current stage started
+    #' @field stage_started \code{POSIXct} or \code{NULL}, timestamp when
+    #'   the current stage started
     stage_started = NULL,
 
     # needs human attention? pause all if TRUE
@@ -161,9 +163,9 @@ Scheduler <- R6::R6Class(
 
 
     #' @description Initialize scheduler with manifest blueprint and agents
-    #' @param manifest Manifest object, the workflow blueprint
-    #' @param agents list, collection of Agent objects
-    #' @param context Context object, execution environment
+    #' @param manifest \code{\link{Manifest}} object, the workflow blueprint
+    #' @param agents list, collection of \code{\link{Agent}} objects
+    #' @param context \code{\link{AgentContext}} object, execution environment
     #'    (default: new \code{\link{AgentContext}})
     initialize = function(
     manifest,
@@ -199,9 +201,9 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Register a listener for a \verb{lifecycle} event
-    #' @param type character, event type (e.g. \code{"suspend"},
-    #'   \code{"state_completed"}, \code{"stage_completed"},
-    #'   \code{"dispatch"})
+    #' @param type character, event type (e.g., \code{"suspend"},
+    #'   \code{"runtime.resolved"}, \code{"stage.completed"},
+    #'   \code{"runtime.dispatch"})
     #' @param handler function, callback receiving the event list.
     #'   For \code{"suspend"} events the handler may return an action
     #'   string (\code{"resume"}, \code{"skip"}, \code{"abort"}, or
@@ -237,8 +239,9 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Verify that all required agents are registered
-    #' @param on_error character, action on validation failure
-    #'    ("error" or "quiet")
+    #' @param on_error character, action on validation failure:
+    #'    \code{"error"} (throw an error) or \code{"quiet"} (return
+    #'    \code{FALSE} silently)
     validate = function(on_error = c("error", "quiet")) {
       on_error <- match.arg(on_error)
 
@@ -367,7 +370,6 @@ Scheduler <- R6::R6Class(
     #' @description Initialize resources and prepare for execution
     #' @param reset_context logical, whether to reset the context storage
     init_resources = function(reset_context = FALSE) {
-      # TODO: initialize MCP tools; initialize context
       self$context$set_scheduler(self)
       self$context$init_resources()
 
@@ -434,8 +436,6 @@ Scheduler <- R6::R6Class(
         return(invisible(FALSE))
       }
 
-      # TODO: check suspended
-
       self$dispatch_event(
         type = "enqueue_runtime.begin"
       )
@@ -447,8 +447,7 @@ Scheduler <- R6::R6Class(
         deps_resolved <- vapply(deps, function(dep) {
           if (length(dep$stage) == 1 &&
               isTRUE(dep$stage != runtime$policy@stage)) {
-            # other stages
-            # TODO: check if stage is done as well
+            # Cross-stage dependency: prior stage is already complete
             return(TRUE)
           }
           return(self$completed_map$has(dep$state))
@@ -871,9 +870,9 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Drive the dispatch loop for the current stage.
-    #' @details Loops synchronously: retry -> \verb{enqueue} -> execute,
+    #' @details Loops synchronously: retry, \verb{enqueue}, then execute;
     #'   then checks for stage completion. Continues until no more
-    #'   work remains or the stage is \verb{cancelled}/suspended.
+    #'   work remains or the stage is \verb{cancelled} or suspended.
     advance = function() {
 
       repeat {

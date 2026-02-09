@@ -36,9 +36,11 @@ execution (default empty vector)}
 
 \item{accessibility}{character, context accessibility level for the agent.
 Controls what context data the agent can read. One of \code{"all"}
-(full access), \code{"logs"} (logs only), \code{"none"} (no access), or
-\code{"explicit"} (use \code{depends_on} to specify inputs; if
-\code{depends_on} is empty, behaves like \code{"logs"}).
+(full access to previous results and logs), \code{"logs"} (log
+descriptions only, no raw results), \code{"none"} (no access to
+previous context), or \code{"explicit"} (use \code{depends_on} to
+specify inputs; if \code{depends_on} is empty, behaves like
+\code{"logs"}).
 Default is \code{"all"}}
 
 \item{parameters}{list, state-specific parameters passed to the agent.
@@ -49,23 +51,24 @@ this state during stage execution (default 0, meaning single attempt).
 The \code{max_retry} limit applies globally across all re-entries to this
 state within the same stage. If \code{on_failure} is set, this state will
 not retry locally but will jump to the failure handler immediately. If
-\code{on_failure} is NA, local retries up to \code{max_retry} will be
-attempted before moving to next state}
+\code{on_failure} is \code{NA}, local retries up to \code{max_retry}
+will be attempted before moving to next state}
 
 \item{priority}{integer, execution priority (0-999, default 100). Higher
 values run first (999 = highest priority, 0 = lowest). Used when multiple
-states share the same stage. NA or NULL are treated as 100}
+states share the same stage. \code{NA} or \code{NULL} are treated as 100}
 
-\item{critical}{logical, if TRUE, states with lower priority will not
-execute if this state fails (default FALSE). Critical states must have
-priority >= 1 and cannot share priority code with other states}
+\item{critical}{logical, if \code{TRUE}, states with lower priority will not
+execute if this state fails (default \code{FALSE}). Critical states must
+have \code{priority >= 1} and cannot share priority with other states
+in the same stage}
 
-\item{final}{logical, if TRUE and validation succeeds, skip remaining states
-in the workflow (default FALSE)}
+\item{final}{logical, if \code{TRUE} and the agent succeeds, skip remaining
+states in the stage (default \code{FALSE})}
 
 \item{on_failure}{character, name of the state to jump to on first failure
-(default NA to retry locally up to \code{max_retry} times). When set,
-failures trigger immediate jump to the specified state without local
+(default \code{NA} to retry locally up to \code{max_retry} times). When
+set, failures trigger immediate jump to the specified state without local
 retries. The \code{max_retry} limit still applies globally to prevent
 infinite loops: if this state is re-entered and total attempts exceed
 \code{max_retry}, execution stops with an error. Common patterns:
@@ -80,20 +83,22 @@ a dependency: \code{list(param = list(state = "state_name", field =
 for \verb{async} execution. See \code{\link{StateDeps}} for format details}
 }
 \description{
-Represents a single workflow state. Inherits from \code{BasePolicy}
-and adds a mandatory \code{stage} that must match one of the stages defined in a
-\code{MasterPolicy}. Includes priority and criticality flags for execution
-ordering when multiple states share the same stage.
+Represents a single workflow state. Inherits from
+\code{\link{BasePolicy}} and adds a mandatory \code{stage} that must
+match one of the stages defined in a \code{\link{MasterPolicy}}.
+Includes priority and criticality flags for execution ordering when
+multiple states share the same stage.
 }
 \details{
 \subsection{Stages vs States}{
+
 \itemize{
-\item \strong{Stage} (macro): The workflow phase name from \code{MasterPolicy@stages}
-(e.g., "executing")
-\item \strong{State} (micro): A concrete \code{StatePolicy} implementation of that
-stage
-\item Multiple states can reference the same stage for different execution
-patterns
+\item \strong{Stage} (macro): The workflow phase name from
+\code{MasterPolicy@stages} (e.g., \code{"executing"})
+\item \strong{State} (micro): A concrete \code{StatePolicy}
+implementation of that stage
+\item Multiple states can reference the same stage for different
+execution patterns
 }
 }
 
@@ -101,44 +106,52 @@ patterns
 
 When multiple states share the same stage, execution pattern depends on
 priority:
+
 \itemize{
 \item \strong{Range}: 0 (lowest) to 999 (highest)
 \item \strong{Default}: 100 (when \code{priority = NA} or \code{NULL})
-\item \strong{Execution order}: States run sequentially by priority (higher first)
+\item \strong{Execution order}: States run sequentially by priority
+(higher first)
 }
 }
 
 \subsection{Critical Flag: Enforcing Sequential Execution}{
 
-The \code{critical} flag enforces \strong{sequential} execution with fail-fast
-semantics:
+The \code{critical} flag enforces \strong{sequential} execution with
+fail-fast semantics:
+
 \itemize{
-\item If \code{critical = TRUE}, this state \strong{must} execute and succeed before any
-lower-priority states in the same stage can run
-\item If a critical state fails, lower-priority states are skipped entirely
-\item Critical states must have unique priority (enforced by \code{Manifest})
-\item Critical states must have \code{priority >= 1} (cannot be lowest priority 0)
-\item Critical states cannot share their priority value with other states in the
-same stage (enforced by \code{Manifest} validation)
-\item \strong{Use case}: Required validation gates that must pass before
-alternatives run
+\item If \code{critical = TRUE}, this state \strong{must} execute and
+succeed before any lower-priority states in the same stage can run
+\item If a critical state fails, lower-priority states are skipped
+entirely
+\item Critical states must have unique priority (enforced by
+\code{\link{Manifest}})
+\item Critical states must have \code{priority >= 1} (cannot be lowest
+priority 0)
+\item Critical states cannot share their priority value with other
+states in the same stage (enforced by \code{\link{Manifest}}
+validation)
+\item \strong{Use case}: Required validation gates that must pass
+before alternatives run
 }
 }
 
 \subsection{When to Use Multiple States Per Stage}{
 
-Create multiple \code{StatePolicy} objects for the same stage when you need:
+Create multiple \code{StatePolicy} objects for the same stage when you
+need:
+
 \enumerate{
 \item \strong{Fallback chains}: Different priorities create ordered
 execution with alternative strategies
-\item \strong{Alternative implementations}: Multiple states for the same stage
-execution with alternative strategies
-(e.g., primary approach -> fallback -> last resort)
-\item \strong{Critical validation gates}: Critical state must succeed before
-lower-priority alternatives execute (enforces sequential, fail-fast
-semantics)
-\item \strong{Phased deployment}: Gradually shift priority as new implementations
-mature
+\item \strong{Alternative implementations}: Multiple states for the
+same stage (e.g., primary approach, then fallback, then last resort)
+\item \strong{Critical validation gates}: A critical state must
+succeed before lower-priority alternatives execute (enforces
+sequential, fail-fast semantics)
+\item \strong{Phased deployment}: Gradually shift priority as new
+implementations mature
 }
 }
 
@@ -163,14 +176,15 @@ The \code{accessibility} property affects how inputs are constructed:
 \item \code{"none"}: Only \code{args} are passed (no context access)
 }
 
-\strong{Debug Mode}: Set \code{context$debug <- TRUE} at runtime to enable
-debug mode. In debug mode, agents print their calls/tools for inspection
-but run as no-op (returning debug information instead of executing).
+\strong{Debug Mode}: Set \code{context$debug <- TRUE} at runtime to
+enable debug mode. In debug mode, agents print their calls and tools for
+inspection but run as no-op (returning debug information instead of
+executing).
 
-\strong{AI Agents} (from \pkg{ellmer} Chat objects):
+\strong{AI Agents} (from \pkg{ellmer} \code{Chat} objects):
 \itemize{
-\item \code{system_prompt}: character, additional system prompt appended
-to \code{@description}
+\item \code{system_prompt}: character, additional system prompt
+appended to \code{@description}
 \item \code{user_prompt}: character, the user message
 to send to the \verb{LLM}
 \item \code{keep_turns}: logical, if \code{TRUE}, retains conversation
@@ -178,7 +192,8 @@ history across executions (default \code{FALSE})
 \item \code{return_type}: an \pkg{ellmer} type indicator (e.g.,
 \code{ellmer::type_object()}). When provided, triggers
 \code{chat$chat_structured(type = return_type)} for structured output.
-Can also be specified in YAML via \code{map_type_to_ellmer()}
+Can also be specified in \verb{YAML} via
+\code{\link{map_type_to_ellmer}()}
 }
 }
 }

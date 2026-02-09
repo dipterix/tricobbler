@@ -2,80 +2,98 @@
 NULL
 
 #' @title Validated Container Linking Master Policy to State Policies
-#' @description Container that ties a \code{MasterPolicy} together with a list
-#'   of \code{StatePolicy} objects. The validation ensures that every stage
-#'   defined in the master policy is represented by at least one state.
+#' @description Container that ties a \code{\link{MasterPolicy}} together
+#'   with a list of \code{\link{StatePolicy}} objects. The validation ensures
+#'   that every stage defined in the master policy is represented by at least
+#'   one state.
 #' @details
 #' ## Two-Tier Architecture
 #'
 #' The \code{Manifest} class represents the validated blueprint layer (Tier 1)
 #'   in the package two-tier design:
 #'
-#' 1. **Policy Layer (Tier 1 - Immutable S7)**: Blueprint definitions
-#'    - \code{Manifest}: Validated container linking \code{MasterPolicy} to
-#'      \code{StatePolicy} list
-#'    - \code{MasterPolicy}: Workflow version + allowed stages (macro-level
-#'      phases)
-#'    - \code{StatePolicy}: Individual state metadata (stage, description,
-#'      parameters, priority)
-#'
-#' 2. **Runtime Layer (Tier 2 - Mutable R6)**: Execution orchestration
-#'    - \code{Scheduler}: Orchestrates all stage/state progression and
-#'      workflow execution
-#'    - \code{Context}: Manages execution environment (logging, storage,
-#'      attachments)
-#'    - \code{Agent}: Executes state-specific logic
+#' \enumerate{
+#'   \item \strong{Policy Layer (Tier 1 - Immutable S7)}: Blueprint definitions
+#'     \itemize{
+#'       \item \code{Manifest}: Validated container linking
+#'         \code{MasterPolicy} to \code{StatePolicy} list
+#'       \item \code{MasterPolicy}: Workflow version + allowed stages
+#'         (macro-level phases)
+#'       \item \code{StatePolicy}: Individual state metadata (stage,
+#'         description, parameters, priority)
+#'     }
+#'   \item \strong{Runtime Layer (Tier 2 - Mutable R6)}: Execution
+#'     orchestration
+#'     \itemize{
+#'       \item \code{\link{Scheduler}}: Orchestrates all stage/state
+#'         progression and workflow execution
+#'       \item \code{\link{AgentContext}}: Manages execution environment
+#'         (logging, storage, attachments)
+#'       \item \code{\link{Agent}}: Executes state-specific logic
+#'     }
+#' }
 #'
 #' ## Stages vs States: Critical Distinction
 #'
-#' - **Stages** (symbolic vocabulary): Workflow phase names defined in
-#'   \code{MasterPolicy@@stages}
-#'   (e.g., "triage", "planning", "executing")
-#' - **States** (concrete implementations): \code{StatePolicy} objects that
-#'   reference stages and add execution metadata (description, parameters,
-#'   priority)
-#' - **Multiple states per stage**: Enables different execution patterns:
-#'   - **Sequential fallback**: Different priorities create ordered execution
-#'   - **Critical gates**: Critical states enforce fail-fast validation
-#'     semantics
-#' - **Validation rule**: Every stage in \code{MasterPolicy@@stages} MUST have
-#'     at least one corresponding \code{StatePolicy} (enforced by validation)
+#' \itemize{
+#'   \item \strong{Stages} (symbolic vocabulary): Workflow phase names defined
+#'     in \code{MasterPolicy@@stages}
+#'     (e.g., \code{"triage"}, \code{"planning"}, \code{"executing"})
+#'   \item \strong{States} (concrete implementations): \code{StatePolicy}
+#'     objects that reference stages and add execution metadata (description,
+#'     parameters, priority)
+#'   \item \strong{Multiple states per stage}: Enables different execution
+#'     patterns:
+#'     \itemize{
+#'       \item \strong{Sequential fallback}: Different priorities create
+#'         ordered execution
+#'       \item \strong{Critical gates}: Critical states enforce fail-fast
+#'         validation semantics
+#'     }
+#'   \item \strong{Validation rule}: Every stage in
+#'     \code{MasterPolicy@@stages} \strong{must} have at least one
+#'     corresponding \code{StatePolicy} (enforced by validation)
+#' }
 #'
 #' ## Validation Rules
 #'
 #' The \code{Manifest} validation performs critical cross-checks:
 #'
-#' 1. **Completeness**: Every \code{MasterPolicy} stage has at least one
-#'      \code{StatePolicy}
-#'    - Prevents "orphaned" stages with no implementation
-#'    - Error message: "Missing stages: ..."
-#'
-#' 2. **Critical priority uniqueness**: Critical states cannot share priorities
-#'    - If `StatePolicy@critical = TRUE`, no other state in the same stage can
-#'      have the same `priority` value
-#'    - Prevents ambiguity about which critical state blocks lower-priority
-#'      states
-#'    - Error message: "Critical state ... cannot share its priority with ..."
+#' \enumerate{
+#'   \item \strong{Completeness}: Every \code{MasterPolicy} stage has at
+#'     least one \code{StatePolicy}. Prevents "orphaned" stages with no
+#'     implementation. Error message: \code{"Missing stages: ..."}
+#'   \item \strong{Critical priority uniqueness}: Critical states cannot
+#'     share priorities. If \code{StatePolicy@@critical = TRUE}, no other
+#'     state in the same stage can have the same \code{priority} value.
+#'     Prevents ambiguity about which critical state blocks lower-priority
+#'     states. Error message:
+#'     \code{"Critical state ... cannot share its priority with ..."}
+#' }
 #'
 #' ## Immutability and Serialization
 #'
 #' Once created, \code{Manifest} objects are immutable (S7 value semantics),
 #' providing a stable reference for runtime execution. Manifests can be
-#' serialized to/from YAML for version control:
+#' serialized to/from \verb{YAML} for version control:
 #'
-#' - \code{manifest_write(manifest, file)}: Save to human-readable YAML
-#' - \code{manifest_read(file)}: Load with full validation
-#' - All validation rules apply when reading YAML
+#' \itemize{
+#'   \item \code{\link{manifest_write}(manifest, file)}: Save to
+#'     human-readable \verb{YAML}
+#'   \item \code{\link{manifest_read}(file)}: Load with full validation
+#'   \item All validation rules apply when reading \verb{YAML}
+#' }
 #'
 #' ## Policy vs Runtime Separation
 #'
-#' The \code{Manifest} is a policy-level blueprint that defines WHAT the
-#' workflow should do (stages and states), not HOW it executes. The actual
-#' execution (orchestration, logging, state management) is handled by
-#' \code{Scheduler} and \code{Context} in the Runtime layer.
+#' The \code{Manifest} is a policy-level blueprint that defines \emph{what}
+#' the workflow should do (stages and states), not \emph{how} it executes.
+#' The actual execution (orchestration, logging, state management) is handled
+#' by \code{\link{Scheduler}} and \code{\link{AgentContext}} in the Runtime
+#' layer.
 #'
-#' @param master \code{MasterPolicy} object
-#' @param states list of \code{StatePolicy} objects
+#' @param master \code{\link{MasterPolicy}} object
+#' @param states list of \code{\link{StatePolicy}} objects
 #' @examples
 #' # Create a valid manifest
 #' mp <- MasterPolicy(
@@ -319,25 +337,30 @@ S7::method(format, Manifest) <- function(x, ...) {
 #' @name manifest-file
 #' @title Read or Write Manifest from or to a YAML File
 #' @description
-#' Serialize and read \code{Manifest} objects to and from YAML files. This
-#' enables version control and sharing of workflow policy definitions. The
-#' resulting YAML files are human-readable and can be edited manually, though
-#' changes must still pass validation when read back.
+#' Serialize and read \code{\link{Manifest}} objects to and from \verb{YAML}
+#' files. This enables version control and sharing of workflow policy
+#' definitions. The resulting \verb{YAML} files are human-readable and can be
+#' edited manually, though changes must still pass validation when read back.
 #'
-#' \code{manifest_write()} serializes a \code{Manifest} object to a YAML file.
+#' \code{manifest_write()} serializes a \code{Manifest} object to a
+#' \verb{YAML} file.
 #'
-#' \code{manifest_read()} reads a YAML file back into a validated
+#' \code{manifest_read()} reads a \verb{YAML} file back into a validated
 #' \code{Manifest} object, reconstructing the \code{MasterPolicy} and
 #' \code{StatePolicy} objects and enforcing all validation rules (e.g.,
 #' every stage must have a corresponding state).
-#' @param x a \code{Manifest} object to serialize (for \code{manifest_write})
-#' @param file Character. Path to the YAML file (input for `manifest_read`,
-#'   output for `manifest_write`).
-#' @param ... Additional arguments passed to `yaml::read_yaml()` or
-#'   `yaml::write_yaml()`.
+#' @param x a \code{\link{Manifest}} object to serialize
+#'   (for \code{manifest_write})
+#' @param file character, path to the \verb{YAML} file (input for
+#'   \code{manifest_read}, output for \code{manifest_write})
+#' @param ... additional arguments passed to \code{yaml::read_yaml()} or
+#'   \code{yaml::write_yaml()}
 #' @return
-#' - `manifest_write()`: Invisibly returns the path to the written file.
-#' - \code{manifest_read()}: A validated \code{Manifest} object
+#' \itemize{
+#'   \item \code{manifest_write()}: Invisibly returns the path to the written
+#'     file
+#'   \item \code{manifest_read()}: A validated \code{Manifest} object
+#' }
 #' @examples
 #' # Create a manifest
 #' mp <- MasterPolicy(

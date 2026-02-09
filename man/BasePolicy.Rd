@@ -7,15 +7,16 @@
 BasePolicy(name = character(0), description = character(0))
 }
 \arguments{
-\item{name}{Character. Must be a non-blank single string.}
+\item{name}{character, must be a non-blank single string}
 
-\item{description}{Character. Human-readable description; multiple values are
-collapsed into a single space-separated string.}
+\item{description}{character, human-readable description; multiple values
+are collapsed into a single space-separated string}
 }
 \description{
 Internal abstract base class for all policy objects. It defines
-common properties \code{name} and \code{description} that are shared by concrete
-subclasses. This class is not exported and is intended for internal use
-only.
+common properties \code{name} and \code{description} that are shared by
+concrete subclasses such as \code{\link{MasterPolicy}} and
+\code{\link{StatePolicy}}. This class is not exported and is intended
+for internal use only.
 }
 \keyword{internal}

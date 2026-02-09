@@ -13,45 +13,53 @@ MasterPolicy(
 )
 }
 \arguments{
-\item{name}{Character. Name of the policy (non-blank).}
+\item{name}{character, name of the policy (non-blank)}
 
-\item{description}{Character. Human-readable description.}
+\item{description}{character, human-readable description}
 
-\item{version}{Character. Version string validated by \code{property_version()}.}
+\item{version}{character, version string in \code{"major.minor.patch"}
+format (e.g., \code{"1.0.0"})}
 
-\item{stages}{Character vector. Non-empty, lower-cased, unique, and each
-element may contain only letters, digits, underscores or dashes.}
+\item{stages}{character, non-empty vector of unique, lowercase stage names.
+Each element may contain only letters, digits, underscores, or dashes.
+Defaults to \code{c("triage", "planning", "executing")}}
 
-\item{parameters}{List. Additional free-form parameters for the workflow.}
+\item{parameters}{list, additional free-form parameters for the workflow}
 }
 \description{
 Concrete policy that defines the overall workflow version and
-the set of allowed stages. Inherits from \code{BasePolicy}.
+the set of allowed stages. Inherits from \code{\link{BasePolicy}}.
 }
 \details{
 \subsection{Stages as Workflow Vocabulary}{
 
-The \code{stages} property defines the symbolic vocabulary of workflow phases
-(e.g., "triage", "planning", "executing"). These are macro-level phase names
-that must be implemented by at least one \code{StatePolicy} object in the
-\code{Manifest}.
+The \code{stages} property defines the symbolic vocabulary of workflow
+phases (e.g., \code{"triage"}, \code{"planning"}, \code{"executing"}).
+These are macro-level phase names that must be implemented by at least one
+\code{\link{StatePolicy}} object in the \code{\link{Manifest}}.
+
+The reserved stage names \code{"ready"}, \code{"error"}, and
+\code{"human"} cannot be used because they are managed internally by
+the \code{\link{Scheduler}}.
 }
 
 \subsection{Stage Naming Conventions}{
+
 \itemize{
 \item Stages are automatically converted to lowercase for consistency
-\item Must contain only letters (a-z), digits (0-9), underscores (_), or
-dashes (-)
+\item Must contain only letters (a-z), digits (0-9), underscores
+(\verb{_}), or dashes (\verb{-})
 \item Must be unique (case-insensitive) within a workflow
-\item Cannot be blank or NA
+\item Cannot be blank or \code{NA}
 }
 }
 
 \subsection{Immutability}{
 
-\code{MasterPolicy} objects are immutable (S7 value semantics). Once created,
-they serve as a stable reference for \code{Contract} objects. Use the
-\code{@} accessor to read properties (e.g., \code{policy@stages}).
+\code{MasterPolicy} objects are immutable (S7 value semantics). Once
+created, they serve as a stable reference for the \code{\link{Manifest}}.
+Use the \code{@} accessor to read properties
+(e.g., \code{policy@stages}).
 }
 }
 \examples{

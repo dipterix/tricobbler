@@ -13,16 +13,18 @@ see \code{\link{AsyncScheduler}} for the promise-based variant.
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{manifest}}{Manifest, the workflow blueprint}
+\item{\code{manifest}}{\code{\link{Manifest}}, the workflow blueprint}
 
-\item{\code{agents}}{\code{fastmap::fastmap()} object, registry of Agent
-objects keyed by agent_id}
+\item{\code{agents}}{\code{fastmap::fastmap()} object, registry of
+\code{\link{Agent}} objects keyed by \code{agent_id}}
 
-\item{\code{context}}{Context, the execution environment for logging and storage}
+\item{\code{context}}{\code{\link{AgentContext}}, the execution environment
+for logging and storage}
 
 \item{\code{current_stage}}{character, the currently executing stage name}
 
-\item{\code{stage_started}}{\code{POSIXct}, timestamp when current stage started}
+\item{\code{stage_started}}{\code{POSIXct} or \code{NULL}, timestamp when
+the current stage started}
 
 \item{\code{suspended}}{logical, whether execution is paused}
 
@@ -89,11 +91,11 @@ Initialize scheduler with manifest blueprint and agents
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{manifest}}{Manifest object, the workflow blueprint}
+\item{\code{manifest}}{\code{\link{Manifest}} object, the workflow blueprint}
 
-\item{\code{agents}}{list, collection of Agent objects}
+\item{\code{agents}}{list, collection of \code{\link{Agent}} objects}
 
-\item{\code{context}}{Context object, execution environment
+\item{\code{context}}{\code{\link{AgentContext}} object, execution environment
 (default: new \code{\link{AgentContext}})}
 }
 \if{html}{\out{</div>}}
@@ -111,9 +113,9 @@ Register a listener for a \verb{lifecycle} event
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{type}}{character, event type (e.g. \code{"suspend"},
-\code{"state_completed"}, \code{"stage_completed"},
-\code{"dispatch"})}
+\item{\code{type}}{character, event type (e.g., \code{"suspend"},
+\code{"runtime.resolved"}, \code{"stage.completed"},
+\code{"runtime.dispatch"})}
 
 \item{\code{handler}}{function, callback receiving the event list.
 For \code{"suspend"} events the handler may return an action
@@ -183,8 +185,9 @@ Verify that all required agents are registered
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{on_error}}{character, action on validation failure
-("error" or "quiet")}
+\item{\code{on_error}}{character, action on validation failure:
+\code{"error"} (throw an error) or \code{"quiet"} (return
+\code{FALSE} silently)}
 }
 \if{html}{\out{</div>}}
 }
@@ -325,9 +328,9 @@ Drive the dispatch loop for the current stage.
 }
 
 \subsection{Details}{
-Loops synchronously: retry -> \verb{enqueue} -> execute,
+Loops synchronously: retry, \verb{enqueue}, then execute;
 then checks for stage completion. Continues until no more
-work remains or the stage is \verb{cancelled}/suspended.
+work remains or the stage is \verb{cancelled} or suspended.
 }
 
 }
