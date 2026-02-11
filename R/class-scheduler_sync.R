@@ -410,7 +410,8 @@ Scheduler <- R6::R6Class(
             agent = agent,
             context = self$context,
             policy = policy,
-            attempt = 0L
+            attempt = 0L,
+            master_policy = self$manifest@master
           )
         )
         return()
@@ -738,7 +739,8 @@ Scheduler <- R6::R6Class(
                   agent = target_agent,
                   context = self$context,
                   policy = target_policy,
-                  attempt = 0L
+                  attempt = 0L,
+                  master_policy = self$manifest@master
                 )
               )
             }
@@ -801,7 +803,8 @@ Scheduler <- R6::R6Class(
           agent = runtime_summary$agent,
           context = self$context,
           policy = runtime_summary$policy,
-          attempt = runtime_summary$attempt + 1L
+          attempt = runtime_summary$attempt + 1L,
+          master_policy = self$manifest@master
         )
 
         self$runtime_map$set(runtime_summary$policy@name, runtime)
@@ -1048,7 +1051,8 @@ Scheduler <- R6::R6Class(
               agent = runtime_summary$agent,
               context = self$context,
               policy = runtime_summary$policy,
-              attempt = 0L
+              attempt = 0L,
+              master_policy = self$manifest@master
             )
             self$runtime_map$set(state_name, runtime)
           }

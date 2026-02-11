@@ -50,6 +50,7 @@ AgentRuntime <- R6::R6Class(
     .agent = NULL,
     .context = NULL,
     .policy = NULL,
+    .master_policy = NULL,
     .attempt = 0L,
     .id = character(),
     .attachment_id = character(),
@@ -162,6 +163,12 @@ AgentRuntime <- R6::R6Class(
       private$.id
     },
 
+    #' @field master_policy \code{\link{MasterPolicy}} object,
+    #'   the master-level policy (global parameters)
+    master_policy = function() {
+      private$.master_policy
+    },
+
     #' @field status character, current runtime status
     #'   (\code{"idle"}, \code{"running"}, or \code{"completed"})
     status = function() {
@@ -175,7 +182,10 @@ AgentRuntime <- R6::R6Class(
     #' @param context \code{\link{AgentContext}} object for logging and storage
     #' @param policy \code{\link{StatePolicy}} object being executed
     #' @param attempt integer, retry count (default: \code{0L})
-    initialize = function(agent, context, policy, attempt = 0L) {
+    #' @param master_policy \code{\link{MasterPolicy}} object (optional),
+    #'   provides global parameters that cascade to agents
+    initialize = function(agent, context, policy, attempt = 0L,
+                          master_policy = NULL) {
       attempt <- as.integer(attempt)
       if (!isTRUE(attempt >= 0)) {
         stop("Invalid attempt: must be a non-negative integer")
@@ -183,6 +193,7 @@ AgentRuntime <- R6::R6Class(
       private$.agent <- agent
       private$.context <- context
       private$.policy <- policy
+      private$.master_policy <- master_policy
       private$.attempt <- attempt
 
       # AgentRuntime will be created by scheduler, which is the main session
@@ -259,6 +270,44 @@ AgentRuntime <- R6::R6Class(
         )
       }
 
+    },
+
+    #' @description Retrieve a parameter by name with cascading lookup.
+    #'
+    #' When \code{levels = "cascade"} (default), looks first in the
+    #' state-level policy parameters (\code{policy@@parameters$args}),
+    #' then falls back to the master-level policy parameters
+    #' (\code{master_policy@@parameters}). Use \code{"local"} or
+    #' \code{"global"} to restrict the search scope.
+    #'
+    #' @param key character, the parameter name to look up
+    #' @param missing default value to return when the key is not
+    #'   found at the requested level(s) (default: \code{NULL})
+    #' @param levels character, lookup scope: \code{"cascade"}
+    #'   (local then global), \code{"local"} (state policy only), or
+    #'   \code{"global"} (master policy only)
+    #' @return The parameter value, or \code{missing} if not found.
+    get_parameter = function(key, missing = NULL,
+                             levels = c("cascade", "global", "local")) {
+      levels <- match.arg(levels)
+      # Local: state-level parameters$args
+      if (levels %in% c("cascade", "local")) {
+        local_args <- private$.policy@parameters$args
+        if (!is.null(local_args) && key %in% names(local_args)) {
+          return(local_args[[key]])
+        }
+      }
+      # Global: master-level parameters
+      if (levels %in% c("cascade", "global")) {
+        master <- private$.master_policy
+        if (!is.null(master)) {
+          master_params <- master@parameters
+          if (key %in% names(master_params)) {
+            return(master_params[[key]])
+          }
+        }
+      }
+      missing
     },
 
     #' @description Execute the agent asynchronously, returning a

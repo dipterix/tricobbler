@@ -333,7 +333,8 @@ AsyncScheduler <- R6::R6Class(
                           agent = target_agent,
                           context = self$context,
                           policy = target_policy,
-                          attempt = 0L
+                          attempt = 0L,
+                          master_policy = self$manifest@master
                         )
                       )
                     }
@@ -574,7 +575,8 @@ AsyncScheduler <- R6::R6Class(
               agent = runtime_summary$agent,
               context = self$context,
               policy = runtime_summary$policy,
-              attempt = 0L
+              attempt = 0L,
+              master_policy = self$manifest@master
             )
             self$runtime_map$set(state_name, runtime)
           }

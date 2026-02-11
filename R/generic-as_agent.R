@@ -103,6 +103,7 @@ S7::method(as_agent, S7::class_function) <- function(
 
   id <- as.character(id)
   force(x)
+  fun_params <- names(formals(x))
 
   wrapper_fun <- function(runtime) {
     # Extract parameters from policy if available
@@ -116,8 +117,17 @@ S7::method(as_agent, S7::class_function) <- function(
     # "all" and "explicit": Use explicit dependencies defined in policy
     # "logs" and "none": Use only static arguments (no dependencies)
 
-    # 1. Start with static args
-    input <- as.list(params$args)
+    # 1. Start with static args, cascading global params as defaults
+    #    Precedence: dependency > local (state) > global (master)
+    input <- list()
+    master <- runtime$master_policy
+    if (!is.null(master)) {
+      input <- as.list(master@parameters)
+    }
+    local_args <- as.list(params$args)
+    if (length(local_args)) {
+      input <- modifyList(input, local_args)
+    }
     if (policy@accessibility %in% c("all", "explicit")) {
 
       # 2. Iterate over dependencies
@@ -159,6 +169,16 @@ S7::method(as_agent, S7::class_function) <- function(
         # 6. Extract and assign
         input[[param_name]] <- attachment[[target_field]]
       }
+    }
+
+    # filter the inputs
+    if (!"..." %in% fun_params) {
+      input <- input[names(input) %in% fun_params]
+    }
+
+    # Inject .runtime if the function accepts it
+    if (".runtime" %in% fun_params) {
+      input[[".runtime"]] <- quote(runtime)
     }
 
     # Debug mode: log call info for inspection
@@ -256,6 +276,14 @@ as_agent_from_chat <- function(
 
     # Extract AI agent parameters from policy@parameters
     params <- as.list(policy@parameters)
+
+    # Cascade global (master) parameters as defaults
+    master <- runtime$master_policy
+    if (!is.null(master)) {
+      master_params <- as.list(master@parameters)
+      params <- modifyList(master_params, params)
+    }
+
     system_prompt <- paste(
       params$system_prompt %||% policy@description,
       collapse = "\n"
@@ -519,8 +547,17 @@ as_agent_from_mcp_tool <- function(
     # Determine input arguments based on accessibility policy
     # "all" and "explicit": Use explicit dependencies defined in policy
     # "logs" and "none": Use only static arguments (no dependencies)
-    # 1. Start with static args
-    input <- as.list(params$args)
+    # 1. Start with static args, cascading global params as defaults
+    #    Precedence: dependency > local (state) > global (master)
+    input <- list()
+    master <- runtime$master_policy
+    if (!is.null(master)) {
+      input <- as.list(master@parameters)
+    }
+    local_args <- as.list(params$args)
+    if (length(local_args)) {
+      input <- modifyList(input, local_args)
+    }
     if (policy@accessibility %in% c("all", "explicit")) {
 
       # 2. Iterate over dependencies
