@@ -22,10 +22,12 @@ RoxygenNote: 7.3.3
 Imports: 
     coro,
     digest,
+    docopt,
     ellmer (>= 0.4.0),
     fastmap,
     jsonlite,
     pkgsearch,
+    processx,
     promises,
     R6 (>= 2.6.1),
     RSQLite (>= 2.3.0),
@@ -56,6 +58,7 @@ Collate:
     'class-runtime.R'
     'class-scheduler_sync.R'
     'class-scheduler_async.R'
+    'class-skill.R'
     'generic-as_agent.R'
     'helper-ellmer_types.R'
     'helper-logger.R'

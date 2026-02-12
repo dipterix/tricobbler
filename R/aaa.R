@@ -1,3 +1,30 @@
+#' Detect the current operating system
+#'
+#' @returns character scalar: \code{"darwin"}, \code{"linux"},
+#'   \code{"windows"}, \code{"solaris"}, \code{"emscripten"},
+#'   or \code{"unknown"}
+#' @noRd
+get_os <- function() {
+  os <- R.version$os
+  if (grepl("^darwin", os, ignore.case = TRUE)) {
+    return("darwin")
+  }
+  if (grepl("^linux", os, ignore.case = TRUE)) {
+    return("linux")
+  }
+  if (grepl("^solaris", os, ignore.case = TRUE)) {
+    return("solaris")
+  }
+  if (grepl("^win", os, ignore.case = TRUE)) {
+    return("windows")
+  }
+  if (grepl("^(emscr|wasm)", os, ignore.case = TRUE)) {
+    return("emscripten")
+  }
+  "unknown"
+}
+
+
 #' Count lines in a file efficiently without loading entire file
 #' @param path character, file path
 #' @param chunk_size integer, bytes to read per chunk (default 5e7)

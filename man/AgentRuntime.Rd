@@ -64,6 +64,9 @@ executed (what)}
 \item{\code{id}}{character, short identifier for this execution to show
 in the context logs}
 
+\item{\code{master_policy}}{\code{\link{MasterPolicy}} object,
+the master-level policy (global parameters)}
+
 \item{\code{status}}{character, current runtime status
 (\code{"idle"}, \code{"running"}, or \code{"completed"})}
 }
@@ -74,6 +77,7 @@ in the context logs}
 \itemize{
 \item \href{#method-TricobblerAgentRuntime-new}{\code{AgentRuntime$new()}}
 \item \href{#method-TricobblerAgentRuntime-logger}{\code{AgentRuntime$logger()}}
+\item \href{#method-TricobblerAgentRuntime-get_parameter}{\code{AgentRuntime$get_parameter()}}
 \item \href{#method-TricobblerAgentRuntime-run_async}{\code{AgentRuntime$run_async()}}
 \item \href{#method-TricobblerAgentRuntime-run}{\code{AgentRuntime$run()}}
 }
@@ -84,7 +88,7 @@ in the context logs}
 \subsection{Method \code{new()}}{
 Initialize a new runtime environment
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$new(agent, context, policy, attempt = 0L)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$new(agent, context, policy, attempt = 0L, master_policy = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -97,6 +101,9 @@ Initialize a new runtime environment
 \item{\code{policy}}{\code{\link{StatePolicy}} object being executed}
 
 \item{\code{attempt}}{integer, retry count (default: \code{0L})}
+
+\item{\code{master_policy}}{\code{\link{MasterPolicy}} object (optional),
+provides global parameters that cascade to agents}
 }
 \if{html}{\out{</div>}}
 }
@@ -133,6 +140,43 @@ Log a message with the agent as caller
 }
 \subsection{Returns}{
 NULL invisibly
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentRuntime-get_parameter"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-get_parameter}{}}}
+\subsection{Method \code{get_parameter()}}{
+Retrieve a parameter by name with cascading lookup.
+
+When \code{levels = "cascade"} (default), looks first in the
+state-level policy parameters (\code{policy@parameters$args}),
+then falls back to the master-level policy parameters
+(\code{master_policy@parameters}). Use \code{"local"} or
+\code{"global"} to restrict the search scope.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$get_parameter(
+  key,
+  missing = NULL,
+  levels = c("cascade", "global", "local")
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{key}}{character, the parameter name to look up}
+
+\item{\code{missing}}{default value to return when the key is not
+found at the requested level(s) (default: \code{NULL})}
+
+\item{\code{levels}}{character, lookup scope: \code{"cascade"}
+(local then global), \code{"local"} (state policy only), or
+\code{"global"} (master policy only)}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+The parameter value, or \code{missing} if not found.
 }
 }
 \if{html}{\out{<hr>}}

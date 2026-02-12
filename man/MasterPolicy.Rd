@@ -24,7 +24,9 @@ format (e.g., \code{"1.0.0"})}
 Each element may contain only letters, digits, underscores, or dashes.
 Defaults to \code{c("triage", "planning", "executing")}}
 
-\item{parameters}{list, additional free-form parameters for the workflow}
+\item{parameters}{list, additional free-form parameters for the workflow.
+These values are available to agents via
+\code{runtime$get_parameter(key, levels = "global")}.}
 }
 \description{
 Concrete policy that defines the overall workflow version and
@@ -68,7 +70,7 @@ MasterPolicy(
   name = "example",
   version = "1.0.0",
   stages = c("idle", "triage", "planning"),
-  parameters = list()
+  parameters = list(location = "NYC")
 )
 
 }
