@@ -4,15 +4,13 @@
 \alias{Skill}
 \title{Skill: Load and Serve Claude Skill Directories}
 \value{
-A named list of \code{\link[ellmer]{tool}} objects. Names are
-\verb{skill-\{name\}-readme}, and optionally
-\verb{skill-\{name\}-references} and
-\verb{skill-\{name\}-script-call}.
+A named list with one \code{\link[ellmer]{tool}} object.
+The name is \verb{skill-\{name\}}.
 }
 \description{
 R6 class that loads a claude skill directory (containing
 \code{SKILL.md}, optional \code{scripts/}, and reference files) and
-exposes it as a suite of \code{\link[ellmer]{tool}} definitions via the
+exposes it as a single \code{\link[ellmer]{tool}} definition via the
 \code{$make_tools()} method.
 }
 \details{
@@ -20,20 +18,24 @@ A skill directory must contain a \code{SKILL.md} file with optional YAML
 frontmatter (\code{name}, \code{description}, \code{metadata}) and a
 markdown body. The directory may also contain:
 \itemize{
-\item Reference files (any top-level file other than \code{SKILL.md})
+\item Reference files: top-level files (other than \code{SKILL.md}) and
+files inside directories whose name starts with \code{"reference"}
+(case-insensitive), e.g. \code{reference/}, \code{references/},
+\code{Reference/}
 \item A \code{scripts/} subdirectory with callable R, shell, or python
-scripts
+scripts (executed via CLI only)
 }
 
-The \code{$make_tools()} method returns up to three
-\code{\link[ellmer]{tool}} objects:
-\enumerate{
-\item \verb{skill-\{name\}-readme}: always created; returns the
-\code{SKILL.md} body
-\item \verb{skill-\{name\}-references}: created when reference files
-exist; reads file contents with optional line range and grep filtering
-\item \verb{skill-\{name\}-script-call}: created when scripts exist;
-calls R functions or executables
+The \code{$make_tools()} method returns a single
+\code{\link[ellmer]{tool}} named \verb{skill-\{name\}} that dispatches
+on an \code{action} parameter:
+\describe{
+\item{\code{"readme"}}{Returns the \code{SKILL.md} body. Must be
+called first to unlock other actions.}
+\item{\code{"reference"}}{Reads reference files with optional line
+range and grep filtering (only available when reference files exist)}
+\item{\code{"script"}}{Executes scripts via CLI with
+\code{processx::run()} (only available when scripts exist)}
 }
 }
 \examples{
@@ -60,8 +62,9 @@ if (nzchar(skill_dir) && dir.exists(skill_dir)) {
 \item{\code{scripts}}{named list, script metadata discovered from the
 \code{scripts/} subdirectory (see \code{Details})}
 
-\item{\code{file_choices}}{character, filenames available for the references
-tool (top-level files excluding \code{SKILL.md})}
+\item{\code{file_choices}}{character, relative paths of reference files
+available for the references action (top-level files excluding
+\code{SKILL.md}, plus files in \code{reference*/} directories)}
 }
 \if{html}{\out{</div>}}
 }
@@ -115,8 +118,8 @@ Parse the \code{SKILL.md} file and update fields
 \if{html}{\out{<a id="method-TricobblerSkill-make_tools"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerSkill-make_tools}{}}}
 \subsection{Method \code{make_tools()}}{
-Produce \code{\link[ellmer]{tool}} definitions for this
-skill
+Produce a single \code{\link[ellmer]{tool}} definition
+for this skill
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Skill$make_tools()}\if{html}{\out{</div>}}
 }

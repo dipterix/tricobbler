@@ -73,18 +73,20 @@ curl_weather <- function(location, .runtime = NULL) {
 # ------------------------------------------------------------------
 if (sys.nframe() == 0L) {
 
-  "Fetch current weather from wttr.in.
+  doc <- "Fetch current weather from wttr.in.
 
 Usage:
-  curl_weather.R --location=<loc>
-  curl_weather.R (-h | --help)
+  curl_weather.R <location>
+  curl_weather.R --help
+
+Arguments:
+  <location>  City name or location string (e.g., 'Boston', 'London')
 
 Options:
-  --location=<loc>  City name or location string.
-  -h --help         Show this help message.
-" -> doc
+  --help  Show this help message.
+"
 
-  args <- docopt::docopt(doc)
+  args <- tricobbler::docopt(doc)
   result <- curl_weather(location = args$location)
   cat(jsonlite::toJSON(result, auto_unbox = TRUE, pretty = TRUE))
   cat("\n")

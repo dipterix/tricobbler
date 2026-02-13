@@ -28,7 +28,6 @@ parse_skill_md <- function(path) {
   n <- length(lines)
 
   # Find frontmatter delimiters (--- lines)
-
   fm_start <- NA_integer_
   fm_end <- NA_integer_
 
@@ -80,26 +79,30 @@ parse_skill_md <- function(path) {
   )
 }
 
+sanitize_string_arg <- function(x) {
+  if (length(x) == 1 && is.character(x) && startsWith(x, '["')) {
+    x <- jsonlite::fromJSON(x)
+  }
+  x
+}
 
 #' Discover scripts under a skill \code{scripts/} directory
 #'
 #' @description Recursively scans the \code{scripts/} subdirectory of a skill
-#'   and returns metadata for each script file. R scripts (\code{.R}/\code{.r})
-#'   are sourced to capture function objects. Other files are treated as
-#'   executables.
+#'   and returns metadata for each script file. All scripts are treated as
+#'   command-line executables dispatched via the appropriate interpreter.
 #'
 #' @param scripts_dir character, path to the \code{scripts/} directory
-#' @returns A named list keyed by script name (relative path sans extension).
+#' @returns A named list keyed by script name (relative path with extension).
 #'   Each element is a list with:
 #'   \describe{
-#'     \item{\code{name}}{character, the script name}
+#'     \item{\code{name}}{character, the script name (relative path with
+#'       extension)}
 #'     \item{\code{path}}{character, absolute file path}
-#'     \item{\code{type}}{character vector, \code{"r"} and/or
-#'       \code{"executable"}}
-#'     \item{\code{fn}}{function or \code{NULL}, sourced R function (for R
-#'       scripts only)}
-#'     \item{\code{formals}}{character or \code{NULL}, human-readable function
-#'       signature (for R scripts only)}
+#'     \item{\code{ext}}{character, lowercase file extension}
+#'     \item{\code{type}}{character, script type (\code{"rscript"},
+#'       \code{"python"}, \code{"shell"}, \code{"batch"}, or
+#'       \code{"executable"})}
 #'   }
 #' @noRd
 discover_scripts <- function(scripts_dir) {
@@ -127,67 +130,24 @@ discover_scripts <- function(scripts_dir) {
       mustWork = TRUE
     )
 
-    # Script name: relative path without extension
-    script_name <- sub("\\.[^.]+$", "", rel_path)
+    # Script name: full relative path with extension (CLI-only)
+    script_name <- rel_path
 
-    # R scripts get sourced; others are executables
-    if (ext %in% c("r")) {
-      fn <- NULL
-      fn_formals <- NULL
+    script_type <- switch(
+      ext,
+      "r" = "rscript",
+      "py" = "python",
+      "sh" = "shell", "bash" = "shell",
+      "bat" = "batch", "cmd" = "batch",
+      "executable"
+    )
 
-      tryCatch(
-        {
-          env <- new.env(parent = baseenv())
-          source(full_path, local = env, echo = FALSE, verbose = FALSE)
-          # Find the function matching the basename (sans extension)
-          base_name <- tools::file_path_sans_ext(basename(rel_path))
-          fns <- Filter(function(nm) is.function(env[[nm]]), ls(env))
-          if (base_name %in% fns) {
-            fn <- env[[base_name]]
-          } else if (length(fns) == 1L) {
-            # Only one function defined; use it
-            fn <- env[[fns[[1L]]]]
-          }
-          if (is.function(fn)) {
-            fmls <- names(formals(fn))
-            fmls <- fmls[!startsWith(fmls, ".")]
-            fn_formals <- paste(fmls, collapse = ", ")
-          }
-        },
-        error = function(e) {
-          warning(
-            "Failed to source R script '", rel_path, "': ",
-            conditionMessage(e),
-            call. = FALSE
-          )
-        }
-      )
-
-      scripts[[script_name]] <- list(
-        name = script_name,
-        path = full_path,
-        ext = ext,
-        type = if (is.function(fn)) c("r", "rscript") else "rscript",
-        fn = fn,
-        formals = fn_formals
-      )
-    } else {
-      script_type <- switch(
-        ext,
-        "py" = "python",
-        "sh" = "shell", "bash" = "shell",
-        "bat" = "batch", "cmd" = "batch",
-        "executable"
-      )
-      scripts[[script_name]] <- list(
-        name = script_name,
-        path = full_path,
-        ext = ext,
-        type = script_type,
-        fn = NULL,
-        formals = NULL
-      )
-    }
+    scripts[[script_name]] <- list(
+      name = script_name,
+      path = full_path,
+      ext = ext,
+      type = script_type
+    )
   }
 
   scripts
@@ -219,7 +179,6 @@ extract_roxygen_help <- function(path, fn_name) {
   )
   fn_line <- grep(fn_pattern, lines)
   if (length(fn_line) == 0L) {
-    # Fallback: return formals if we can parse the file
     return(sprintf(
       "No roxygen2 documentation found for '%s' in %s.",
       fn_name, basename(path)
@@ -302,6 +261,66 @@ build_script_command <- function(script_path, ext) {
 }
 
 
+#' Discover reference files in a skill directory
+#'
+#' @description Scans a skill directory for reference files using the
+#'   conventions found in the Claude skill ecosystem. This includes:
+#'   \enumerate{
+#'     \item Top-level files (excluding \code{SKILL.md} and hidden files)
+#'     \item Files inside directories whose name starts with
+#'       \code{"reference"} (case-insensitive), e.g. \code{reference/},
+#'       \code{references/}, \code{Reference/}
+#'   }
+#'
+#'   Directories named \code{scripts} or \code{assets} are always
+#'   excluded, as they serve distinct roles in the skill spec.
+#'
+#' @param skill_path character, absolute path to the skill directory
+#' @returns A sorted character vector of relative paths suitable for
+#'   use as the \code{file_name} parameter in the references action
+#'   (e.g. \code{"FORMS.md"}, \code{"references/finance.md"}).
+#'   Returns \code{character(0)} when no reference files are found.
+#' @noRd
+discover_references <- function(skill_path) {
+  refs <- character(0L)
+
+  # --- Top-level files (excluding SKILL.md, hidden files, directories) ---
+  all_files <- list.files(
+    skill_path, recursive = FALSE, include.dirs = FALSE,
+    all.files = FALSE  # excludes hidden files like .DS_Store
+  )
+  all_dirs <- list.dirs(
+    skill_path, full.names = FALSE, recursive = FALSE
+  )
+  top_files <- all_files[
+    !all_files %in% c(all_dirs, "SKILL.md") &
+      !startsWith(all_files, ".")
+  ]
+  refs <- c(refs, top_files)
+
+  # --- Files inside reference* directories (case-insensitive) ---
+  # Exclude reserved directories scripts/ and assets/
+  ref_dirs <- all_dirs[
+    grepl("^reference", tolower(all_dirs)) &
+      !tolower(all_dirs) %in% c("scripts", "assets")
+  ]
+  for (dir_name in ref_dirs) {
+    dir_path <- file.path(skill_path, dir_name)
+    nested <- list.files(
+      dir_path, recursive = TRUE, include.dirs = FALSE,
+      all.files = FALSE
+    )
+    # Filter hidden files in nested results
+    nested <- nested[!grepl("(^|/)\\.", nested)]
+    if (length(nested) > 0L) {
+      refs <- c(refs, file.path(dir_name, nested))
+    }
+  }
+
+  sort(refs)
+}
+
+
 #' Sanitize a string into a valid claude skill name
 #'
 #' @description Converts a string to a valid skill name: lowercase letters
@@ -312,14 +331,12 @@ build_script_command <- function(script_path, ext) {
 sanitize_skill_name <- function(x) {
   x <- tolower(x)
   # Replace non-alpha-dash with dash
-
   x <- gsub("[^a-z-]", "-", x)
   # Collapse consecutive dashes
   x <- gsub("-{2,}", "-", x)
   # Strip leading/trailing dashes
   x <- gsub("^-+|-+$", "", x)
   # Must start with a letter
-
   if (!grepl("^[a-z]", x) || !nzchar(x)) {
     stop(
       "Cannot derive a valid skill name from '", x, "'. ",
@@ -335,7 +352,7 @@ sanitize_skill_name <- function(x) {
 #'
 #' @description R6 class that loads a claude skill directory (containing
 #'   \code{SKILL.md}, optional \code{scripts/}, and reference files) and
-#'   exposes it as a suite of \code{\link[ellmer]{tool}} definitions via the
+#'   exposes it as a single \code{\link[ellmer]{tool}} definition via the
 #'   \code{$make_tools()} method.
 #'
 #' @details
@@ -343,20 +360,24 @@ sanitize_skill_name <- function(x) {
 #' frontmatter (\code{name}, \code{description}, \code{metadata}) and a
 #' markdown body. The directory may also contain:
 #' \itemize{
-#'   \item Reference files (any top-level file other than \code{SKILL.md})
+#'   \item Reference files: top-level files (other than \code{SKILL.md}) and
+#'     files inside directories whose name starts with \code{"reference"}
+#'     (case-insensitive), e.g. \code{reference/}, \code{references/},
+#'     \code{Reference/}
 #'   \item A \code{scripts/} subdirectory with callable R, shell, or python
-#'     scripts
+#'     scripts (executed via CLI only)
 #' }
 #'
-#' The \code{$make_tools()} method returns up to three
-#' \code{\link[ellmer]{tool}} objects:
-#' \enumerate{
-#'   \item \verb{skill-\{name\}-readme}: always created; returns the
-#'     \code{SKILL.md} body
-#'   \item \verb{skill-\{name\}-references}: created when reference files
-#'     exist; reads file contents with optional line range and grep filtering
-#'   \item \verb{skill-\{name\}-script-call}: created when scripts exist;
-#'     calls R functions or executables
+#' The \code{$make_tools()} method returns a single
+#' \code{\link[ellmer]{tool}} named \verb{skill-\{name\}} that dispatches
+#' on an \code{action} parameter:
+#' \describe{
+#'   \item{\code{"readme"}}{Returns the \code{SKILL.md} body. Must be
+#'     called first to unlock other actions.}
+#'   \item{\code{"reference"}}{Reads reference files with optional line
+#'     range and grep filtering (only available when reference files exist)}
+#'   \item{\code{"script"}}{Executes scripts via CLI with
+#'     \code{processx::run()} (only available when scripts exist)}
 #' }
 #'
 #' @examples
@@ -375,7 +396,6 @@ sanitize_skill_name <- function(x) {
 Skill <- R6::R6Class(
   classname = "TricobblerSkill",
   portable = TRUE,
-
   cloneable = FALSE,
   private = list(
     .name = character(0L),
@@ -412,17 +432,15 @@ Skill <- R6::R6Class(
     #'   \code{scripts/} subdirectory (see \code{Details})
     scripts = NULL,
 
-    #' @field file_choices character, filenames available for the references
-    #'   tool (top-level files excluding \code{SKILL.md})
+    #' @field file_choices character, relative paths of reference files
+    #'   available for the references action (top-level files excluding
+    #'   \code{SKILL.md}, plus files in \code{reference*/} directories)
     file_choices = NULL,
 
     #' @description Initialize a new \code{Skill} from a skill directory
     #' @param path character, path to the skill directory (must contain
     #'   \code{SKILL.md})
     initialize = function(path) {
-      # path = system.file("skills", "weather", package = "tricobbler")
-      # self = Skill$new(path)
-      # private <- self$.__enclos_env__$private
       path <- normalizePath(path, mustWork = FALSE)
       if (!dir.exists(path)) {
         stop("Skill directory does not exist: ", path)
@@ -452,13 +470,9 @@ Skill <- R6::R6Class(
       self$description <- parsed$description %||% ""
       self$body <- parsed$body
 
-      # Discover top-level files for references (excluding SKILL.md)
+      # Discover reference files (top-level + reference*/ directories)
       path <- private$.path
-      all_files <- list.files(path, recursive = FALSE, include.dirs = FALSE)
-      # Filter out directories (list.files may include them on some filesystems)
-      all_dirs <- list.dirs(path, full.names = FALSE, recursive = FALSE)
-      all_files <- all_files[!all_files %in% c(all_dirs, "SKILL.md")]
-      self$file_choices <- all_files
+      self$file_choices <- discover_references(path)
 
       # Discover scripts
       scripts_dir <- file.path(path, "scripts")
@@ -467,12 +481,10 @@ Skill <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Produce \code{\link[ellmer]{tool}} definitions for this
-    #'   skill
-    #' @returns A named list of \code{\link[ellmer]{tool}} objects. Names are
-    #'   \verb{skill-\{name\}-readme}, and optionally
-    #'   \verb{skill-\{name\}-references} and
-    #'   \verb{skill-\{name\}-script-call}.
+    #' @description Produce a single \code{\link[ellmer]{tool}} definition
+    #'   for this skill
+    #' @returns A named list with one \code{\link[ellmer]{tool}} object.
+    #'   The name is \verb{skill-\{name\}}.
     make_tools = function() {
 
       skill_name <- private$.name
@@ -485,387 +497,397 @@ Skill <- R6::R6Class(
       has_references <- length(skill_file_choices) > 0L
       has_scripts <- length(skill_scripts) > 0L
 
-      # ------ Build sibling tool cross-reference text ------
-      sibling_parts <- character(0L)
+      # ------ Build action enum values ------
+      action_values <- "readme"
       if (has_references) {
-        sibling_parts <- c(
-          sibling_parts,
-          sprintf(
-            "Use `skill-%s-references` to read reference files.",
-            skill_name
-          )
+        action_values <- c(action_values, "reference")
+      }
+      if (has_scripts) {
+        action_values <- c(action_values, "script")
+      }
+
+      # ------ Build description ------
+      script_names <- names(skill_scripts)
+
+      action_docs <- c(
+        "- \"readme\": Returns the SKILL.md body. Call this first."
+      )
+      if (has_references) {
+        action_docs <- c(
+          action_docs,
+          "- \"reference\": Read reference files. Use `reference_kwargs` to specify the reference `file_name`, lines to read, or filter with regular expressions. Available files: ",
+          sprintf("  - %s", skill_file_choices)
         )
       }
       if (has_scripts) {
-        sibling_parts <- c(
-          sibling_parts,
-          sprintf(
-            "Use `skill-%s-script-call` to execute scripts.",
-            skill_name
+        script_docs <- vapply(script_names, function(sn) {
+          s <- skill_scripts[[sn]]
+          # Try to get usage help for the script
+          help_info <- ""
+          if (s$ext == "r") {
+            # For R scripts, try to extract first line of docopt doc
+            tryCatch({
+              script_lines <- readLines(s$path, warn = FALSE)
+              # Look for docopt pattern start
+              doc_start <- grep('^\\s*"', script_lines)[1]
+              if (!is.na(doc_start)) {
+                # Extract first non-empty line after the quote
+                doc_lines <- script_lines[doc_start:min(doc_start + 10, length(script_lines))]
+                # Find the description (first non-empty line after opening quote)
+                desc_line <- trimws(gsub('^\\s*"', '', doc_lines[1]))
+                if (nzchar(desc_line)) {
+                  help_info <- sprintf(": %s", desc_line)
+                }
+              }
+            }, error = function(e) NULL)
+          }
+          sprintf("    - \"%s\" [%s]%s", sn, s$type, help_info)
+        }, character(1L))
+        action_docs <- c(
+          action_docs,
+          "- \"script\": Execute a script via CLI.",
+          "  - Use `cli_kwargs` with `file_name` to specify which script, ",
+          "  - Use args=\"--help\" to see usage for any script.",
+          "  - args=[\"--key1\", \"value1\", ...] for script arguments. ",
+          "  - Available scripts:",
+          script_docs
+        )
+      }
+      action_docs <- paste(action_docs, collapse = "\n")
+
+      tool_desc <- sprintf(
+        "Skill `%s`: %s.",
+        skill_name,
+        skill_description
+      )
+
+      # ------ Build arguments ------
+      tool_arguments <- list(
+        action = ellmer::type_enum(
+          values = action_values,
+          description = action_docs
+        )
+      )
+
+      if (has_references) {
+        tool_arguments$reference_kwargs <- ellmer::type_object(
+          .description = paste0(
+            "Arguments for action=\"reference\"; ",
+            "Ignored for other actions."
+          ),
+          .required = FALSE,
+          file_name = ellmer::type_enum(
+            values = skill_file_choices,
+            required = TRUE,
+            description = "Reference file to read."
+          ),
+          pattern = ellmer::type_string(
+            required = FALSE,
+            description = paste0(
+              "Optional perl-compatible regular expression to filter ",
+              "lines. Empty string means no filtering."
+            )
+          ),
+          line_start = ellmer::type_integer(
+            required = FALSE,
+            description = "Start line number (1-based). Default: 1"
+          ),
+          n_rows = ellmer::type_integer(
+            required = FALSE,
+            description = paste0(
+              "Number of lines to read from line_start. Default: 50"
+            )
           )
         )
       }
-      sibling_text <- paste(sibling_parts, collapse = " ")
+
+      if (has_scripts) {
+        tool_arguments$cli_kwargs <- ellmer::type_object(
+          .description = paste0(
+            "Arguments for action=\"script\"; ",
+            "Ignored for other actions."
+          ),
+          .required = FALSE,
+          file_name = ellmer::type_enum(
+            values = script_names,
+            required = TRUE,
+            description = "Script file name to execute."
+          ),
+          args = ellmer::type_array(
+            ellmer::type_string(),
+            required = FALSE,
+            description = "CLI arguments (array of strings) passed to the script."
+          ),
+          envs = ellmer::type_array(
+            ellmer::type_string(),
+            required = FALSE,
+            description = paste0(
+              "Environment variables as KEY=VALUE strings."
+            )
+          )
+        )
+      }
+
+      # ------ Closure state ------
+      readme_unlocked <- FALSE
+
+      # ------ Function when action=readme -------
+      tool_fn_readme <- function() {
+        readme_unlocked <<- TRUE
+        paste(skill_body, collapse = "\n")
+      }
+
+      # ------ Function when action=reference -------
+      tool_fn_reference <- function(file_name = NULL, pattern = "",
+                                    line_start = 1L, n_rows = 50L, ...) {
+        if (!has_references) {
+          stop("This skill has no reference files.")
+        }
+        if (!isTRUE(file_name %in% skill_file_choices)) {
+          stop(sprintf(
+            "Invalid reference file '%s'. Available reference files: \n%s",
+            paste(file_name, collapse = ""),
+            paste("  -", skill_file_choices, collapse = "\n")
+          ))
+        }
+        if (length(pattern) != 1 || !is.character(pattern) ||
+            is.na(pattern) || !nzchar(pattern)) {
+          pattern <- ""
+        }
+
+        line_start <- as.integer(line_start)
+        if (!isTRUE(line_start > 0)) {
+          line_start <- 1L
+        }
+
+        n_rows <- as.integer(n_rows)
+        if (!isTRUE(n_rows > 0)) {
+          n_rows <- -1L
+        }
+
+        fpath <- file.path(skill_path, file_name)
+        if (!file.exists(fpath)) {
+          stop("File not found: ", file_name)
+        }
+
+        lines <- readLines(fpath, warn = FALSE)
+        n <- length(lines)
+        if (n == 0L) {
+          return("(empty file)")
+        }
+        # Apply line range
+        line_start <- max(1L, as.integer(line_start))
+        if (line_start > n) {
+          return("(reaching EOF)")
+        }
+        if (n_rows < 0L) {
+          n_rows <- n
+        }
+        line_end <- min(line_start + n_rows - 1L, n)
+
+        line_index <- seq(line_start, line_end)
+        lines <- lines[line_index]
+
+        # Apply grep pattern
+        if (length(pattern) == 1L && !is.na(pattern) &&
+            nzchar(pattern)) {
+          sel <- grepl(pattern, x = lines, perl = TRUE)
+          line_index <- line_index[sel]
+          lines <- lines[sel]
+        }
+
+        paste0("L", line_index, ": ", lines, collapse = "\n")
+      }
+
+      # ------ Function when action=script ------
+      tool_fn_script <- function(file_name = NULL, args = c(),
+                                 envs = list(), ...) {
+        if (!has_scripts) {
+          stop("This skill has no scripts.")
+        }
+
+        if (!isTRUE(file_name %in% script_names)) {
+          stop(sprintf(
+            "Invalid script file '%s'. Available files: \n%s",
+            paste(file_name, collapse = ""),
+            paste("  -", script_names, collapse = "\n")
+          ))
+        }
+        script_file <- file_name
+        cli_args <- as.character(args)
+        cli_envs <- as.list(envs)
+        cli_envs <- cli_envs[!names(cli_envs) %in% ""]
+
+        if (length(cli_envs)) {
+          cli_envs <- structure(
+            names = c("", names(cli_envs)),
+            c("current", as.vector(cli_envs, mode = "character"))
+          )
+        } else {
+          cli_envs <- NULL
+        }
+
+        # Resolve script (exact match by relative path with extension)
+        script <- skill_scripts[[script_file]]
+        if (is.null(script)) {
+          stop(
+            "Script '", script_file, "' not found. ",
+            "Available scripts: ",
+            paste(script_names, collapse = ", ")
+          )
+        }
+
+        # Run script with --help flag (works for all CLI scripts)
+        cmd_info <- build_script_command(
+          script$path, script$ext
+        )
+
+        if (isTRUE(cli_args %in% c("--help", "-h"))) {
+          result <- processx::run(
+            command = cmd_info$command,
+            args = c(cmd_info$prefix_args, "--help"),
+            env = cli_envs,
+            wd = self$path, cleanup_tree = TRUE,
+            echo_cmd = TRUE, spinner = TRUE,
+            # stderr_to_stdout = TRUE,
+            error_on_status = FALSE
+          )
+        } else {
+          result <- processx::run(
+            command = cmd_info$command,
+            args = c(cmd_info$prefix_args, cli_args),
+            env = cli_envs,
+            wd = self$path, cleanup_tree = TRUE,
+            echo_cmd = TRUE, spinner = TRUE,
+            # stderr_to_stdout = TRUE,
+            error_on_status = FALSE
+          )
+        }
+
+        # Check status and return appropriate output
+        if (result$status != 0L) {
+          stop(
+            "Script '", script_file,
+            "' exited with status ", result$status,
+            ".\nstderr: ", result$stderr
+          )
+        }
+
+        # Return stdout (or stderr if stdout is empty, for --help)
+        if (nzchar(result$stdout)) {
+          return(result$stdout)
+        } else if (nzchar(result$stderr)) {
+          return(result$stderr)
+        } else {
+          return("(no output)")
+        }
+      }
+      # ------ Unified tool function ------
+      tool_fn <- function(
+        action,
+        reference_kwargs = NULL,
+        cli_kwargs = NULL
+      ) {
+        action <- sanitize_string_arg(action)
+        reference_kwargs <- sanitize_string_arg(reference_kwargs)
+        cli_kwargs <- sanitize_string_arg(cli_kwargs)
+        message("Calling skill with action=", action)
+
+        # ---- Guard: readme must be called first ----
+        if (action != "readme" && !readme_unlocked) {
+          stop(
+            sprintf(
+              paste0(
+                "Call action=\"readme\" first to read the skill ",
+                "guidelines before using action=\"%s\"."
+              ),
+              action
+            )
+          )
+        }
+
+        # ---- Dispatch ----
+        switch(
+          action,
+
+          # ============================================================
+          # Action: readme
+          # ============================================================
+          "readme" = {
+            tool_fn_readme()
+          },
+
+          # ============================================================
+          # Action: reference
+          # ============================================================
+          "reference" = {
+            if (!has_references) {
+              stop("This skill has no reference files.")
+            }
+            if (length(reference_kwargs$file_name) != 1) {
+              stop("When action='reference', `reference_kwargs` must not be empty, and `file_name` must be specified.")
+            }
+            do.call(tool_fn_reference, reference_kwargs)
+          },
+
+          # ============================================================
+          # Action: script
+          # ============================================================
+          "script" = {
+            if (!has_scripts) {
+              stop("This skill has no scripts.")
+            }
+            if (length(cli_kwargs$file_name) != 1) {
+              stop("When action='script', `cli_kwargs` must not be empty, and `file_name` must be specified.")
+            }
+            do.call(tool_fn_script, cli_kwargs)
+          },
+
+          # ============================================================
+          # Unknown action
+          # ============================================================
+          stop(
+            "Unknown action: '", action, "'. ",
+            "Available: ",
+            paste(action_values, collapse = ", ")
+          )
+        )
+      }
+
+      # ------ Build tool ------
+      tool_name <- sprintf("skill-%s", skill_name)
 
       tools <- list()
 
-      # ============================================================
-      # Tool 1: skill-{name}-readme (always)
-      # ============================================================
-      readme_name <- sprintf("skill-%s-readme", skill_name)
-      readme_desc <- sprintf(
-        "Skill `%s`: %s. This tool returns the skill description (SKILL.md body). %s",
-        skill_name,
-        skill_description,
-        if (nzchar(sibling_text)) {
-          paste0("\n\n", sibling_text)
-        } else {
-          ""
-        }
+      desc <- lapply(names(tool_arguments), function(name) {
+        arg_def <- tool_arguments[[name]]
+        arg_desc <- unlist(strsplit(arg_def@description, "\n"))
+        paste(c(name, sprintf("  %s", arg_desc)), collapse = "\n")
+      })
+      desc <- paste(unlist(desc), collapse = "\n\n")
+
+      tools[[tool_name]] <- ellmer::tool(
+        fun = function(object) {
+          object <- sanitize_string_arg(object)
+          cat(object, "\n")
+          object <- jsonlite::fromJSON(object)
+          do.call(tool_fn, object)
+          # tool_fn()
+        },
+        description = tool_desc,
+        # arguments = tool_arguments,
+        arguments = list(
+          object = ellmer::type_string(
+            description = paste(c(
+              "A JSON string containing the following arguments\n",
+              desc
+            ), collapse = "\n"),
+            required = TRUE
+          )
+        ),
+        name = tool_name,
+        convert = TRUE
       )
-
-      readme_fn <- function() {
-        ellmer::ContentText(skill_body)
-      }
-
-      tools[[readme_name]] <- ellmer::tool(
-        fun = readme_fn,
-        description = readme_desc,
-        arguments = list(),
-        name = readme_name
-      )
-
-      # ============================================================
-      # Tool 2: skill-{name}-references (conditional)
-      # ============================================================
-      if (has_references) {
-        ref_name <- sprintf("skill-%s-references", skill_name)
-
-        # Determine default file
-        sel <- tolower(skill_file_choices) %in% "reference.md"
-        if (any(sel)) {
-          default_file <- skill_file_choices[sel][[1]]
-        } else {
-          sel <- endsWith(tolower(skill_file_choices), ".md")
-          default_file <- c(skill_file_choices[sel], skill_file_choices)[[1]]
-        }
-
-        ref_desc <- sprintf(
-          paste0(
-            "Read reference files from skill '%s'. ",
-            "Provides further context to `skill-%s-readme`.\n\n",
-            "Available files: %s\n",
-            "Default (if `file_name` is not specified): \"%s\"\n\n",
-            "Pass an empty string for `file_name` to list available files ",
-            "without reading content."
-          ),
-          skill_name,
-          skill_name,
-          paste(sprintf("\"%s\"", skill_file_choices), collapse = ", "),
-          default_file
-        )
-
-        # Capture choices and base path in closure
-        ref_fn <- function(
-          file_name = default_file,
-          pattern = "",
-          line_start = 1L,
-          line_end = -1L
-        ) {
-          # If empty or NA, return available choices
-          if (is.na(file_name) || !nzchar(file_name)) {
-            return(paste(
-              collapse = "\n",
-              c(
-                "Available reference files:",
-                paste("  -", skill_file_choices, collapse = "\n")
-              )
-            ))
-          }
-
-          # Validate file_name
-          file_name <- match.arg(file_name, choices = skill_file_choices)
-
-          fpath <- file.path(skill_path, file_name)
-          if (!file.exists(fpath)) {
-            stop("File not found: ", file_name)
-          }
-
-          lines <- readLines(fpath, warn = FALSE)
-          n <- length(lines)
-
-          if (n == 0L) {
-            return("(empty file)")
-          }
-
-          # Apply line range
-          line_start <- max(1L, as.integer(line_start))
-          if (is.na(line_end) || line_end < 0L) {
-            line_end <- n
-          } else {
-            line_end <- min(as.integer(line_end), n)
-          }
-
-          if (line_start > n) {
-            return("")
-          }
-
-          line_index <- seq(line_start, line_end)
-          lines <- lines[line_index]
-
-          # Apply grep pattern
-          if (length(pattern) == 1 && !is.na(pattern) && nzchar(pattern)) {
-            sel <- grepl(pattern, x = lines, perl = TRUE)
-            line_index <- line_index[sel]
-            lines <- lines[sel]
-          }
-
-          # TODO: think about also returning the line number
-          paste(lines, collapse = "\n")
-        }
-
-        ref_arguments <- list(
-          file_name = ellmer::type_enum(
-            values = skill_file_choices,
-            description = sprintf(
-              "Name of the reference file to read. Default: \"%s\". Pass empty string to list available choices.", # nolint: line_length_linter.
-              default_file
-            )
-          ),
-          pattern = ellmer::type_string(
-            description = "Optional perl-compatible regular expression to filter lines. Empty string means no filtering.", # nolint: line_length_linter.
-            required = FALSE
-          ),
-          line_start = ellmer::type_integer(
-            description = "Start line number (1-based). Default: 1",
-            required = FALSE
-          ),
-          line_end = ellmer::type_integer(
-            description = "End line number (1-based, inclusive). Default: -1 (read to end)", # nolint: line_length_linter.
-            required = FALSE
-          )
-        )
-
-        tools[[ref_name]] <- ellmer::tool(
-          fun = ref_fn,
-          description = ref_desc,
-          arguments = ref_arguments,
-          name = ref_name
-        )
-      }
-
-      # ============================================================
-      # Tool 3: skill-{name}-script-call (conditional)
-      # ============================================================
-      if (has_scripts) {
-        script_name <- sprintf("skill-%s-script-call", skill_name)
-
-        script_names <- names(skill_scripts)
-
-        # Build per-script documentation for the description
-        script_docs <- vapply(script_names, function(sn) {
-          s <- skill_scripts[[sn]]
-          type_str <- paste(s$type, collapse = "/")
-          sig <- if (!is.null(s$formals)) {
-            sprintf(" (%s)", s$formals)
-          } else {
-            ""
-          }
-          sprintf("  - \"%s\" [%s]%s", sn, type_str, sig)
-        }, character(1L))
-
-        script_desc <- sprintf(
-          paste0(
-            "Execute a script from skill '%s'.\n\n",
-            "Available scripts:\n%s\n\n",
-            "For `.type`:\n",
-            "- \"auto\": use R call if available, otherwise executable\n",
-            "- \"r\": call the R function directly (R scripts only)\n",
-            "- \"executable\": run as a command-line process ",
-            "(interpreter auto-detected: Rscript, python3, bash)\n\n",
-            "The `args` parameter is a JSON string of named arguments. ",
-            "For R calls, these are passed to the function via `do.call()`. ",
-            "For executables, they are serialized as command-line flags.\n\n",
-            "Pass `args = \"--help\"` or `args = \"-h\"` to get usage ",
-            "information instead of executing the script."
-          ),
-          skill_name,
-          paste(script_docs, collapse = "\n")
-        )
-
-        script_fn <- function(.name, .type = "auto", args = "{}") {
-          print(list(
-            .name = .name,
-            .type = .type,
-            args = args
-          ))
-          # Resolve script by name: try full path first, then simple basename
-          script <- skill_scripts[[.name]]
-          if (is.null(script)) {
-            # Try matching by basename (sans extension)
-            base_matches <- Filter(function(s) {
-              tools::file_path_sans_ext(basename(s$path)) == .name
-            }, skill_scripts)
-            if (length(base_matches) > 0L) {
-              script <- base_matches[[1L]]
-            }
-          }
-          if (is.null(script)) {
-            stop(
-              "Script '", .name, "' not found. Available scripts: ",
-              paste(names(skill_scripts), collapse = ", ")
-            )
-          }
-
-          # Help mode: return usage information instead of executing
-          if (args %in% c("--help", "-h")) {
-            header <- sprintf("Script: %s [%s]",
-                             script$name,
-                             paste(script$type, collapse = "/"))
-            if ("r" %in% script$type && is.function(script$fn)) {
-              fn_name <- tools::file_path_sans_ext(basename(script$path))
-              roxygen <- extract_roxygen_help(script$path, fn_name)
-              fmls <- if (!is.null(script$formals)) {
-                sprintf("\nArguments: %s", script$formals)
-              } else {
-                ""
-              }
-              return(paste(c(header, fmls, "", roxygen), collapse = "\n"))
-            } else {
-              # Executable: run with --help via interpreter
-              cmd_info <- build_script_command(
-                script$path, script$ext
-              )
-              result <- tryCatch(
-                processx::run(
-                  command = cmd_info$command,
-                  args = c(cmd_info$prefix_args, "--help"),
-                  error_on_status = FALSE,
-                  timeout = 10
-                ),
-                error = function(e) {
-                  list(stdout = "", stderr = conditionMessage(e), status = 1L)
-                }
-              )
-              output <- if (nzchar(result$stdout)) {
-                result$stdout
-              } else if (nzchar(result$stderr)) {
-                result$stderr
-              } else {
-                "(no help output available)"
-              }
-              return(paste(c(header, "", output), collapse = "\n"))
-            }
-          }
-
-          # Parse args (convert = FALSE, so args is always a raw string)
-          # Try JSON first; if it fails, treat as CLI string
-          if (is.null(args) || !nzchar(args) || identical(args, "{}")) {
-            parsed_args <- list()
-          } else {
-            parsed_args <- tryCatch(
-              jsonlite::fromJSON(args, simplifyVector = TRUE),
-              error = function(e) NULL
-            )
-            if (is.null(parsed_args)) {
-              # Not valid JSON — report the raw value back
-              stop(
-                "Failed to parse `args` as JSON.\n",
-                "Received: ", args, "\n",
-                "Expected a JSON object, e.g.: ",
-                "{\"location\": \"Houston\"}"
-              )
-            }
-            if (!is.list(parsed_args)) {
-              parsed_args <- as.list(parsed_args)
-            }
-          }
-
-          # Determine call type
-          .type <- match.arg(.type, choices = c("auto", "r", "executable"))
-          use_r <- switch(
-            .type,
-            "auto" = "r" %in% script$type && is.function(script$fn),
-            "r" = TRUE,
-            "executable" = FALSE
-          )
-
-          if (use_r) {
-            # Direct R function call
-            if (!is.function(script$fn)) {
-              stop(
-                "Script '", .name, "' cannot be called as an R function. ",
-                "Available types: ",
-                paste(script$type, collapse = ", "),
-                ". Try `.type = \"executable\"`."
-              )
-            }
-
-            # Remove args not in formals (except if function has ...)
-            fn_formals <- names(formals(script$fn))
-            if (!"..." %in% fn_formals) {
-              parsed_args <- parsed_args[
-                names(parsed_args) %in% fn_formals
-              ]
-            }
-            # Remove dot-prefixed internal args (e.g., .runtime)
-            parsed_args <- parsed_args[
-              !grepl("^\\.", names(parsed_args))
-            ]
-
-            result <- do.call(script$fn, parsed_args)
-            return(result)
-
-          } else {
-            # Process call: dispatch interpreter by script type
-            cmd_args <- character(0L)
-
-            for (nm in names(parsed_args)) {
-              val <- parsed_args[[nm]]
-              cmd_args <- c(cmd_args, sprintf("--%s", nm), as.character(val))
-            }
-
-            cmd_info <- build_script_command(script$path, script$ext)
-            result <- processx::run(
-              command = cmd_info$command,
-              args = c(cmd_info$prefix_args, cmd_args),
-              error_on_status = FALSE
-            )
-
-            if (result$status != 0L) {
-              stop(
-                "Script '", .name, "' exited with status ", result$status,
-                ".\nstderr: ", result$stderr
-              )
-            }
-
-            return(result$stdout)
-          }
-        }
-
-        script_arguments <- list(
-          .name = ellmer::type_enum(
-            values = script_names,
-            description = "Name of the script to call. Use the full relative path or the simple name if unambiguous." # nolint: line_length_linter.
-          ),
-          .type = ellmer::type_enum(
-            values = c("auto", "r", "executable"),
-            description = "Execution mode: 'auto' (default), 'r' (R function call), or 'executable' (command-line)." # nolint: line_length_linter.
-          ),
-          args = ellmer::type_string(
-            description = "A JSON object string of named arguments to pass to the script. Pass \"--help\" or \"-h\" to get usage information.", # nolint: line_length_linter.
-            required = FALSE
-          )
-        )
-
-        tools[[script_name]] <- ellmer::tool(
-          fun = script_fn,
-          description = script_desc,
-          arguments = script_arguments,
-          name = script_name,
-          convert = FALSE
-        )
-      }
 
       tools
     }
