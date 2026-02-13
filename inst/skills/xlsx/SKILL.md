@@ -137,6 +137,52 @@ The tool is called `skill-xlsx`. It accepts a single JSON `object` parameter wit
     ```
     Use `args=["--help"]` to see usage for any script.
 
+### Script Examples
+
+**Update a cell value:**
+```json
+{
+  "action": "script",
+  "cli_kwargs": {
+    "file_name": "xlsx_update.R",
+    "args": ["--file=/path/to/file.xlsx", "--sheet=Sheet1", "--updates_json=[{\"cell\":\"B2\",\"value\":10}]"]
+  }
+}
+```
+
+**Apply a background color (style) to a cell:**
+```json
+{
+  "action": "script",
+  "cli_kwargs": {
+    "file_name": "xlsx_update.R",
+    "args": ["--file=/path/to/file.xlsx", "--sheet=Sheet1", "--updates_json=[{\"cell\":\"B5\",\"fgFill\":\"#00FF00\"}]"]
+  }
+}
+```
+
+**Update value AND style in one call:**
+```json
+{
+  "action": "script",
+  "cli_kwargs": {
+    "file_name": "xlsx_update.R",
+    "args": ["--file=/path/to/file.xlsx", "--updates_json=[{\"cell\":\"B2\",\"value\":10},{\"cell\":\"B5\",\"fgFill\":\"#00FF00\"}]"]
+  }
+}
+```
+
+**Read with styles:**
+```json
+{
+  "action": "script",
+  "cli_kwargs": {
+    "file_name": "xlsx_read.R",
+    "args": ["--file=/path/to/file.xlsx", "--include_styles=true"]
+  }
+}
+```
+
 ### Available Scripts
 
 | Script file | Purpose |
@@ -151,6 +197,7 @@ The tool is called `skill-xlsx`. It accepts a single JSON `object` parameter wit
 
 *   Script arguments are passed as `cli_kwargs.args`, an **array of strings** in `--key=value` format.
 *   `data_json`, `formulas_json`, `updates_json` must be **stringified JSON** inside args (escaped double quotes).
+*   **Styling is done via `--updates_json`** -- there is NO `--style_json` parameter. Use **flat style keys** directly in the update object: `[{"cell":"B5","fgFill":"#00FF00"}]`. Supported keys: `fgFill`, `fontColour`, `bold`, `fontSize`, `numFmt`, `fontName`, `halign`, `valign`, `wrapText`, `border`, `borderColour`, `borderStyle`.
 *   The `cells` parameter for `xlsx_eval.R` is a **comma-separated string** (e.g. `"--cells=B5,B6"`), NOT a JSON array.
 *   `writeFormula` omits the leading `=`. Use `"SUM(B2:B5)"` not `"=SUM(B2:B5)"`.
 *   Formula cells appear as `NA` when read back. Use `xlsx_eval.R` to get computed values.
@@ -194,7 +241,7 @@ Before and during every xlsx task, confirm:
 - [ ] Formulas omit the leading `=` (e.g. `"SUM(B2:B5)"`)
 - [ ] All colours include the `#` prefix (e.g. `"#00FE00"`)
 - [ ] All cell/row indices are **1-based**
-- [ ] Style JSON is **flat** (keys map to `createStyle()` params; no nesting)
+- [ ] Style JSON is **flat** (place `fgFill`, `bold`, etc. directly alongside `cell`; no nesting)
 - [ ] JSON strings use **double quotes** only; `data_json` is a *stringified* JSON string
 - [ ] After writing formulas, run **`xlsx_eval.R`** (or `xlsx_recalc.R`) before delivering
 - [ ] **Never stop** to ask about colours, fonts, or minor styling -- use defaults

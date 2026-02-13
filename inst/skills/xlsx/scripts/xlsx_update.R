@@ -128,6 +128,30 @@ xlsx_update <- function(file,
     updates <- list(updates)
   }
 
+  # Auto-detect flat style keys in array-format updates, e.g.
+  # [{"cell":"B5","fgFill":"#00FF00"}] -> [{"cell":"B5","style":{"fgFill":"#00FF00"}}]
+  # This mirrors the dict-style auto-wrapping above and avoids forcing
+  # callers to produce deeply-nested JSON (which is error-prone for LLMs).
+  style_keys <- c(
+    "fgFill", "bgColor", "backgroundColor", "fgColor", "fill",
+    "fontColour", "fontColor", "color", "font",
+    "textDecoration", "bold", "italic",
+    "fontSize", "numFmt", "fontName",
+    "halign", "valign", "wrapText",
+    "border", "borderColour", "borderStyle"
+  )
+  updates <- lapply(updates, function(u) {
+    if (!is.list(u)) return(u)
+    non_action_names <- setdiff(names(u), c("cell", "value", "formula", "style"))
+    if (length(non_action_names) > 0L &&
+        !any(non_action_names %in% c("value", "formula", "style")) &&
+        any(non_action_names %in% style_keys)) {
+      u$style <- c(u$style, u[non_action_names])
+      u[non_action_names] <- NULL
+    }
+    u
+  })
+
   count_val <- 0L
   count_fml <- 0L
   count_style <- 0L

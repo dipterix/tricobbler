@@ -28,7 +28,7 @@ Before and during every xlsx task, confirm:
 - [ ] Formulas omit the leading `=` (e.g. `"SUM(B2:B5)"`)
 - [ ] All colours include the `#` prefix (e.g. `"#00FE00"`)
 - [ ] All cell/row indices are **1-based**
-- [ ] Style JSON is **flat** (keys map to `createStyle()` params; no nesting)
+- [ ] Style JSON is **flat** (place `fgFill`, `bold`, etc. directly alongside `cell`; no nesting)
 - [ ] JSON strings use **double quotes** only; `data_json` is a *stringified* JSON string
 - [ ] After writing formulas, run **`xlsx_eval.R`** (or `xlsx_recalc.R`) before delivering
 - [ ] **Never stop** to ask about colours, fonts, or minor styling -- use defaults
@@ -249,15 +249,18 @@ Each update element can contain:
 - `cell` (required): A1-style reference
 - `value`: number, string, or logical
 - `formula`: formula string (leading `=` stripped)
-- `style`: **flat** object with `createStyle()` keys
+- Style keys placed **flat** alongside `cell`: `fgFill`, `fontColour`, `bold`, `fontSize`, `numFmt`, `fontName`, `halign`, `valign`, `wrapText`, `border`, `borderColour`, `borderStyle`
 
-**Style JSON must be flat:**
+**Style JSON must be flat (no nesting required):**
 
+```json
+[{"cell":"B5","fgFill":"#00FE00","fontColour":"#FF0000"}]
+```
+
+A nested `"style"` wrapper is also accepted but not recommended:
 ```json
 {"cell":"B5","style":{"fgFill":"#00FE00","fontColour":"#FF0000"}}
 ```
-
-Never nest as `{"fill":{"fgColor":...}}`.
 
 ### xlsx_eval.R
 

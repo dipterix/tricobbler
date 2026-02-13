@@ -86,6 +86,16 @@ sanitize_string_arg <- function(x) {
   x
 }
 
+convert_from_type <- function(x, type) {
+  if (length(x) == 1 && is.character(x) && !is.na(x)) {
+    x <- trimws(x)
+    if (grepl("^<[a-zA-Z0-9].*>", x)) {
+      stop("XML input detected. Please do not do that. Use pure JSON!")
+    }
+  }
+  ellmer:::convert_from_type(x = x, type = type)
+}
+
 #' Discover scripts under a skill \code{scripts/} directory
 #'
 #' @description Recursively scans the \code{scripts/} subdirectory of a skill
@@ -369,7 +379,7 @@ sanitize_skill_name <- function(x) {
 #' }
 #'
 #' The \code{$make_tools()} method returns a single
-#' \code{\link[ellmer]{tool}} named \verb{skill-\{name\}} that dispatches
+#' \code{\link[ellmer]{tool}} named \verb{skill_\{name\}} that dispatches
 #' on an \code{action} parameter:
 #' \describe{
 #'   \item{\code{"readme"}}{Returns the \code{SKILL.md} body. Must be
@@ -484,7 +494,7 @@ Skill <- R6::R6Class(
     #' @description Produce a single \code{\link[ellmer]{tool}} definition
     #'   for this skill
     #' @returns A named list with one \code{\link[ellmer]{tool}} object.
-    #'   The name is \verb{skill-\{name\}}.
+    #'   The name is \verb{skill_\{name\}}.
     make_tools = function() {
 
       skill_name <- private$.name
@@ -556,7 +566,7 @@ Skill <- R6::R6Class(
       action_docs <- paste(action_docs, collapse = "\n")
 
       tool_desc <- sprintf(
-        "Skill `%s`: %s.",
+        "Skill tool `skill_%s`: %s.",
         skill_name,
         skill_description
       )
@@ -867,7 +877,7 @@ Skill <- R6::R6Class(
       }
 
       # ------ Build tool ------
-      tool_name <- sprintf("skill-%s", skill_name)
+      tool_name <- sprintf("skill_%s", skill_name)
 
       tools <- list()
 
@@ -878,27 +888,84 @@ Skill <- R6::R6Class(
       })
       desc <- paste(unlist(desc), collapse = "\n\n")
 
+      # tools[[tool_name]] <- ellmer::tool(
+      #   fun = function(object = "{}", ..., action, reference_kwargs, cli_kwargs) {
+      #     object <- sanitize_string_arg(object)
+      #     cat("========\n", object, "\n========\n")
+      #     object <- as.list(jsonlite::fromJSON(object))
+      #     if (!missing(action)) {
+      #       object$action <- action
+      #     }
+      #     if (!missing(reference_kwargs)) {
+      #       object$reference_kwargs <- reference_kwargs
+      #     }
+      #     if (!missing(cli_kwargs)) {
+      #       object$cli_kwargs <- cli_kwargs
+      #     }
+      #     do.call(tool_fn, object)
+      #     # tool_fn()
+      #   },
+      #   description = tool_desc,
+      #   # arguments = tool_arguments,
+      #   arguments = list(
+      #     "object" = ellmer::type_string(
+      #       description = paste(c(
+      #         "A JSON string containing the following arguments\n",
+      #         desc
+      #       ), collapse = "\n"),
+      #       required = TRUE
+      #     ),
+      #     "..." = ellmer::type_object(
+      #       .description = "Please do NOT use this argument: will throw errors if you specify",
+      #       .required = FALSE
+      #     ),
+      #     "action" = local({
+      #       action <- tool_arguments$action
+      #       action@required <- FALSE
+      #       action
+      #     }),
+      #     "reference_kwargs" = tool_arguments$reference_kwargs,
+      #     "cli_kwargs" = tool_arguments$cli_kwargs
+      #   ),
+      #   name = tool_name,
+      #   convert = TRUE
+      # )
+
+      tool_arguments[["..."]] <- ellmer::type_ignore()
+
       tools[[tool_name]] <- ellmer::tool(
-        fun = function(object) {
-          object <- sanitize_string_arg(object)
-          cat(object, "\n")
-          object <- jsonlite::fromJSON(object)
-          do.call(tool_fn, object)
-          # tool_fn()
+        fun = function(action = NA_character_,
+                       reference_kwargs = NULL,
+                       cli_kwargs = NULL,
+                       ...) {
+          if (missing(action) || is.na(action)) {
+            action <- "readme"
+          } else {
+            action <- convert_from_type(action, tool_arguments$action)
+          }
+          switch(
+            action,
+            'reference' = {
+              reference_kwargs <- convert_from_type(
+                x = reference_kwargs,
+                type = tool_arguments$reference_kwargs
+              )
+            },
+            'script' = {
+              cli_kwargs <- convert_from_type(
+                x = cli_kwargs,
+                type = tool_arguments$cli_kwargs
+              )
+            }
+          )
+          tool_fn(action = action,
+                  reference_kwargs = reference_kwargs,
+                  cli_kwargs = cli_kwargs)
         },
         description = tool_desc,
-        # arguments = tool_arguments,
-        arguments = list(
-          object = ellmer::type_string(
-            description = paste(c(
-              "A JSON string containing the following arguments\n",
-              desc
-            ), collapse = "\n"),
-            required = TRUE
-          )
-        ),
+        arguments = tool_arguments,
         name = tool_name,
-        convert = TRUE
+        convert = FALSE
       )
 
       tools
