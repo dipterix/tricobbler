@@ -727,6 +727,10 @@ Skill <- R6::R6Class(
           cli_envs <- NULL
         }
 
+        if (length(cli_args) == 0) {
+          cli_args <- "--help"
+        }
+
         # Resolve script (exact match by relative path with extension)
         script <- skill_scripts[[script_file]]
         if (is.null(script)) {
@@ -786,12 +790,20 @@ Skill <- R6::R6Class(
       tool_fn <- function(
         action,
         reference_kwargs = NULL,
-        cli_kwargs = NULL
+        cli_kwargs = NULL,
+        ...
       ) {
+        if (...length() > 0) {
+          stop("You are calling the tool with unexpected object key(s): ",
+               paste(sQuote(...names()), collapse = ", "), ". ",
+               "Please ONLY include key `action`, `reference_kwargs`, and `cli_kwargs`.")
+        }
+
         action <- sanitize_string_arg(action)
         reference_kwargs <- sanitize_string_arg(reference_kwargs)
         cli_kwargs <- sanitize_string_arg(cli_kwargs)
         message("Calling skill with action=", action)
+
 
         # ---- Guard: readme must be called first ----
         if (action != "readme" && !readme_unlocked) {
