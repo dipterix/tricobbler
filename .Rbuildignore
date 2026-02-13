@@ -9,3 +9,5 @@
 ^\.copilotignore$
 ^\.lintr$
 ^TODO\.md$
+^\.venv$
+^TODO-skills\.md$

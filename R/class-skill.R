@@ -226,9 +226,18 @@ extract_roxygen_help <- function(path, fn_name) {
 #'   on Windows), and shell scripts use \code{bash} (or \code{cmd /c}
 #'   on Windows). Other files are run directly as executables.
 #'
+#'   When \code{runtime} is supplied, it can override the default
+#'   interpreter behaviour. A \code{setup} shell command (e.g. virtualenv
+#'   activation) causes the whole invocation to be wrapped as
+#'   \code{bash -c "setup && interpreter script args..."}.
+#'
 #' @param script_path character, absolute path to the script file
 #' @param ext character, lowercase file extension (e.g., \code{"r"},
 #'   \code{"py"}, \code{"sh"})
+#' @param runtime list or \code{NULL}, per-language runtime overrides.
+#'   Recognised keys: \code{python}, \code{r}, \code{shell}, each a list
+#'   that may contain \code{setup} (shell preamble) and \code{args}
+#'   (extra interpreter arguments).
 #' @returns A list with components:
 #'   \describe{
 #'     \item{\code{command}}{character, the interpreter or executable path}
@@ -236,24 +245,61 @@ extract_roxygen_help <- function(path, fn_name) {
 #'       before the user-supplied flags (typically the script path)}
 #'   }
 #' @noRd
-build_script_command <- function(script_path, ext) {
+build_script_command <- function(script_path, ext, runtime = NULL) {
   os <- get_os()
-  switch(
+
+  # Helper: retrieve per-language runtime config
+  lang_rt <- function(lang) {
+    if (is.null(runtime)) return(NULL)
+    rt <- runtime[[lang]]
+    if (is.null(rt) || !is.list(rt)) return(NULL)
+    rt
+  }
+
+  # Helper: wrap a command through bash -c when a setup preamble exists.
+  # Returns a modified list(command, prefix_args) that injects the setup
+  # command before the real invocation.
+  wrap_with_setup <- function(cmd_info, setup) {
+    setup <- trimws(paste(setup, collapse = " && "))
+    if (!nzchar(setup) || os == "windows") {
+      return(cmd_info)
+    }
+    # Build a single shell string: "setup && command prefix_args"
+    # The caller will append user args to prefix_args, so we use a
+    # sentinel that tool_fn_script handles: store the real command
+    # + prefix in an attribute so that processx sees bash -c "...".
+    cmd_info$setup <- setup
+    cmd_info
+  }
+
+  base_cmd <- switch(
     ext,
-    "r" = list(
-      command = file.path(R.home("bin"), "Rscript"),
-      prefix_args = script_path
-    ),
-    "py" = list(
-      command = if (os == "windows") "python" else "python3",
-      prefix_args = script_path
-    ),
+    "r" = {
+      rt <- lang_rt("r")
+      extra_args <- if (!is.null(rt$args)) as.character(rt$args) else character(0L)
+      cmd <- list(
+        command = file.path(R.home("bin"), "Rscript"),
+        prefix_args = c(extra_args, script_path)
+      )
+      if (!is.null(rt$setup)) wrap_with_setup(cmd, rt$setup) else cmd
+    },
+    "py" = {
+      rt <- lang_rt("python")
+      extra_args <- if (!is.null(rt$args)) as.character(rt$args) else character(0L)
+      cmd <- list(
+        command = if (os == "windows") "python" else "python3",
+        prefix_args = c(extra_args, script_path)
+      )
+      if (!is.null(rt$setup)) wrap_with_setup(cmd, rt$setup) else cmd
+    },
     "sh" =, "bash" = {
+      rt <- lang_rt("shell")
       if (os == "windows") {
-        list(command = "cmd", prefix_args = c("/c", script_path))
+        cmd <- list(command = "cmd", prefix_args = c("/c", script_path))
       } else {
-        list(command = "bash", prefix_args = script_path)
+        cmd <- list(command = "bash", prefix_args = script_path)
       }
+      if (!is.null(rt$setup)) wrap_with_setup(cmd, rt$setup) else cmd
     },
     "bat" =, "cmd" = {
       if (os == "windows") {
@@ -269,6 +315,8 @@ build_script_command <- function(script_path, ext) {
     # Default: run directly (assumes executable with shebang or binary)
     list(command = script_path, prefix_args = character(0L))
   )
+
+  base_cmd
 }
 
 
@@ -379,6 +427,11 @@ sanitize_skill_name <- function(x) {
 #'     scripts (executed via CLI only)
 #' }
 #'
+#' Runtime configuration (e.g. virtualenv activation, extra interpreter
+#' arguments) is provided at construction time by the scheduler or user,
+#' not embedded in the skill definition itself. This follows the
+#' \dQuote{Immutable Policy, Mutable Runtime} principle.
+#'
 #' The \code{$make_tools()} method returns a single
 #' \code{\link[ellmer]{tool}} named \verb{skill_\{name\}} that dispatches
 #' on an \code{action} parameter:
@@ -401,6 +454,11 @@ sanitize_skill_name <- function(x) {
 #'   # Produce ellmer tool definitions
 #'   tools <- skill$make_tools()
 #'   names(tools)
+#'
+#'   # With runtime config for Python virtualenv
+#'   skill_py <- Skill$new(skill_dir, runtime = list(
+#'     python = list(setup = "source .venv/bin/activate")
+#'   ))
 #' }
 #'
 #' @export
@@ -448,10 +506,23 @@ Skill <- R6::R6Class(
     #'   \code{SKILL.md}, plus files in \code{reference*/} directories)
     file_choices = NULL,
 
+    #' @field runtime list, per-language runtime configuration provided
+    #'   at construction time by the scheduler or user. Recognised keys:
+    #'   \code{python} (with \code{setup}, \code{args}), \code{r}
+    #'   (with \code{setup}, \code{args}), \code{shell} (with
+    #'   \code{setup}). \code{NULL} means use system defaults.
+    runtime = NULL,
+
     #' @description Initialize a new \code{Skill} from a skill directory
     #' @param path character, path to the skill directory (must contain
     #'   \code{SKILL.md})
-    initialize = function(path) {
+    #' @param runtime list or \code{NULL}, per-language runtime
+    #'   configuration. Recognised keys: \code{python} (with
+    #'   \code{setup}, \code{args}), \code{r} (with \code{setup},
+    #'   \code{args}), \code{shell} (with \code{setup}). The
+    #'   scheduler or user provides this at construction time; the
+    #'   skill definition itself does not specify its own runtime.
+    initialize = function(path, runtime = NULL) {
       path <- normalizePath(path, mustWork = FALSE)
       if (!dir.exists(path)) {
         stop("Skill directory does not exist: ", path)
@@ -461,6 +532,7 @@ Skill <- R6::R6Class(
         stop("SKILL.md not found in: ", path)
       }
       private$.path <- path
+      self$runtime <- runtime
 
       self$parse()
     },
@@ -504,6 +576,7 @@ Skill <- R6::R6Class(
       skill_file_choices <- self$file_choices
       skill_scripts <- self$scripts
       skill_description <- self$description
+      skill_runtime <- self$runtime
 
       has_references <- length(skill_file_choices) > 0L
       has_scripts <- length(skill_scripts) > 0L
@@ -752,19 +825,35 @@ Skill <- R6::R6Class(
           )
         }
 
-        # Run script with --help flag (works for all CLI scripts)
+        # Build command with runtime config
         cmd_info <- build_script_command(
-          script$path, script$ext
+          script$path, script$ext, runtime = skill_runtime
         )
 
         if (isTRUE(cli_args %in% c("--help", "-h"))) {
+          cli_args <- "--help"
+        }
+
+        # When a setup preamble exists, wrap through bash -c
+        if (!is.null(cmd_info$setup)) {
+          # Build a single shell string:
+          #   setup && command prefix_args user_args
+          shell_cmd <- paste(
+            c(
+              cmd_info$setup,
+              paste(
+                shQuote(c(cmd_info$command, cmd_info$prefix_args, cli_args)),
+                collapse = " "
+              )
+            ),
+            collapse = " && "
+          )
           result <- processx::run(
-            command = cmd_info$command,
-            args = c(cmd_info$prefix_args, "--help"),
+            command = "bash",
+            args = c("-c", shell_cmd),
             env = cli_envs,
-            wd = self$path, cleanup_tree = TRUE,
+            wd = skill_path, cleanup_tree = TRUE,
             echo_cmd = TRUE, spinner = TRUE,
-            # stderr_to_stdout = TRUE,
             error_on_status = FALSE
           )
         } else {
@@ -772,9 +861,8 @@ Skill <- R6::R6Class(
             command = cmd_info$command,
             args = c(cmd_info$prefix_args, cli_args),
             env = cli_envs,
-            wd = self$path, cleanup_tree = TRUE,
+            wd = skill_path, cleanup_tree = TRUE,
             echo_cmd = TRUE, spinner = TRUE,
-            # stderr_to_stdout = TRUE,
             error_on_status = FALSE
           )
         }

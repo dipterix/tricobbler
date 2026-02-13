@@ -6,3 +6,4 @@ adhoc/
 docs/
 ..Rcheck
 .DS_Store
+.venv/
