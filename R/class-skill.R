@@ -90,7 +90,8 @@ convert_from_type <- function(x, type) {
   if (length(x) == 1 && is.character(x) && !is.na(x)) {
     x <- trimws(x)
     if (grepl("^<[a-zA-Z0-9].*>", x)) {
-      stop("XML input detected. Please do not do that. Use pure JSON!")
+      message(x)
+      stop("NO XML tag accepted. Use pure JSON!")
     }
   }
   ellmer:::convert_from_type(x = x, type = type)
