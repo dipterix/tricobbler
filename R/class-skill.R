@@ -718,7 +718,10 @@ Skill <- R6::R6Class(
       # ------ Function when action=readme -------
       tool_fn_readme <- function() {
         readme_unlocked <<- TRUE
-        paste(skill_body, collapse = "\n")
+
+        version_info <- utils::capture.output(str(R.Version()))
+        version_info[[1]] <- "## Current Runtime Info\n"
+        paste(c(skill_body, "\n---\n", version_info), collapse = "\n")
       }
 
       # ------ Function when action=reference -------
