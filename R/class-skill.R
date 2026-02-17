@@ -94,7 +94,7 @@ convert_from_type <- function(x, type) {
       stop("NO XML tag accepted. Use pure JSON!")
     }
   }
-  ellmer:::convert_from_type(x = x, type = type)
+  call_pkg_fun("ellmer", "convert_from_type", x = x, type = type)
 }
 
 #' Discover scripts under a skill \code{scripts/} directory
@@ -407,16 +407,16 @@ sanitize_skill_name <- function(x) {
 }
 
 
-#' Skill: Load and Serve Claude Skill Directories
+#' Skill: Load and Serve Skill Directories
 #'
-#' @description R6 class that loads a claude skill directory (containing
+#' @description R6 class that loads a skill directory (containing
 #'   \code{SKILL.md}, optional \code{scripts/}, and reference files) and
 #'   exposes it as a single \code{\link[ellmer]{tool}} definition via the
 #'   \code{$make_tools()} method.
 #'
 #' @details
 #' A skill directory must contain a \code{SKILL.md} file with optional YAML
-#' frontmatter (\code{name}, \code{description}, \code{metadata}) and a
+#' \verb{frontmatter} (\code{name}, \code{description}, \code{metadata}) and a
 #' markdown body. The directory may also contain:
 #' \itemize{
 #'   \item Reference files: top-level files (other than \code{SKILL.md}) and
@@ -424,10 +424,10 @@ sanitize_skill_name <- function(x) {
 #'     (case-insensitive), e.g. \code{reference/}, \code{references/},
 #'     \code{Reference/}
 #'   \item A \code{scripts/} subdirectory with callable R, shell, or python
-#'     scripts (executed via CLI only)
+#'     scripts (executed via \verb{CLI} only)
 #' }
 #'
-#' Runtime configuration (e.g. virtualenv activation, extra interpreter
+#' Runtime configuration (e.g. \verb{virtualenv} activation, extra interpreter
 #' arguments) is provided at construction time by the scheduler or user,
 #' not embedded in the skill definition itself. This follows the
 #' \dQuote{Immutable Policy, Mutable Runtime} principle.
@@ -440,7 +440,7 @@ sanitize_skill_name <- function(x) {
 #'     called first to unlock other actions.}
 #'   \item{\code{"reference"}}{Reads reference files with optional line
 #'     range and grep filtering (only available when reference files exist)}
-#'   \item{\code{"script"}}{Executes scripts via CLI with
+#'   \item{\code{"script"}}{Executes scripts via \verb{CLI} with
 #'     \code{processx::run()} (only available when scripts exist)}
 #' }
 #'
@@ -491,7 +491,7 @@ Skill <- R6::R6Class(
   public = list(
 
     #' @field description character, skill description from
-    #'   \code{SKILL.md} frontmatter
+    #'   \code{SKILL.md} \verb{frontmatter}
     description = NULL,
 
     #' @field body character, the markdown body of \code{SKILL.md}
@@ -507,7 +507,7 @@ Skill <- R6::R6Class(
     file_choices = NULL,
 
     #' @field runtime list, per-language runtime configuration provided
-    #'   at construction time by the scheduler or user. Recognised keys:
+    #'   at construction time by the scheduler or user. Recognized keys:
     #'   \code{python} (with \code{setup}, \code{args}), \code{r}
     #'   (with \code{setup}, \code{args}), \code{shell} (with
     #'   \code{setup}). \code{NULL} means use system defaults.
@@ -517,7 +517,7 @@ Skill <- R6::R6Class(
     #' @param path character, path to the skill directory (must contain
     #'   \code{SKILL.md})
     #' @param runtime list or \code{NULL}, per-language runtime
-    #'   configuration. Recognised keys: \code{python} (with
+    #'   configuration. Recognized keys: \code{python} (with
     #'   \code{setup}, \code{args}), \code{r} (with \code{setup},
     #'   \code{args}), \code{shell} (with \code{setup}). The
     #'   scheduler or user provides this at construction time; the

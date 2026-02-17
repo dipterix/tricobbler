@@ -1,3 +1,16 @@
+#' Parse Command-Line Arguments with Enhanced Error Messages
+#'
+#' @description Wrapper around \code{\link[docopt]{docopt}} that fixes
+#'   path-parsing bugs (e.g. paths with parentheses) and prints
+#'   informative error messages including the full usage string so
+#'   agents can self-correct.
+#'
+#' @param doc character, usage specification string in
+#'   \code{\link[docopt]{docopt}} format
+#' @param args character vector, command-line arguments to parse
+#'   (defaults to \code{commandArgs(TRUE)})
+#' @param ... additional arguments passed to \code{\link[docopt]{docopt}}
+#' @returns A named list of parsed arguments
 #' @export
 docopt <- function(doc, args = commandArgs(TRUE), ...) {
   # docopt::docopt() misparses --key=value when the value contains

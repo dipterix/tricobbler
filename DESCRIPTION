@@ -19,7 +19,7 @@ Description: Provides a two-tier architecture for building multi-agent AI
     sequential execution, critical validation gates with fail-fast semantics, 
     and YAML serialization for version control. Designed for controlled and 
     reproducible AI agent orchestration with Large Language Models.
-License: Apache License (>= 2)
+License: Apache License (>= 2) | file LICENSE
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: 

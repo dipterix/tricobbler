@@ -2,20 +2,20 @@
 % Please edit documentation in R/class-skill.R
 \name{Skill}
 \alias{Skill}
-\title{Skill: Load and Serve Claude Skill Directories}
+\title{Skill: Load and Serve Skill Directories}
 \value{
 A named list with one \code{\link[ellmer]{tool}} object.
-The name is \verb{skill-\{name\}}.
+The name is \verb{skill_\{name\}}.
 }
 \description{
-R6 class that loads a claude skill directory (containing
+R6 class that loads a skill directory (containing
 \code{SKILL.md}, optional \code{scripts/}, and reference files) and
 exposes it as a single \code{\link[ellmer]{tool}} definition via the
 \code{$make_tools()} method.
 }
 \details{
 A skill directory must contain a \code{SKILL.md} file with optional YAML
-frontmatter (\code{name}, \code{description}, \code{metadata}) and a
+\verb{frontmatter} (\code{name}, \code{description}, \code{metadata}) and a
 markdown body. The directory may also contain:
 \itemize{
 \item Reference files: top-level files (other than \code{SKILL.md}) and
@@ -23,18 +23,23 @@ files inside directories whose name starts with \code{"reference"}
 (case-insensitive), e.g. \code{reference/}, \code{references/},
 \code{Reference/}
 \item A \code{scripts/} subdirectory with callable R, shell, or python
-scripts (executed via CLI only)
+scripts (executed via \verb{CLI} only)
 }
 
+Runtime configuration (e.g. \verb{virtualenv} activation, extra interpreter
+arguments) is provided at construction time by the scheduler or user,
+not embedded in the skill definition itself. This follows the
+\dQuote{Immutable Policy, Mutable Runtime} principle.
+
 The \code{$make_tools()} method returns a single
-\code{\link[ellmer]{tool}} named \verb{skill-\{name\}} that dispatches
+\code{\link[ellmer]{tool}} named \verb{skill_\{name\}} that dispatches
 on an \code{action} parameter:
 \describe{
 \item{\code{"readme"}}{Returns the \code{SKILL.md} body. Must be
 called first to unlock other actions.}
 \item{\code{"reference"}}{Reads reference files with optional line
 range and grep filtering (only available when reference files exist)}
-\item{\code{"script"}}{Executes scripts via CLI with
+\item{\code{"script"}}{Executes scripts via \verb{CLI} with
 \code{processx::run()} (only available when scripts exist)}
 }
 }
@@ -48,6 +53,11 @@ if (nzchar(skill_dir) && dir.exists(skill_dir)) {
   # Produce ellmer tool definitions
   tools <- skill$make_tools()
   names(tools)
+
+  # With runtime config for Python virtualenv
+  skill_py <- Skill$new(skill_dir, runtime = list(
+    python = list(setup = "source .venv/bin/activate")
+  ))
 }
 
 }
@@ -55,7 +65,7 @@ if (nzchar(skill_dir) && dir.exists(skill_dir)) {
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
 \item{\code{description}}{character, skill description from
-\code{SKILL.md} frontmatter}
+\code{SKILL.md} \verb{frontmatter}}
 
 \item{\code{body}}{character, the markdown body of \code{SKILL.md}}
 
@@ -65,6 +75,12 @@ if (nzchar(skill_dir) && dir.exists(skill_dir)) {
 \item{\code{file_choices}}{character, relative paths of reference files
 available for the references action (top-level files excluding
 \code{SKILL.md}, plus files in \code{reference*/} directories)}
+
+\item{\code{runtime}}{list, per-language runtime configuration provided
+at construction time by the scheduler or user. Recognized keys:
+\code{python} (with \code{setup}, \code{args}), \code{r}
+(with \code{setup}, \code{args}), \code{shell} (with
+\code{setup}). \code{NULL} means use system defaults.}
 }
 \if{html}{\out{</div>}}
 }
@@ -92,7 +108,7 @@ read-only)}
 \subsection{Method \code{new()}}{
 Initialize a new \code{Skill} from a skill directory
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skill$new(path)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Skill$new(path, runtime = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -100,6 +116,13 @@ Initialize a new \code{Skill} from a skill directory
 \describe{
 \item{\code{path}}{character, path to the skill directory (must contain
 \code{SKILL.md})}
+
+\item{\code{runtime}}{list or \code{NULL}, per-language runtime
+configuration. Recognized keys: \code{python} (with
+\code{setup}, \code{args}), \code{r} (with \code{setup},
+\code{args}), \code{shell} (with \code{setup}). The
+scheduler or user provides this at construction time; the
+skill definition itself does not specify its own runtime.}
 }
 \if{html}{\out{</div>}}
 }

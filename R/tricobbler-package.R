@@ -5,12 +5,14 @@
 #' @importFrom yaml as.yaml
 #' @importFrom utils capture.output
 #' @importFrom utils head
+#' @importFrom utils modifyList
 #' @importFrom utils str
 #' @importFrom coro await
 #' @importFrom coro async
 #' @importFrom promises promise
 #' @importFrom promises promise_resolve
 #' @importFrom RSQLite SQLite
+#' @importFrom processx run
 NULL
 
 ## usethis namespace: start
