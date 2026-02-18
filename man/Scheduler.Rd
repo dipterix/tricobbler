@@ -212,7 +212,7 @@ immediately.
 \subsection{Method \code{start()}}{
 Start the workflow execution
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Scheduler$start()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$start(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
 }
@@ -222,7 +222,7 @@ Start the workflow execution
 \subsection{Method \code{init_resources()}}{
 Initialize resources and prepare for execution
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Scheduler$init_resources(reset_context = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$init_resources(reset_context = FALSE, debug = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

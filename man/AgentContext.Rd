@@ -69,6 +69,10 @@ index (read-only). Available after
 \item \href{#method-TricobblerAgentContext-list_incomplete}{\code{AgentContext$list_incomplete()}}
 \item \href{#method-TricobblerAgentContext-get_runtime_log}{\code{AgentContext$get_runtime_log()}}
 \item \href{#method-TricobblerAgentContext-read_logs}{\code{AgentContext$read_logs()}}
+\item \href{#method-TricobblerAgentContext-get_tools}{\code{AgentContext$get_tools()}}
+\item \href{#method-TricobblerAgentContext-set_tool}{\code{AgentContext$set_tool()}}
+\item \href{#method-TricobblerAgentContext-clear_tools}{\code{AgentContext$clear_tools()}}
+\item \href{#method-TricobblerAgentContext-has_tools}{\code{AgentContext$has_tools()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -117,7 +121,7 @@ directory under \code{tempdir()})}
 \subsection{Method \code{init_resources()}}{
 Create directory structure and initialize logging
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$init_resources()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$init_resources(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
 }
@@ -359,5 +363,42 @@ filter log content}
 \code{time}, \code{caller}, \code{content}.
 Returns empty \code{data.frame} if file missing or no matches.
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-get_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-get_tools}{}}}
+\subsection{Method \code{get_tools()}}{
+get dynamic tool functions injected by agents
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_tools(keys)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-set_tool"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-set_tool}{}}}
+\subsection{Method \code{set_tool()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$set_tool(key, tool)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-clear_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-clear_tools}{}}}
+\subsection{Method \code{clear_tools()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$clear_tools(keys)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-has_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-has_tools}{}}}
+\subsection{Method \code{has_tools()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$has_tools(keys)}\if{html}{\out{</div>}}
+}
+
 }
 }

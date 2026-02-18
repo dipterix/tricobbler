@@ -97,7 +97,7 @@ immediately.
 \subsection{Method \code{start()}}{
 Start the workflow execution
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$start()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$start(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{

@@ -39,6 +39,31 @@
 #'   arguments via \code{parameters} for deterministic agents (functions,
 #'   \verb{MCP} tools) and AI agents (\pkg{ellmer} Chat objects).
 #'
+#' @section Chat Agent Parameters:
+#' When converting an \pkg{ellmer} Chat object, the following
+#' \code{parameters} (set in \code{\link{StatePolicy}} or
+#' \code{\link{MasterPolicy}}) are recognised:
+#' \describe{
+#'   \item{\code{max_tokens}}{integer, maximum tokens for the
+#'     \verb{LLM} response.
+#'     Applied to the provider before each call.  Useful for
+#'     preventing output truncation with long tool-calling
+#'     workflows (e.g. set to \code{16384}).}
+#'   \item{\code{max_chat_errors}}{integer, number of consecutive
+#'     \verb{LLM} call errors (e.g. truncated \verb{JSON},
+#'     \verb{API} timeouts) tolerated before the agent gives up.
+#'     Defaults to \code{Inf}.  Within this budget the error message
+#'     is fed back to the \verb{LLM} so it can self-correct.}
+#'   \item{\code{system_prompt}}{character, overrides the policy
+#'     description.}
+#'   \item{\code{user_prompt}}{character, task prompt sent to the
+#'     \verb{LLM}.}
+#'   \item{\code{keep_turns}}{logical, preserve conversation
+#'     history across retries (default \code{FALSE}).}
+#'   \item{\code{return_type}}{an \pkg{ellmer} type specification
+#'     for structured output.}
+#' }
+#'
 #' @examples
 #'
 #' # From a simple function
@@ -184,7 +209,7 @@ S7::method(as_agent, S7::class_function) <- function(
     # Debug mode: log call info for inspection
     if (debug) {
       call_obj <- as.call(c(list(x), input))
-      context$logger("Function call: ", deparse(call_obj), level = "DEBUG")
+      runtime$logger("Function call: ", deparse(call_obj), level = "DEBUG")
     }
 
     do.call(x, input)
@@ -291,10 +316,33 @@ as_agent_from_chat <- function(
     user_prompt <- params$user_prompt %||% ""
     keep_turns <- params$keep_turns %||% FALSE
     return_type <- params$return_type  # NULL means unstructured chat
+    max_tokens <- params$max_tokens  # NULL = provider default
     # Convert return_type to ellmer type if it's a list or character (from YAML)
     if (!is.null(return_type) && !inherits(return_type, "ellmer::Type")) {
       return_type <- map_type_to_ellmer(return_type)
     }
+
+    # Apply max_tokens to the Chat provider if specified
+    if (!is.null(max_tokens)) {
+      max_tokens <- as.integer(max_tokens)
+      tryCatch(
+        {
+          # Provider is S7 (value semantics), so we must modify
+          # inside the R6 private environment directly.
+          priv <- chat$.__enclos_env__$private
+          priv$provider@params$max_tokens <- max_tokens
+        },
+        error = function(e) {
+          # Best-effort: warn rather than fail
+          warning(
+            "Could not set max_tokens on provider: ",
+            conditionMessage(e),
+            call. = FALSE
+          )
+        }
+      )
+    }
+
     debug <- isTRUE(context$debug)
 
     # build tools
@@ -358,6 +406,12 @@ as_agent_from_chat <- function(
     tools <- mcptool_instantiate(lapply(resources, mcptool_read))
     chat$set_tools(tools)
 
+    # Also append dynamically generated tools
+    dyn_tools <- context$get_tools()
+    if (length(dyn_tools)) {
+      chat$register_tools(dyn_tools)
+    }
+
     # Read logs
     if (policy@accessibility != "none") {
       log_content <- mcp_attach(
@@ -389,18 +443,18 @@ as_agent_from_chat <- function(
         c(system_prompt, sys_prompt2),
         collapse = "\n"
       )
-      context$logger(
+      runtime$logger(
         "Model: ", model, level = "DEBUG"
       )
-      context$logger(
+      runtime$logger(
         "System prompt:\n", full_sys_prompt,
         level = "DEBUG"
       )
-      context$logger(
+      runtime$logger(
         "User prompt:\n", user_prompt,
         level = "DEBUG"
       )
-      context$logger(
+      runtime$logger(
         "Tools: ",
         paste(resources, collapse = ", "),
         level = "DEBUG"
@@ -485,14 +539,78 @@ as_agent_from_chat <- function(
       }
     }
 
-    # Return the response
-    chat_impl(
+    # Build content list, filtering out NULLs (e.g. log_content
+    # when accessibility = "none") to avoid empty Content elements
+    contents <- list(
       log_content,
       mcp_attach(sprintf("Stage: %s --> State: %s", policy@stage, policy@name),
                  .header = "## Current Execution"),
-      mcp_attach(user_prompt, .header = "## Task"),
-      .list = dependency_attachments
+      mcp_attach(user_prompt, .header = "## Task")
     )
+    contents <- Filter(Negate(is.null), contents)
+
+    # Call the LLM, catching errors gracefully so the scheduler
+    # records them as failed attachments and can retry.
+    max_chat_errors <- as.numeric(
+      params$max_chat_errors %||% Inf
+    )
+    chat_error_count <- 0L
+    last_error <- NULL
+
+    while (chat_error_count < max_chat_errors) {
+      result <- tryCatch(
+        {
+          chat_impl(.list = c(contents, dependency_attachments))
+        },
+        error = function(e) {
+          e
+        }
+      )
+
+      if (!inherits(result, "error")) {
+        if (is.null(result)) {
+          result <- list()
+        }
+        attr(result, "turns") <- chat$get_turns()
+        return(result)
+      }
+
+      # An error occurred (e.g. truncated JSON, API timeout)
+      chat_error_count <- chat_error_count + 1L
+      last_error <- result
+      err_msg <- conditionMessage(result)
+
+      runtime$logger(
+        sprintf(
+          "chat error (%.0f/%.0f): %s",
+          chat_error_count, max_chat_errors, err_msg
+        ),
+        level = "WARN"
+      )
+      traceback(result)
+
+      if (chat_error_count >= max_chat_errors) {
+        break
+      }
+
+      # Feed the error back to the LLM so it can self-correct
+      # on the next iteration (e.g. generate shorter output)
+      error_prompt <- mcp_attach(
+        paste0(
+          "Your previous response caused an error:\n\n",
+          err_msg, "\n\n",
+          "Please try again. If the error is about ",
+          "output length, produce shorter output or ",
+          "split your work across multiple tool calls."
+        ),
+        .header = "## Error Recovery"
+      )
+      contents <- list(error_prompt)
+      dependency_attachments <- list()
+    }
+
+    # All retries exhausted - propagate the last error
+    stop(last_error)
   }
 
   Agent(
@@ -604,7 +722,7 @@ as_agent_from_mcp_tool <- function(
     # Debug mode: log call info for inspection
     if (debug) {
       call_obj <- as.call(c(list(impl), input))
-      context$logger("Tool call: ", deparse(call_obj), level = "DEBUG")
+      runtime$logger("Tool call: ", deparse(call_obj), level = "DEBUG")
     }
 
     do.call(impl, input)

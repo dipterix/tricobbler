@@ -24,6 +24,8 @@ AgentContext <- R6::R6Class(
 
     .cache = NULL,
 
+    .tools = NULL,
+
     finalize = function() {
       if (!is.null(private$.cache)) {
         private$.cache$reset()
@@ -102,6 +104,7 @@ AgentContext <- R6::R6Class(
     index = function() {
       private$.index
     }
+
   ),
   public = list(
 
@@ -143,6 +146,7 @@ AgentContext <- R6::R6Class(
       }
 
       private$.cache <- fastmap::fastmap()
+      private$.tools <- fastmap::fastmap()
       private$.index <- NULL
 
       if (!dir.exists(path)) {
@@ -163,11 +167,17 @@ AgentContext <- R6::R6Class(
     },
 
     #' @description Create directory structure and initialize logging
-    init_resources = function() {
+    init_resources = function(debug = FALSE) {
       dir.create(self$memory_path, showWarnings = FALSE, recursive = TRUE)
       dir.create(self$store_path, showWarnings = FALSE, recursive = TRUE)
       dir.create(self$attachment_path, showWarnings = FALSE, recursive = TRUE)
       file.create(self$logger_path, showWarnings = FALSE)
+
+      if (debug) {
+        self$debug <- TRUE
+      } else {
+        self$debug <- FALSE
+      }
 
       # Initialize attachment index (SQLite-backed)
       db_path <- file.path(self$attachment_path, "index.sqlite")
@@ -375,7 +385,7 @@ AgentContext <- R6::R6Class(
     list_attachments = function(reindex = FALSE) {
       tbl <- private$.index$list()
       if (!is.data.frame(tbl) || nrow(tbl) == 0L) {
-        return(character(0L))
+        return(NULL)
       }
       tbl
     },
@@ -555,7 +565,39 @@ AgentContext <- R6::R6Class(
 
       rownames(result) <- NULL
       result
+    },
+
+
+    #' @description get dynamic tool functions injected by agents
+    get_tools = function(keys) {
+      if (missing(keys)) {
+        return(private$.tools$as_list())
+      } else {
+        private$.tools$mget(keys = keys)
+      }
+    },
+
+    set_tool = function(key, tool) {
+      # ToolDef is not exported from ellmer, but it's not good to
+      # use the class name...
+      if (!inherits(tool, "ellmer::ToolDef")) {
+        stop("context$set_tool(): `tool` must be a `ellmer::tool()`")
+      }
+      private$.tools$set(key, tool)
+    },
+
+    clear_tools = function(keys) {
+      if (missing(keys)) {
+        private$.tools$reset()
+      } else {
+        private$.tools$remove(keys = keys)
+      }
+    },
+
+    has_tools = function(keys) {
+      private$.tools$has(keys)
     }
+
   )
 )
 

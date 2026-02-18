@@ -314,7 +314,7 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Start the workflow execution
-    start = function() {
+    start = function(debug = FALSE) {
       if (!identical(self$current_stage, "ready")) {
         stop(
           "Current state is `",
@@ -332,7 +332,7 @@ Scheduler <- R6::R6Class(
       private$.run_flag <- Sys.time()
 
       self$current_stage <- "ready"
-      self$init_resources()
+      self$init_resources(debug = debug)
 
       stages <- self$manifest@master@stages
 
@@ -369,9 +369,9 @@ Scheduler <- R6::R6Class(
 
     #' @description Initialize resources and prepare for execution
     #' @param reset_context logical, whether to reset the context storage
-    init_resources = function(reset_context = FALSE) {
+    init_resources = function(reset_context = FALSE, debug = FALSE) {
       self$context$set_scheduler(self)
-      self$context$init_resources()
+      self$context$init_resources(debug = debug)
 
       self$context$logger("Initializing resources", caller = self)
       self$dispatch_event(type = "init_resources",

@@ -64,6 +64,8 @@ Collate:
     'helper-docopt.R'
     'helper-ellmer_types.R'
     'helper-logger.R'
+    'helper-sandboxed-tools.R'
+    'helper-tool_wrapper.R'
     'mcp-attach.R'
     'mcp-tooldef-config.R'
     'mcp-tooldef-context.R'

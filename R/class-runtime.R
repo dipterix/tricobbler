@@ -65,7 +65,7 @@ AgentRuntime <- R6::R6Class(
         tryCatch(
           {
             description <- private$.agent@describe(result)
-            description <- paste(description, collapse = "")
+            description <- paste(description, collapse = "\n")
           },
           error = function(e) {}
         )
@@ -101,6 +101,7 @@ AgentRuntime <- R6::R6Class(
       if (inherits(result, "tricobbler_state_error")) {
         level <- "ERROR"
         prefix <- "Following error"
+        # message(mcp_describe(result))
       } else {
         level <- "INFO"
         prefix <- "Following result"

@@ -85,7 +85,7 @@ AsyncScheduler <- R6::R6Class(
     #' @return A \code{promise} that resolves when all stages
     #'   complete. Callers may block via \code{later::run_now()}
     #'   or \code{await()} inside a \code{coro::async} context.
-    start = function() {
+    start = function(debug = FALSE) {
       if (!identical(self$current_stage, "ready")) {
         stop(
           "Current state is `",
@@ -103,7 +103,7 @@ AsyncScheduler <- R6::R6Class(
       private$.run_flag <- Sys.time()
 
       self$current_stage <- "ready"
-      self$init_resources()
+      self$init_resources(debug = debug)
 
       stages <- self$manifest@master@stages
 

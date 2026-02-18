@@ -19,7 +19,7 @@
 #' @param .wrap_code Logical. Whether to wrap non-text objects in code blocks.
 #'   Default: \code{TRUE}
 #'
-#' @return An \code{ellmer::ContentText} object containing the formatted 
+#' @return An \code{ellmer::ContentText} object containing the formatted
 #'   context. This object can be passed directly to \code{chat$chat()}.
 #'
 #' @details
@@ -29,7 +29,7 @@
 #'     all help topics from that package in JSON format
 #'   \item Plain text strings (single character vectors) are used as-is
 #'   \item Other R objects are formatted using \code{mcp_describe()}
-#'   \item Formatted objects are wrapped in code blocks if 
+#'   \item Formatted objects are wrapped in code blocks if
 #'     \code{.wrap_code = TRUE}
 #'   \item All parts are combined with the header into a single text block
 #' }
@@ -121,7 +121,7 @@ mcp_attach <- function(..., .header = "## Context", .wrap_code = TRUE) {
 
       # Wrap in code block if requested
       if (.wrap_code) {
-        paste0("```r\n", desc, "\n```")
+        paste0(c("````r", desc, "````"), collapse = "\n")
       } else {
         desc
       }

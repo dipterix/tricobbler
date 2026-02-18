@@ -33,7 +33,7 @@ mcp_describe <- S7::new_generic("mcp_describe", dispatch_args = "x")
 # Helper function to get max_print from context cache
 # TODO: get max_print from runtime$context$cache when runtime is available
 .mcp_get_max_print <- function() {
-  return(100L)
+  return(20L)
   # ctx <- get_active_context()
   # if (is.null(ctx)) {
   #   return(getOption("tricobbler.mcp_describe.max_size", 100L))
@@ -62,6 +62,20 @@ S7::method(mcp_describe, S7::new_S3_class("Content")) <- function(x, ...) {
 # Method for json class (from jsonlite::toJSON)
 S7::method(mcp_describe, S7::new_S3_class("json")) <- function(x, ...) {
   x
+}
+
+
+# Method for error class
+S7::method(mcp_describe, S7::new_S3_class("error")) <- function(x, ...) {
+  sprintf(
+    "Error message: %s\nError class: %s\n\nCall: \n\n```r\n%s\n```", #\n\nTraceback:\n%s
+    paste(x$message, collapse = "\n"),
+    paste(class(x), collapse = ", "),
+    paste(deparse(x$call), collapse = "\n")
+    # paste(utils::capture.output({
+    #   traceback(x)
+    # }), collapse = "\n")
+  )
 }
 
 # Method for NULL
@@ -290,6 +304,8 @@ S7::method(mcp_describe, S7::new_S3_class("POSIXlt")) <- function(x, ...) {
 
   # Strip ANSI codes if present (in case any packages add them)
   out <- gsub("\033\\[[0-9;]*m", "", out)
+
+  out <- paste(out, collapse = "\n")
 
   out
 }

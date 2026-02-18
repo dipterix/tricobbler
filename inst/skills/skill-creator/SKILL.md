@@ -297,15 +297,6 @@ scripts/py/init_skill.py my-skill --path skills/public --resources scripts,refer
 scripts/py/init_skill.py my-skill --path skills/public --resources scripts --examples
 ```
 
-The script:
-
-- Creates the skill directory at the specified path
-- Generates a SKILL.md template with proper frontmatter and TODO placeholders
-- Optionally creates resource directories based on `--resources`
-- Optionally adds example files when `--examples` is set
-
-After initialization, customize the SKILL.md and add resources as needed. If you used `--examples`, replace or delete placeholder files.
-
 ### Step 4: Edit the Skill
 
 When editing the (newly-generated or existing) skill, remember that the skill is being created for another instance of Codex to use. Include information that would be beneficial and non-obvious to Codex. Consider what procedural knowledge, domain-specific details, or reusable assets would help another Codex instance execute these tasks more effectively.
@@ -389,3 +380,27 @@ After testing the skill, users may request improvements. Often this happens righ
 2. Notice struggles or inefficiencies
 3. Identify how SKILL.md or bundled resources should be updated
 4. Implement changes and test again
+
+
+## Conclusion
+
+Here is a summary on how to create a new skill
+
+- Creates the skill directory at the specified path
+- Generates a SKILL.md template with proper frontmatter and TODO placeholders
+- Optionally creates resource directories based on `--resources`
+- Do NOT use --examples flag; we will write real content
+
+After initialization, customize the SKILL.md and add resources as needed. If you used `--examples`, replace or delete placeholder files.
+
+- Write a proper SKILL.md with:
+   - Good frontmatter (name, description covering when to use the skill)
+   - Body instructions for how an AI agent should use the skill
+   - Reference the script parameters and their defaults
+   - Keep it concise per the skill-creator guidelines
+- Scripts:
+   - Write the R scripts under scripts/r/  - it should use `tricobbler::docopt()` for CLI argument parsing with these parameters
+   - Write Python scripts under script/py  - it should parse `sys.argv` and be able to run with CLI
+   - the CLI argument `--help` or `-h` should display the command-line usage
+- Write a references/parameters.md documenting each parameter in detail.
+- List the final directory structure for verification.

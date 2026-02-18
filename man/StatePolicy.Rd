@@ -176,11 +176,6 @@ The \code{accessibility} property affects how inputs are constructed:
 \item \code{"none"}: Only \code{args} are passed (no context access)
 }
 
-\strong{Debug Mode}: Set \code{context$debug <- TRUE} at runtime to
-enable debug mode. In debug mode, agents print their calls and tools for
-inspection but run as no-op (returning debug information instead of
-executing).
-
 \strong{AI Agents} (from \pkg{ellmer} \code{Chat} objects):
 \itemize{
 \item \code{system_prompt}: character, additional system prompt

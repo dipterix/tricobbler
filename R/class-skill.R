@@ -88,8 +88,8 @@ sanitize_string_arg <- function(x) {
 
 convert_from_type <- function(x, type) {
   if (length(x) == 1 && is.character(x) && !is.na(x)) {
-    x <- trimws(x)
-    if (grepl("^<[a-zA-Z0-9].*>", x)) {
+    # x <- trimws(x)
+    if (grepl("^[[:space:]]*<[a-zA-Z0-9].*>", x)) {
       message(x)
       stop("NO XML tag accepted. Use pure JSON!")
     }
@@ -641,7 +641,7 @@ Skill <- R6::R6Class(
 
       tool_desc <- sprintf(
         "Skill tool `skill_%s`: %s.",
-        skill_name,
+        gsub("-", "_", skill_name),
         skill_description
       )
 
@@ -969,7 +969,7 @@ Skill <- R6::R6Class(
       }
 
       # ------ Build tool ------
-      tool_name <- sprintf("skill_%s", skill_name)
+      tool_name <- sprintf("skill_%s", gsub("-", "_", skill_name))
 
       tools <- list()
 
@@ -1025,29 +1025,70 @@ Skill <- R6::R6Class(
 
       tool_arguments[["..."]] <- ellmer::type_ignore()
 
-      tools[[tool_name]] <- ellmer::tool(
+      # tools[[tool_name]] <- ellmer::tool(
+      #   fun = function(action = NA_character_,
+      #                  reference_kwargs = NULL,
+      #                  cli_kwargs = NULL,
+      #                  ...) {
+      #     if (missing(action) || is.na(action)) {
+      #       action <- "readme"
+      #     } else {
+      #       action <- convert_from_type(action, tool_arguments$action)
+      #     }
+      #     switch(
+      #       action,
+      #       'reference' = {
+      #         reference_kwargs <- convert_from_type(
+      #           x = reference_kwargs,
+      #           type = tool_arguments$reference_kwargs
+      #         )
+      #       },
+      #       'script' = {
+      #         cli_kwargs <- convert_from_type(
+      #           x = cli_kwargs,
+      #           type = tool_arguments$cli_kwargs
+      #         )
+      #       },
+      #       'readme' = {},
+      #       {
+      #         stop("`action` can only be `readme`, `reference`, or `script`")
+      #       }
+      #     )
+      #     tool_fn(action = action,
+      #             reference_kwargs = reference_kwargs,
+      #             cli_kwargs = cli_kwargs)
+      #   },
+      #   description = tool_desc,
+      #   arguments = tool_arguments,
+      #   name = tool_name,
+      #   convert = FALSE
+      # )
+
+      tools[[tool_name]] <- tool2(
         fun = function(action = NA_character_,
                        reference_kwargs = NULL,
                        cli_kwargs = NULL,
                        ...) {
           if (missing(action) || is.na(action)) {
             action <- "readme"
-          } else {
-            action <- convert_from_type(action, tool_arguments$action)
           }
           switch(
             action,
             'reference' = {
-              reference_kwargs <- convert_from_type(
-                x = reference_kwargs,
-                type = tool_arguments$reference_kwargs
-              )
+              # reference_kwargs <- convert_from_type(
+              #   x = reference_kwargs,
+              #   type = tool_arguments$reference_kwargs
+              # )
             },
             'script' = {
-              cli_kwargs <- convert_from_type(
-                x = cli_kwargs,
-                type = tool_arguments$cli_kwargs
-              )
+              # cli_kwargs <- convert_from_type(
+              #   x = cli_kwargs,
+              #   type = tool_arguments$cli_kwargs
+              # )
+            },
+            'readme' = {},
+            {
+              stop("`action` can only be `readme`, `reference`, or `script`")
             }
           )
           tool_fn(action = action,
@@ -1056,8 +1097,7 @@ Skill <- R6::R6Class(
         },
         description = tool_desc,
         arguments = tool_arguments,
-        name = tool_name,
-        convert = FALSE
+        name = tool_name
       )
 
       tools

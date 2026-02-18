@@ -35,6 +35,33 @@ Supports conversion from \pkg{ellmer} Chat objects,
 functions, \verb{MCP} tool
 specifications, and package function references.
 }
+\section{Chat Agent Parameters}{
+
+When converting an \pkg{ellmer} Chat object, the following
+\code{parameters} (set in \code{\link{StatePolicy}} or
+\code{\link{MasterPolicy}}) are recognised:
+\describe{
+\item{\code{max_tokens}}{integer, maximum tokens for the
+\verb{LLM} response.
+Applied to the provider before each call.  Useful for
+preventing output truncation with long tool-calling
+workflows (e.g. set to \code{16384}).}
+\item{\code{max_chat_errors}}{integer, number of consecutive
+\verb{LLM} call errors (e.g. truncated \verb{JSON},
+\verb{API} timeouts) tolerated before the agent gives up.
+Defaults to \code{Inf}.  Within this budget the error message
+is fed back to the \verb{LLM} so it can self-correct.}
+\item{\code{system_prompt}}{character, overrides the policy
+description.}
+\item{\code{user_prompt}}{character, task prompt sent to the
+\verb{LLM}.}
+\item{\code{keep_turns}}{logical, preserve conversation
+history across retries (default \code{FALSE}).}
+\item{\code{return_type}}{an \pkg{ellmer} type specification
+for structured output.}
+}
+}
+
 \examples{
 
 # From a simple function
