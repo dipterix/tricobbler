@@ -26,6 +26,7 @@ see AsyncScheduler for the promise-based variant."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/dipterix/tricobbler/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -35,7 +36,7 @@ see AsyncScheduler for the promise-based variant."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Synchronous Workflow Scheduler</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/dipterix/tricobbler/blob/main/R/class-scheduler_sync.R" class="external-link"><code>R/class-scheduler_sync.R</code></a></small>
       <div class="d-none name"><code>Scheduler.Rd</code></div>
     </div>
 
@@ -284,21 +285,33 @@ immediately.</p><div class="section">
 <h3 id="method-start-">Method <code><a href="https://rdrr.io/r/stats/start.html" class="external-link">start()</a></code><a class="anchor" aria-label="anchor" href="#method-start-"></a></h3>
 <p>Start the workflow execution</p><div class="section">
 <h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Scheduler</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Scheduler</span><span class="op">$</span><span class="fu">start</span><span class="op">(</span>debug <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>debug</code></dt>
+<dd><p>logical, whether to enable verbose agent-call output</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-TricobblerScheduler-init_resources"></a><div class="section">
 <h3 id="method-init-resources-">Method <code>init_resources()</code><a class="anchor" aria-label="anchor" href="#method-init-resources-"></a></h3>
 <p>Initialize resources and prepare for execution</p><div class="section">
 <h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Scheduler</span><span class="op">$</span><span class="fu">init_resources</span><span class="op">(</span>reset_context <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Scheduler</span><span class="op">$</span><span class="fu">init_resources</span><span class="op">(</span>reset_context <span class="op">=</span> <span class="cn">FALSE</span>, debug <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>reset_context</code></dt>
 <dd><p>logical, whether to reset the context storage</p></dd>
+
+
+<dt><code>debug</code></dt>
+<dd><p>logical, whether to enable verbose agent-call output</p></dd>
 
 
 </dl><p></p></div>
@@ -313,7 +326,7 @@ for all state policies in that stage</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>stage</code></dt>
 <dd><p>character, stage name to initialize</p></dd>
 
@@ -360,7 +373,7 @@ for all state policies in that stage</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>stage</code></dt>
 <dd><p>character, stage name to start</p></dd>
 
@@ -405,7 +418,7 @@ queue + waiting-pool dispatch model</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>stage</code></dt>
 <dd><p>character, the stage name to execute</p></dd>
 
@@ -426,7 +439,7 @@ queue + waiting-pool dispatch model</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>error</code></dt>
 <dd><p>condition or character, the error that caused
 suspension (default: <code>private$.last_error</code>)</p></dd>

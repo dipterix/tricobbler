@@ -26,6 +26,7 @@ specifications, and package function references."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/dipterix/tricobbler/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -35,7 +36,7 @@ specifications, and package function references."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Convert Objects to Agent</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/dipterix/tricobbler/blob/main/R/generic-as_agent.R" class="external-link"><code>R/generic-as_agent.R</code></a></small>
       <div class="d-none name"><code>as_agent.Rd</code></div>
     </div>
 
@@ -80,6 +81,44 @@ defaults to <code><a href="mcp_describe.html">mcp_describe</a></code>).</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An <code>Agent</code> object.</p>
     </div>
+    <div class="section level2">
+    <h2 id="chat-agent-parameters">Chat Agent Parameters<a class="anchor" aria-label="anchor" href="#chat-agent-parameters"></a></h2>
+
+
+<p>When converting an <span class="pkg">ellmer</span> Chat object, the following
+<code>parameters</code> (set in <code><a href="StatePolicy.html">StatePolicy</a></code> or
+<code><a href="MasterPolicy.html">MasterPolicy</a></code>) are recognized:</p><dl><dt><code>max_tokens</code></dt>
+<dd><p>integer, maximum tokens for the
+<code>LLM</code> response.
+Applied to the provider before each call.  Useful for
+preventing output truncation with long tool-calling
+workflows (e.g. set to <code>16384</code>).</p></dd>
+
+<dt><code>max_chat_errors</code></dt>
+<dd><p>integer, number of consecutive
+<code>LLM</code> call errors (e.g. truncated <code>JSON</code>,
+<code>API</code> timeouts) tolerated before the agent gives up.
+Defaults to <code>Inf</code>.  Within this budget the error message
+is fed back to the <code>LLM</code> so it can self-correct.</p></dd>
+
+<dt><code>system_prompt</code></dt>
+<dd><p>character, overrides the policy
+description.</p></dd>
+
+<dt><code>user_prompt</code></dt>
+<dd><p>character, task prompt sent to the
+<code>LLM</code>.</p></dd>
+
+<dt><code>keep_turns</code></dt>
+<dd><p>logical, preserve conversation
+history across retries (default <code>FALSE</code>).</p></dd>
+
+<dt><code>return_type</code></dt>
+<dd><p>an <span class="pkg">ellmer</span> type specification
+for structured output.</p></dd>
+
+
+</dl></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="StatePolicy.html">StatePolicy</a></code> for details on how to set additional

@@ -73,7 +73,7 @@ for the underlying formatting function,
 # Single object
 mcp_attach(sessionInfo())
 #> <ellmer::ContentText>
-#>  @ text: chr "## Context\n\n```r\nR version 4.5.2 (2025-10-31)\n```\n```r\nPlatform: x86_64-pc-linux-gnu\n```\n```r\nRunning "| __truncated__
+#>  @ text: chr "## Context\n\n````r\nR version 4.5.2 (2025-10-31)\nPlatform: x86_64-pc-linux-gnu\nRunning under: Ubuntu 24.04.3"| __truncated__
 
 # Package help topics
 mcp_attach("{tricobbler}")
@@ -83,7 +83,7 @@ mcp_attach("{tricobbler}")
 # Multiple objects with question
 mcp_attach(sessionInfo(), mtcars, "What packages and data are available?")
 #> <ellmer::ContentText>
-#>  @ text: chr "## Context\n\n```r\nR version 4.5.2 (2025-10-31)\n```\n```r\nPlatform: x86_64-pc-linux-gnu\n```\n```r\nRunning "| __truncated__
+#>  @ text: chr "## Context\n\n````r\nR version 4.5.2 (2025-10-31)\nPlatform: x86_64-pc-linux-gnu\nRunning under: Ubuntu 24.04.3"| __truncated__
 
 if (FALSE) { # \dontrun{
 # Use in chat

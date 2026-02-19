@@ -2,6 +2,8 @@
 <url><loc>http://dipterix.org/tricobbler/404.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/LICENSE-text.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/LICENSE.html</loc></url>
+<url><loc>http://dipterix.org/tricobbler/MANIFESTO.html</loc></url>
+<url><loc>http://dipterix.org/tricobbler/TODO-skills.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/TODO.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/authors.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/copilot-instructions.html</loc></url>
@@ -15,9 +17,11 @@
 <url><loc>http://dipterix.org/tricobbler/reference/Manifest.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/MasterPolicy.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/Scheduler.html</loc></url>
+<url><loc>http://dipterix.org/tricobbler/reference/Skill.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/StateDeps.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/StatePolicy.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/as_agent.html</loc></url>
+<url><loc>http://dipterix.org/tricobbler/reference/docopt.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/index.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/manifest-file.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/map_type_to_ellmer.html</loc></url>
@@ -31,5 +35,6 @@
 <url><loc>http://dipterix.org/tricobbler/reference/mcptool_path.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/mcptool_read.html</loc></url>
 <url><loc>http://dipterix.org/tricobbler/reference/mcptool_write.html</loc></url>
+<url><loc>http://dipterix.org/tricobbler/reference/sandboxed-tools.html</loc></url>
 </urlset>
 

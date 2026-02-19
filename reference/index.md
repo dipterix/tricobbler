@@ -28,11 +28,17 @@
 - [`Scheduler`](http://dipterix.org/tricobbler/reference/Scheduler.md) :
   Synchronous Workflow Scheduler
 
+- [`Skill`](http://dipterix.org/tricobbler/reference/Skill.md) : Skill:
+  Load and Serve Skill Directories
+
 - [`StatePolicy()`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
   : State-Level Policy Implementation for Workflow Stages
 
 - [`as_agent()`](http://dipterix.org/tricobbler/reference/as_agent.md) :
   Convert Objects to Agent
+
+- [`docopt()`](http://dipterix.org/tricobbler/reference/docopt.md) :
+  Parse Command-Line Arguments with Enhanced Error Messages
 
 - [`manifest_write()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
   [`manifest_read()`](http://dipterix.org/tricobbler/reference/manifest-file.md)
@@ -85,3 +91,11 @@
   :
 
   Write `MCP` tool definition to file
+
+- [`sandboxed_read_file()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  [`sandboxed_load_text()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  [`sandboxed_write_file()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  [`sandboxed_walk_directory()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  [`sandboxed_copy_file()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  [`sandboxed_tools()`](http://dipterix.org/tricobbler/reference/sandboxed-tools.md)
+  : Create file I/O tools in sand-box

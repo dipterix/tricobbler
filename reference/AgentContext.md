@@ -91,6 +91,14 @@ workflow execution. This is part of the Runtime Layer (Tier 2) alongside
 
 - [`AgentContext$read_logs()`](#method-TricobblerAgentContext-read_logs)
 
+- [`AgentContext$get_tools()`](#method-TricobblerAgentContext-get_tools)
+
+- [`AgentContext$set_tool()`](#method-TricobblerAgentContext-set_tool)
+
+- [`AgentContext$clear_tools()`](#method-TricobblerAgentContext-clear_tools)
+
+- [`AgentContext$has_tools()`](#method-TricobblerAgentContext-has_tools)
+
 ------------------------------------------------------------------------
 
 ### Method `set_scheduler()`
@@ -140,7 +148,13 @@ Create directory structure and initialize logging
 
 #### Usage
 
-    AgentContext$init_resources()
+    AgentContext$init_resources(debug = FALSE)
+
+#### Arguments
+
+- `debug`:
+
+  logical, whether to enable verbose agent-call output
 
 ------------------------------------------------------------------------
 
@@ -388,3 +402,78 @@ Read and parse log file contents
 
 `data.frame` with columns: `line_no`, `level`, `time`, `caller`,
 `content`. Returns empty `data.frame` if file missing or no matches.
+
+------------------------------------------------------------------------
+
+### Method `get_tools()`
+
+Get dynamic tool functions injected by agents
+
+#### Usage
+
+    AgentContext$get_tools(keys)
+
+#### Arguments
+
+- `keys`:
+
+  character or missing, names of tools to retrieve. If omitted, all
+  tools are returned.
+
+------------------------------------------------------------------------
+
+### Method `set_tool()`
+
+Register a dynamic tool so agents can call it
+
+#### Usage
+
+    AgentContext$set_tool(key, tool)
+
+#### Arguments
+
+- `key`:
+
+  character, name used to store and retrieve the tool
+
+- `tool`:
+
+  `ToolDef`, a ellmer tool created with
+  [`ellmer::tool()`](https://ellmer.tidyverse.org/reference/tool.html)
+
+------------------------------------------------------------------------
+
+### Method `clear_tools()`
+
+Remove previously registered tools
+
+#### Usage
+
+    AgentContext$clear_tools(keys)
+
+#### Arguments
+
+- `keys`:
+
+  character or missing, names of tools to remove. If omitted, all tools
+  are cleared.
+
+------------------------------------------------------------------------
+
+### Method `has_tools()`
+
+Check whether tools are registered under given keys
+
+#### Usage
+
+    AgentContext$has_tools(keys)
+
+#### Arguments
+
+- `keys`:
+
+  character, names of tools to check
+
+#### Returns
+
+logical vector, `TRUE` for each key with a registered tool

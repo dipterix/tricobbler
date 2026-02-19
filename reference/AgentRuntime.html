@@ -28,6 +28,7 @@ relying on global state."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/dipterix/tricobbler/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -37,7 +38,7 @@ relying on global state."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Agent Runtime Environment for State Execution</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/dipterix/tricobbler/blob/main/R/class-runtime.R" class="external-link"><code>R/class-runtime.R</code></a></small>
       <div class="d-none name"><code>AgentRuntime.Rd</code></div>
     </div>
 
@@ -118,6 +119,11 @@ executed (what)</p></dd>
 in the context logs</p></dd>
 
 
+<dt><code>master_policy</code></dt>
+<dd><p><code><a href="MasterPolicy.html">MasterPolicy</a></code> object,
+the master-level policy (global parameters)</p></dd>
+
+
 <dt><code>status</code></dt>
 <dd><p>character, current runtime status
 (<code>"idle"</code>, <code>"running"</code>, or <code>"completed"</code>)</p></dd>
@@ -133,13 +139,14 @@ in the context logs</p></dd>
 
 <ul><li><p><a href="#method-TricobblerAgentRuntime-new"><code>AgentRuntime$new()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentRuntime-logger"><code>AgentRuntime$logger()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentRuntime-get_parameter"><code>AgentRuntime$get_parameter()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentRuntime-run_async"><code>AgentRuntime$run_async()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentRuntime-run"><code>AgentRuntime$run()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TricobblerAgentRuntime-new"></a><div class="section">
 <h3 id="method-new-">Method <code>new()</code><a class="anchor" aria-label="anchor" href="#method-new-"></a></h3>
 <p>Initialize a new runtime environment</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/AgentRuntime.html">AgentRuntime</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">agent</span>, <span class="va">context</span>, <span class="va">policy</span>, attempt <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/AgentRuntime.html">AgentRuntime</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">agent</span>, <span class="va">context</span>, <span class="va">policy</span>, attempt <span class="op">=</span> <span class="fl">0L</span>, master_policy <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
@@ -158,6 +165,11 @@ in the context logs</p></dd>
 
 <dt><code>attempt</code></dt>
 <dd><p>integer, retry count (default: <code>0L</code>)</p></dd>
+
+
+<dt><code>master_policy</code></dt>
+<dd><p><code><a href="MasterPolicy.html">MasterPolicy</a></code> object (optional),
+provides global parameters that cascade to agents</p></dd>
 
 
 </dl><p></p></div>
@@ -205,16 +217,56 @@ in the context logs</p></dd>
 <p>NULL invisibly</p>
 </div>
 
+</div><p></p><hr><a id="method-TricobblerAgentRuntime-get_parameter"></a><div class="section">
+<h3 id="method-get-parameter-">Method <code>get_parameter()</code><a class="anchor" aria-label="anchor" href="#method-get-parameter-"></a></h3>
+<p>Retrieve a parameter by name with cascading lookup.</p>
+<p>When <code>levels = "cascade"</code> (default), looks first in the
+state-level policy parameters (<code>policy@parameters$args</code>),
+then falls back to the master-level policy parameters
+(<code>master_policy@parameters</code>). Use <code>"local"</code> or
+<code>"global"</code> to restrict the search scope.</p><div class="section">
+<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentRuntime</span><span class="op">$</span><span class="fu">get_parameter</span><span class="op">(</span></span>
+<span>  <span class="va">key</span>,</span>
+<span>  missing <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"cascade"</span>, <span class="st">"global"</span>, <span class="st">"local"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>key</code></dt>
+<dd><p>character, the parameter name to look up</p></dd>
+
+
+<dt><code>missing</code></dt>
+<dd><p>default value to return when the key is not
+found at the requested level(s) (default: <code>NULL</code>)</p></dd>
+
+
+<dt><code>levels</code></dt>
+<dd><p>character, lookup scope: <code>"cascade"</code>
+(local then global), <code>"local"</code> (state policy only), or
+<code>"global"</code> (master policy only)</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<p>The parameter value, or <code>missing</code> if not found.</p>
+</div>
+
 </div><p></p><hr><a id="method-TricobblerAgentRuntime-run_async"></a><div class="section">
 <h3 id="method-run-async-">Method <code>run_async()</code><a class="anchor" aria-label="anchor" href="#method-run-async-"></a></h3>
 <p>Execute the agent asynchronously, returning a
 <code><a href="https://rstudio.github.io/promises/reference/promise.html" class="external-link">promises::promise</a></code> that resolves with the recorded attachment</p><div class="section">
-<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentRuntime</span><span class="op">$</span><span class="fu">run_async</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
 <p>A <code><a href="https://rstudio.github.io/promises/reference/promise.html" class="external-link">promises::promise</a></code> object</p>
 </div>
 
@@ -222,12 +274,12 @@ in the context logs</p></dd>
 <h3 id="method-run-">Method <code>run()</code><a class="anchor" aria-label="anchor" href="#method-run-"></a></h3>
 <p>Execute the agent synchronously, blocking
 until completion and returning the recorded attachment</p><div class="section">
-<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentRuntime</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
 <p>The attachment list (invisibly)</p>
 </div>
 

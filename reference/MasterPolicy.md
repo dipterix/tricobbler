@@ -39,7 +39,9 @@ MasterPolicy(
 
 - parameters:
 
-  list, additional free-form parameters for the workflow
+  list, additional free-form parameters for the workflow. These values
+  are available to agents via
+  `runtime$get_parameter(key, levels = "global")`.
 
 ## Details
 
@@ -81,7 +83,7 @@ MasterPolicy(
   name = "example",
   version = "1.0.0",
   stages = c("idle", "triage", "planning"),
-  parameters = list()
+  parameters = list(location = "NYC")
 )
 #> MasterPolicy (S7 class) - `example`(1.0.0)
 #> Stages: idle, triage, planning

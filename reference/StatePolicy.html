@@ -26,6 +26,7 @@ multiple states share the same stage."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/dipterix/tricobbler/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -35,7 +36,7 @@ multiple states share the same stage."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>State-Level Policy Implementation for Workflow Stages</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/dipterix/tricobbler/blob/main/R/class-policystate.R" class="external-link"><code>R/class-policystate.R</code></a></small>
       <div class="d-none name"><code>StatePolicy.Rd</code></div>
     </div>
 
@@ -236,11 +237,7 @@ avoid conflicts with functions that have their own reserved arguments</p></li>
 <li><p><code>"logs"</code>: First argument is the previous agent's description
 (<code>last_attachment$description</code>), followed by <code>args</code></p></li>
 <li><p><code>"none"</code>: Only <code>args</code> are passed (no context access)</p></li>
-</ul><p><strong>Debug Mode</strong>: Set <code>context$debug &lt;- TRUE</code> at runtime to
-enable debug mode. In debug mode, agents print their calls and tools for
-inspection but run as no-op (returning debug information instead of
-executing).</p>
-<p><strong>AI Agents</strong> (from <span class="pkg">ellmer</span> <code>Chat</code> objects):</p><ul><li><p><code>system_prompt</code>: character, additional system prompt
+</ul><p><strong>AI Agents</strong> (from <span class="pkg">ellmer</span> <code>Chat</code> objects):</p><ul><li><p><code>system_prompt</code>: character, additional system prompt
 appended to <code>@description</code></p></li>
 <li><p><code>user_prompt</code>: character, the user message
 to send to the <code>LLM</code></p></li>

@@ -69,6 +69,11 @@ tools that access the execution context:
   character, short identifier for this execution to show in the context
   logs
 
+- `master_policy`:
+
+  [`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md)
+  object, the master-level policy (global parameters)
+
 - `status`:
 
   character, current runtime status (`"idle"`, `"running"`, or
@@ -82,6 +87,8 @@ tools that access the execution context:
 
 - [`AgentRuntime$logger()`](#method-TricobblerAgentRuntime-logger)
 
+- [`AgentRuntime$get_parameter()`](#method-TricobblerAgentRuntime-get_parameter)
+
 - [`AgentRuntime$run_async()`](#method-TricobblerAgentRuntime-run_async)
 
 - [`AgentRuntime$run()`](#method-TricobblerAgentRuntime-run)
@@ -94,7 +101,7 @@ Initialize a new runtime environment
 
 #### Usage
 
-    AgentRuntime$new(agent, context, policy, attempt = 0L)
+    AgentRuntime$new(agent, context, policy, attempt = 0L, master_policy = NULL)
 
 #### Arguments
 
@@ -116,6 +123,11 @@ Initialize a new runtime environment
 - `attempt`:
 
   integer, retry count (default: `0L`)
+
+- `master_policy`:
+
+  [`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md)
+  object (optional), provides global parameters that cascade to agents
 
 ------------------------------------------------------------------------
 
@@ -158,6 +170,45 @@ Log a message with the agent as caller
 #### Returns
 
 NULL invisibly
+
+------------------------------------------------------------------------
+
+### Method `get_parameter()`
+
+Retrieve a parameter by name with cascading lookup.
+
+When `levels = "cascade"` (default), looks first in the state-level
+policy parameters (`policy@parameters$args`), then falls back to the
+master-level policy parameters (`master_policy@parameters`). Use
+`"local"` or `"global"` to restrict the search scope.
+
+#### Usage
+
+    AgentRuntime$get_parameter(
+      key,
+      missing = NULL,
+      levels = c("cascade", "global", "local")
+    )
+
+#### Arguments
+
+- `key`:
+
+  character, the parameter name to look up
+
+- `missing`:
+
+  default value to return when the key is not found at the requested
+  level(s) (default: `NULL`)
+
+- `levels`:
+
+  character, lookup scope: `"cascade"` (local then global), `"local"`
+  (state policy only), or `"global"` (master policy only)
+
+#### Returns
+
+The parameter value, or `missing` if not found.
 
 ------------------------------------------------------------------------
 

@@ -203,10 +203,6 @@ The `accessibility` property affects how inputs are constructed:
 
 - `"none"`: Only `args` are passed (no context access)
 
-**Debug Mode**: Set `context$debug <- TRUE` at runtime to enable debug
-mode. In debug mode, agents print their calls and tools for inspection
-but run as no-op (returning debug information instead of executing).
-
 **AI Agents** (from ellmer `Chat` objects):
 
 - `system_prompt`: character, additional system prompt appended to

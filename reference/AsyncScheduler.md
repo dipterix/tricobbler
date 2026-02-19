@@ -101,9 +101,17 @@ be called immediately.
 
 Start the workflow execution
 
+Start the workflow execution asynchronously
+
 #### Usage
 
-    AsyncScheduler$start()
+    AsyncScheduler$start(debug = FALSE)
+
+#### Arguments
+
+- `debug`:
+
+  logical, whether to enable verbose agent-call output
 
 #### Returns
 

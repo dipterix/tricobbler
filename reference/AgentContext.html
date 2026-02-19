@@ -24,6 +24,7 @@ Scheduler."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/dipterix/tricobbler/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -33,7 +34,7 @@ Scheduler."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Execution Context for Workflow State Management</h1>
-
+      <small class="dont-index">Source: <a href="https://github.com/dipterix/tricobbler/blob/main/R/class-context.R" class="external-link"><code>R/class-context.R</code></a></small>
       <div class="d-none name"><code>AgentContext.Rd</code></div>
     </div>
 
@@ -130,6 +131,10 @@ index (read-only). Available after
 <li><p><a href="#method-TricobblerAgentContext-list_incomplete"><code>AgentContext$list_incomplete()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-get_runtime_log"><code>AgentContext$get_runtime_log()</code></a></p></li>
 <li><p><a href="#method-TricobblerAgentContext-read_logs"><code>AgentContext$read_logs()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-get_tools"><code>AgentContext$get_tools()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-set_tool"><code>AgentContext$set_tool()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-clear_tools"><code>AgentContext$clear_tools()</code></a></p></li>
+<li><p><a href="#method-TricobblerAgentContext-has_tools"><code>AgentContext$has_tools()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TricobblerAgentContext-set_scheduler"></a><div class="section">
 <h3 id="method-set-scheduler-">Method <code>set_scheduler()</code><a class="anchor" aria-label="anchor" href="#method-set-scheduler-"></a></h3>
 <p>Associate a scheduler with this context</p><div class="section">
@@ -174,9 +179,17 @@ directory under <code><a href="https://rdrr.io/r/base/tempfile.html" class="exte
 <h3 id="method-init-resources-">Method <code>init_resources()</code><a class="anchor" aria-label="anchor" href="#method-init-resources-"></a></h3>
 <p>Create directory structure and initialize logging</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">init_resources</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">init_resources</span><span class="op">(</span>debug <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>debug</code></dt>
+<dd><p>logical, whether to enable verbose agent-call output</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-TricobblerAgentContext-logger"></a><div class="section">
 <h3 id="method-logger-">Method <code>logger()</code><a class="anchor" aria-label="anchor" href="#method-logger-"></a></h3>
@@ -191,7 +204,7 @@ directory under <code><a href="https://rdrr.io/r/base/tempfile.html" class="exte
 </div>
 
 <div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>...</code></dt>
 <dd><p>character, message components to paste together</p></dd>
 
@@ -226,7 +239,7 @@ output without styling.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>runtime</code></dt>
 <dd><p><code><a href="AgentRuntime.html">AgentRuntime</a></code> object that
 produced the attachment</p></dd>
@@ -248,7 +261,7 @@ succeeded</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>items</code></dt>
 <dd><p>integer, number of results to retrieve</p></dd>
 
@@ -269,7 +282,7 @@ a single result instead of a list</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
 (filename from <code>record_attachment</code>). Alternatively, a
@@ -288,7 +301,7 @@ for that state.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>state</code></dt>
 <dd><p>character, the name of the state</p></dd>
 
@@ -308,7 +321,7 @@ for that state.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>reindex</code></dt>
 <dd><p>logical, currently unused (index is always live);
 kept for backward compatibility</p></dd>
@@ -325,7 +338,7 @@ kept for backward compatibility</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier</p></dd>
 
@@ -345,7 +358,7 @@ kept for backward compatibility</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>timeout_secs</code></dt>
 <dd><p>numeric or <code>NULL</code>, seconds after which
 <code>"init"</code>/<code>"running"</code> entries are considered incomplete.
@@ -367,7 +380,7 @@ If <code>NULL</code>, returns all <code>"init"</code>/<code>"running"</code> ent
 </div>
 
 <div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>attachment_id</code></dt>
 <dd><p>character, the attachment identifier
 (which is also the log file prefix for the runtime)</p></dd>
@@ -394,7 +407,7 @@ If <code>NULL</code>, returns all <code>"init"</code>/<code>"running"</code> ent
 </div>
 
 <div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>method</code></dt>
 <dd><p>character, read from <code>"tail"</code> (end of file) or
 <code>"head"</code> (beginning of file)</p></dd>
@@ -429,6 +442,81 @@ filter log content</p></dd>
 <p><code>data.frame</code> with columns: <code>line_no</code>, <code>level</code>,
 <code>time</code>, <code>caller</code>, <code>content</code>.
 Returns empty <code>data.frame</code> if file missing or no matches.</p>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-get_tools"></a><div class="section">
+<h3 id="method-get-tools-">Method <code>get_tools()</code><a class="anchor" aria-label="anchor" href="#method-get-tools-"></a></h3>
+<p>Get dynamic tool functions injected by agents</p><div class="section">
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">get_tools</span><span class="op">(</span><span class="va">keys</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>keys</code></dt>
+<dd><p>character or missing, names of tools to retrieve.
+If omitted, all tools are returned.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-set_tool"></a><div class="section">
+<h3 id="method-set-tool-">Method <code>set_tool()</code><a class="anchor" aria-label="anchor" href="#method-set-tool-"></a></h3>
+<p>Register a dynamic tool so agents can call it</p><div class="section">
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">set_tool</span><span class="op">(</span><span class="va">key</span>, <span class="va">tool</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>key</code></dt>
+<dd><p>character, name used to store and retrieve the tool</p></dd>
+
+
+<dt><code>tool</code></dt>
+<dd><p><code>ToolDef</code>, a <span class="pkg">ellmer</span> tool created with
+<code><a href="https://ellmer.tidyverse.org/reference/tool.html" class="external-link">ellmer::tool()</a></code></p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-clear_tools"></a><div class="section">
+<h3 id="method-clear-tools-">Method <code>clear_tools()</code><a class="anchor" aria-label="anchor" href="#method-clear-tools-"></a></h3>
+<p>Remove previously registered tools</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">clear_tools</span><span class="op">(</span><span class="va">keys</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>keys</code></dt>
+<dd><p>character or missing, names of tools to remove.
+If omitted, all tools are cleared.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TricobblerAgentContext-has_tools"></a><div class="section">
+<h3 id="method-has-tools-">Method <code>has_tools()</code><a class="anchor" aria-label="anchor" href="#method-has-tools-"></a></h3>
+<p>Check whether tools are registered under given keys</p><div class="section">
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">AgentContext</span><span class="op">$</span><span class="fu">has_tools</span><span class="op">(</span><span class="va">keys</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>keys</code></dt>
+<dd><p>character, names of tools to check</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<p>logical vector, <code>TRUE</code> for each key with a registered tool</p>
 </div>
 
 </div>

@@ -42,6 +42,45 @@ as_agent(x, ...)
 
 An `Agent` object.
 
+## Chat Agent Parameters
+
+When converting an ellmer Chat object, the following `parameters` (set
+in
+[`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)
+or
+[`MasterPolicy`](http://dipterix.org/tricobbler/reference/MasterPolicy.md))
+are recognized:
+
+- `max_tokens`:
+
+  integer, maximum tokens for the `LLM` response. Applied to the
+  provider before each call. Useful for preventing output truncation
+  with long tool-calling workflows (e.g. set to `16384`).
+
+- `max_chat_errors`:
+
+  integer, number of consecutive `LLM` call errors (e.g. truncated
+  `JSON`, `API` timeouts) tolerated before the agent gives up. Defaults
+  to `Inf`. Within this budget the error message is fed back to the
+  `LLM` so it can self-correct.
+
+- `system_prompt`:
+
+  character, overrides the policy description.
+
+- `user_prompt`:
+
+  character, task prompt sent to the `LLM`.
+
+- `keep_turns`:
+
+  logical, preserve conversation history across retries (default
+  `FALSE`).
+
+- `return_type`:
+
+  an ellmer type specification for structured output.
+
 ## See also
 
 [`StatePolicy`](http://dipterix.org/tricobbler/reference/StatePolicy.md)

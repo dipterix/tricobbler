@@ -263,7 +263,13 @@ Start the workflow execution
 
 #### Usage
 
-    Scheduler$start()
+    Scheduler$start(debug = FALSE)
+
+#### Arguments
+
+- `debug`:
+
+  logical, whether to enable verbose agent-call output
 
 ------------------------------------------------------------------------
 
@@ -273,13 +279,17 @@ Initialize resources and prepare for execution
 
 #### Usage
 
-    Scheduler$init_resources(reset_context = FALSE)
+    Scheduler$init_resources(reset_context = FALSE, debug = FALSE)
 
 #### Arguments
 
 - `reset_context`:
 
   logical, whether to reset the context storage
+
+- `debug`:
+
+  logical, whether to enable verbose agent-call output
 
 ------------------------------------------------------------------------
 
