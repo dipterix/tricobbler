@@ -124,6 +124,13 @@ Create directory structure and initialize logging
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$init_resources(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{debug}}{logical, whether to enable verbose agent-call output}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-logger"></a>}}
@@ -368,37 +375,76 @@ Returns empty \code{data.frame} if file missing or no matches.
 \if{html}{\out{<a id="method-TricobblerAgentContext-get_tools"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-get_tools}{}}}
 \subsection{Method \code{get_tools()}}{
-get dynamic tool functions injected by agents
+Get dynamic tool functions injected by agents
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_tools(keys)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{keys}}{character or missing, names of tools to retrieve.
+If omitted, all tools are returned.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-set_tool"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-set_tool}{}}}
 \subsection{Method \code{set_tool()}}{
+Register a dynamic tool so agents can call it
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$set_tool(key, tool)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{key}}{character, name used to store and retrieve the tool}
+
+\item{\code{tool}}{\code{ToolDef}, a \pkg{ellmer} tool created with
+\code{ellmer::tool()}}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-clear_tools"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-clear_tools}{}}}
 \subsection{Method \code{clear_tools()}}{
+Remove previously registered tools
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$clear_tools(keys)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{keys}}{character or missing, names of tools to remove.
+If omitted, all tools are cleared.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerAgentContext-has_tools"></a>}}
 \if{latex}{\out{\hypertarget{method-TricobblerAgentContext-has_tools}{}}}
 \subsection{Method \code{has_tools()}}{
+Check whether tools are registered under given keys
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AgentContext$has_tools(keys)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{keys}}{character, names of tools to check}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+logical vector, \code{TRUE} for each key with a registered tool
+}
 }
 }

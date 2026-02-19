@@ -167,6 +167,7 @@ AgentContext <- R6::R6Class(
     },
 
     #' @description Create directory structure and initialize logging
+    #' @param debug logical, whether to enable verbose agent-call output
     init_resources = function(debug = FALSE) {
       dir.create(self$memory_path, showWarnings = FALSE, recursive = TRUE)
       dir.create(self$store_path, showWarnings = FALSE, recursive = TRUE)
@@ -568,7 +569,9 @@ AgentContext <- R6::R6Class(
     },
 
 
-    #' @description get dynamic tool functions injected by agents
+    #' @description Get dynamic tool functions injected by agents
+    #' @param keys character or missing, names of tools to retrieve.
+    #'   If omitted, all tools are returned.
     get_tools = function(keys) {
       if (missing(keys)) {
         return(private$.tools$as_list())
@@ -577,6 +580,10 @@ AgentContext <- R6::R6Class(
       }
     },
 
+    #' @description Register a dynamic tool so agents can call it
+    #' @param key character, name used to store and retrieve the tool
+    #' @param tool \code{ToolDef}, a \pkg{ellmer} tool created with
+    #'   \code{ellmer::tool()}
     set_tool = function(key, tool) {
       # ToolDef is not exported from ellmer, but it's not good to
       # use the class name...
@@ -586,6 +593,9 @@ AgentContext <- R6::R6Class(
       private$.tools$set(key, tool)
     },
 
+    #' @description Remove previously registered tools
+    #' @param keys character or missing, names of tools to remove.
+    #'   If omitted, all tools are cleared.
     clear_tools = function(keys) {
       if (missing(keys)) {
         private$.tools$reset()
@@ -594,6 +604,9 @@ AgentContext <- R6::R6Class(
       }
     },
 
+    #' @description Check whether tools are registered under given keys
+    #' @param keys character, names of tools to check
+    #' @return logical vector, \code{TRUE} for each key with a registered tool
     has_tools = function(keys) {
       private$.tools$has(keys)
     }

@@ -96,10 +96,20 @@ immediately.
 \if{latex}{\out{\hypertarget{method-TricobblerAsyncScheduler-start}{}}}
 \subsection{Method \code{start()}}{
 Start the workflow execution
+
+
+Start the workflow execution asynchronously
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{AsyncScheduler$start(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{debug}}{logical, whether to enable verbose agent-call output}
+}
+\if{html}{\out{</div>}}
+}
 \subsection{Returns}{
 A \code{promise} that resolves when all stages
 complete. Callers may block via \code{later::run_now()}

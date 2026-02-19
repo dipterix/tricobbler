@@ -6,14 +6,14 @@
 # ---------------------------------------------------------------------------
 
 
-#' Create sandboxed file I/O tools
+#' Create file I/O tools in sand-box
 #'
 #' @description
 #' Generate \pkg{ellmer} \code{ToolDef} objects that restrict all
 #' file operations to a given root directory.  Every path argument
 #' accepted by the returned tools is \emph{relative} to
 #' \code{root_path}; attempts to escape the sandbox (e.g. via
-#' \code{..}) are rejected with an informative error that the LLM
+#' \code{..}) are rejected with an informative error that the \verb{LLM}
 #' can act on.
 #'
 #' \code{sandboxed_tools()} returns a named list of all four tools
@@ -171,6 +171,9 @@ sandboxed_read_file <- function(root_path, read_n_lines = 50L) {
 }
 
 #' @rdname sandboxed-tools
+#' @param text character, the text content to expose as a virtual file.
+#' @param description character, a short human-readable label for the
+#'   virtual file shown to the \verb{LLM} in tool descriptions.
 #' @export
 sandboxed_load_text <- function(text, description, read_n_lines = 50L) {
   read_n_lines <- as.integer(read_n_lines)

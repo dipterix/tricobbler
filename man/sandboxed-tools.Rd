@@ -8,7 +8,7 @@
 \alias{sandboxed_walk_directory}
 \alias{sandboxed_copy_file}
 \alias{sandboxed_tools}
-\title{Create sandboxed file I/O tools}
+\title{Create file I/O tools in sand-box}
 \usage{
 sandboxed_read_file(root_path, read_n_lines = 50L)
 
@@ -30,6 +30,11 @@ if it does not already exist.}
 \item{read_n_lines}{integer, default number of lines returned by
 the read tool when the caller does not specify
 \code{n_lines}.}
+
+\item{text}{character, the text content to expose as a virtual file.}
+
+\item{description}{character, a short human-readable label for the
+virtual file shown to the \verb{LLM} in tool descriptions.}
 }
 \value{
 For \code{sandboxed_tools()}: a named list of four
@@ -42,7 +47,7 @@ Generate \pkg{ellmer} \code{ToolDef} objects that restrict all
 file operations to a given root directory.  Every path argument
 accepted by the returned tools is \emph{relative} to
 \code{root_path}; attempts to escape the sandbox (e.g. via
-\code{..}) are rejected with an informative error that the LLM
+\code{..}) are rejected with an informative error that the \verb{LLM}
 can act on.
 
 \code{sandboxed_tools()} returns a named list of all four tools

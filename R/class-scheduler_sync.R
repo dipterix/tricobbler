@@ -314,6 +314,7 @@ Scheduler <- R6::R6Class(
     },
 
     #' @description Start the workflow execution
+    #' @param debug logical, whether to enable verbose agent-call output
     start = function(debug = FALSE) {
       if (!identical(self$current_stage, "ready")) {
         stop(
@@ -369,6 +370,7 @@ Scheduler <- R6::R6Class(
 
     #' @description Initialize resources and prepare for execution
     #' @param reset_context logical, whether to reset the context storage
+    #' @param debug logical, whether to enable verbose agent-call output
     init_resources = function(reset_context = FALSE, debug = FALSE) {
       self$context$set_scheduler(self)
       self$context$init_resources(debug = debug)

@@ -82,6 +82,8 @@ AsyncScheduler <- R6::R6Class(
     },
 
     #' @description Start the workflow execution
+    #' @description Start the workflow execution asynchronously
+    #' @param debug logical, whether to enable verbose agent-call output
     #' @return A \code{promise} that resolves when all stages
     #'   complete. Callers may block via \code{later::run_now()}
     #'   or \code{await()} inside a \code{coro::async} context.

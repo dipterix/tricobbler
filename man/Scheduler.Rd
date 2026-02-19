@@ -215,6 +215,13 @@ Start the workflow execution
 \if{html}{\out{<div class="r">}}\preformatted{Scheduler$start(debug = FALSE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{debug}}{logical, whether to enable verbose agent-call output}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TricobblerScheduler-init_resources"></a>}}
@@ -229,6 +236,8 @@ Initialize resources and prepare for execution
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{reset_context}}{logical, whether to reset the context storage}
+
+\item{\code{debug}}{logical, whether to enable verbose agent-call output}
 }
 \if{html}{\out{</div>}}
 }

@@ -39,7 +39,7 @@ specifications, and package function references.
 
 When converting an \pkg{ellmer} Chat object, the following
 \code{parameters} (set in \code{\link{StatePolicy}} or
-\code{\link{MasterPolicy}}) are recognised:
+\code{\link{MasterPolicy}}) are recognized:
 \describe{
 \item{\code{max_tokens}}{integer, maximum tokens for the
 \verb{LLM} response.
