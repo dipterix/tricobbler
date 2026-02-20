@@ -10,5 +10,6 @@
 ^\.lintr$
 ^TODO\.md$
 ^\.venv$
-^TODO-skills\.md$
+^TODO-.*\.md$
 ^MANIFESTO\.md$
+^\.githooks$

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# ====================================================================
+# pre-commit: reject commits containing explicit IP addresses
+# ====================================================================
+# Allowed IPs:
+#   - 127.0.0.1  (localhost)
+#   - 0.0.0.0    (any/unspecified)
+#   - 10.x.x.x   (RFC-1918 private range)
+#
+# To install, run once in the repo root:
+#   git config core.hooksPath .githooks
+# ====================================================================
+
+violations=""
+
+while IFS= read -r file; do
+  # Added lines only (skip diff hunk headers that start with ++)
+  added=$(git diff --cached -- "$file" | grep '^+[^+]' | sed 's/^+//')
+
+  # Extract IPv4-looking tokens, then filter out the allowed ones
+  bad_ips=$(printf '%s\n' "$added" \
+    | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
+    | grep -v '^127\.0\.0\.1$' \
+    | grep -v '^0\.0\.0\.0$' \
+    | grep -v '^10\.' \
+    | grep -v '^192\.168\.' \
+    | sort -u)
+
+  if [ -n "$bad_ips" ]; then
+    violations="${violations}\n  ${file}:"
+    while IFS= read -r ip; do
+      violations="${violations}\n    ${ip}"
+    done <<< "$bad_ips"
+  fi
+done < <(git diff --cached --name-only)
+
+if [ -n "$violations" ]; then
+  echo "ERROR: Commit blocked — explicit IP address(es) detected." >&2
+  echo "" >&2
+  printf "Violations:%b\n" "$violations" >&2
+  echo "" >&2
+  echo "Allowed:  127.0.0.1 | 0.0.0.0 | 10.x.x.x | 192.168.x.x" >&2
+  echo "Fix: use an environment variable or config parameter instead." >&2
+  exit 1
+fi
+
+exit 0
