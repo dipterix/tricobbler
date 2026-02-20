@@ -61,6 +61,7 @@ names to integer attempt counts for retry scheduling}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TricobblerScheduler-new}{\code{Scheduler$new()}}
+\item \href{#method-TricobblerScheduler-save_workflow}{\code{Scheduler$save_workflow()}}
 \item \href{#method-TricobblerScheduler-on}{\code{Scheduler$on()}}
 \item \href{#method-TricobblerScheduler-off}{\code{Scheduler$off()}}
 \item \href{#method-TricobblerScheduler-dispatch_event}{\code{Scheduler$dispatch_event()}}
@@ -99,6 +100,40 @@ Initialize scheduler with manifest blueprint and agents
 (default: new \code{\link{AgentContext}})}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerScheduler-save_workflow"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerScheduler-save_workflow}{}}}
+\subsection{Method \code{save_workflow()}}{
+Save the workflow (manifest + agent configurations)
+to a \verb{YAML} file. Agent configurations are extracted from
+each registered agent's \code{config} property.
+See \code{\link{workflow_save}} for details on the file format.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$save_workflow(
+  skill_path,
+  filename = "tricobbler-workflow.yaml",
+  append = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{skill_path}}{character, directory where the \verb{YAML} file
+will be written}
+
+\item{\code{filename}}{character, name of the \verb{YAML} file
+(default: \code{"tricobbler-workflow.yaml"})}
+
+\item{\code{append}}{logical, if \code{TRUE} (default) merges into an
+existing file; if \code{FALSE} overwrites entirely}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+character, the file path (invisibly)
 }
 }
 \if{html}{\out{<hr>}}

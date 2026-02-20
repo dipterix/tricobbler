@@ -23,8 +23,7 @@ execute concurrently
 argument instead of separate \code{agent}, \code{policy},
 \code{context} arguments
 \item \strong{Tool injection}: \verb{MCP} tools that declare a
-\code{.runtime} parameter receive the runtime automatically via
-closure capture at \verb{instantiation} time
+\code{.runtime} parameter receive the runtime automatically
 }
 }
 

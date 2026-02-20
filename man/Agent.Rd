@@ -8,7 +8,8 @@ Agent(
   .data = function() NULL,
   id = character(0),
   description = character(0),
-  describe = tricobbler::mcp_describe
+  describe = tricobbler::mcp_describe,
+  config = list()
 )
 }
 \arguments{
@@ -25,6 +26,11 @@ agent does}
 logging; defaults to \code{\link{mcp_describe}}. If provided, should
 accept the agent's return value as its first argument and return a
 character string}
+
+\item{config}{list or \code{NULL}, serialization configuration metadata
+used by \code{\link{workflow_save}} and \code{\link{workflow_load}}.
+Automatically populated by \code{\link{as_agent}} dispatches.
+Contains at minimum \code{id} and \code{type} fields}
 }
 \value{
 An \code{Agent} object (S7 class inheriting from

@@ -168,9 +168,9 @@ Scheduler <- R6::R6Class(
     #' @param context \code{\link{AgentContext}} object, execution environment
     #'    (default: new \code{\link{AgentContext}})
     initialize = function(
-    manifest,
-    agents = list(),
-    context = AgentContext$new()
+      manifest,
+      agents = list(),
+      context = AgentContext$new()
     ) {
       stopifnot(S7::S7_inherits(manifest, Manifest))
 
@@ -198,6 +198,49 @@ Scheduler <- R6::R6Class(
       self$stage_started <- Sys.time()
 
       invisible(self)
+    },
+
+    #' @description Save the workflow (manifest + agent configurations)
+    #'   to a \verb{YAML} file. Agent configurations are extracted from
+    #'   each registered agent's \code{config} property.
+    #'   See \code{\link{workflow_save}} for details on the file format.
+    #' @param skill_path character, directory where the \verb{YAML} file
+    #'   will be written
+    #' @param filename character, name of the \verb{YAML} file
+    #'   (default: \code{"tricobbler-workflow.yaml"})
+    #' @param append logical, if \code{TRUE} (default) merges into an
+    #'   existing file; if \code{FALSE} overwrites entirely
+    #' @return character, the file path (invisibly)
+    save_workflow = function(
+      skill_path,
+      filename = "tricobbler-workflow.yaml",
+      append = TRUE
+    ) {
+      file <- file.path(skill_path, filename)
+
+      # Collect agent configs from registered agents
+      agent_ids <- self$agents$keys()
+      agent_configs <- lapply(agent_ids, function(aid) {
+        agent <- self$agents$get(aid)
+        cfg <- agent@config
+        if (is.null(cfg)) {
+          warning(sprintf(
+            "Agent '%s' has no config; skipping serialization", aid
+          ))
+          return(NULL)
+        }
+        # Ensure id is set
+        cfg$id <- aid
+        cfg
+      })
+      agent_configs <- Filter(Negate(is.null), agent_configs)
+
+      workflow_save(
+        file = file,
+        manifest = self$manifest,
+        agents = agent_configs,
+        append = append
+      )
     },
 
     #' @description Register a listener for a \verb{lifecycle} event

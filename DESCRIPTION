@@ -72,3 +72,4 @@ Collate:
     'mcp-tooldef-package.R'
     'mcp-tools.R'
     'tricobbler-package.R'
+    'workflow-io.R'

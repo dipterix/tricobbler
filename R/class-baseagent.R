@@ -84,6 +84,10 @@ NULL
 #'   logging; defaults to \code{\link{mcp_describe}}. If provided, should
 #'   accept the agent's return value as its first argument and return a
 #'   character string
+#' @param config list or \code{NULL}, serialization configuration metadata
+#'   used by \code{\link{workflow_save}} and \code{\link{workflow_load}}.
+#'   Automatically populated by \code{\link{as_agent}} dispatches.
+#'   Contains at minimum \code{id} and \code{type} fields
 #' @returns An \code{Agent} object (S7 class inheriting from
 #'   \code{\link{function}})
 #' @examples
@@ -199,6 +203,13 @@ Agent <- S7::new_class(
     describe = S7::new_property(
       class = S7::class_function | NULL,
       default = quote(tricobbler::mcp_describe)
+    ),
+
+    # optional serialization configuration for workflow YAML round-trip
+    # populated by as_agent() dispatches and workflow_load()
+    config = S7::new_property(
+      class = S7::class_list | NULL,
+      default = NULL
     )
   ),
   validator = function(self) {

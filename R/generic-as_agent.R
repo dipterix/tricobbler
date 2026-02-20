@@ -246,6 +246,11 @@ S7::method(as_agent, S7::class_character) <- function(
 
     agent <- as_agent(x = fun, id = id,
                       description = description, describe = describe, ...)
+    agent@config <- list(
+      id = id,
+      type = "package_function",
+      package_function = x
+    )
     return(agent)
   }
 
@@ -613,13 +618,19 @@ as_agent_from_chat <- function(
     stop(last_error)
   }
 
-  Agent(
+  agent <- Agent(
     .data = agent_fun,
     id = id,
     description = description,
     describe = describe,
     ...
   )
+
+  # Attach serialization config for workflow YAML round-trip
+  agent@config <- extract_chat_config(chat)
+  agent@config$id <- id
+
+  agent
 }
 
 
@@ -734,11 +745,20 @@ as_agent_from_mcp_tool <- function(
       x
     }
   }
-  Agent(
+  agent <- Agent(
     .data = agent_fun,
     id = tool_id,
     description = tool_desc,
     describe = describe,
     ...
   )
+
+  # Attach serialization config for workflow YAML round-trip
+  agent@config <- list(
+    id = tool_id,
+    type = "tool_definition",
+    tool = tool$name %||% tool$path
+  )
+
+  agent
 }
