@@ -75,6 +75,7 @@ the master-level policy (global parameters)}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TricobblerAgentRuntime-new}{\code{AgentRuntime$new()}}
+\item \href{#method-TricobblerAgentRuntime-set_trace_top}{\code{AgentRuntime$set_trace_top()}}
 \item \href{#method-TricobblerAgentRuntime-logger}{\code{AgentRuntime$logger()}}
 \item \href{#method-TricobblerAgentRuntime-get_parameter}{\code{AgentRuntime$get_parameter()}}
 \item \href{#method-TricobblerAgentRuntime-run_async}{\code{AgentRuntime$run_async()}}
@@ -105,6 +106,30 @@ Initialize a new runtime environment
 provides global parameters that cascade to agents}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentRuntime-set_trace_top"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentRuntime-set_trace_top}{}}}
+\subsection{Method \code{set_trace_top()}}{
+Set the top-of-trace environment for backtraces.
+Agent wrappers call this right before invoking user code so
+that \code{rlang::trace_back(top = ...)} trims all
+infrastructure frames, leaving only the user's call chain.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentRuntime$set_trace_top(env)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{env}}{environment, typically \code{rlang::current_env()}
+captured at the wrapper/user-code boundary}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{NULL} invisibly
 }
 }
 \if{html}{\out{<hr>}}

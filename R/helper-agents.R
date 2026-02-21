@@ -209,7 +209,7 @@ reconstruct_script_agent <- function(config, base_dir, id, description) {
       }
 
       env <- new.env(parent = baseenv())
-      source(full_path, local = env, keep.source = TRUE)
+      source(full_path, local = env, keep.source = TRUE, chdir = TRUE)
 
       fn <- env[[fun_name]]
 
@@ -278,3 +278,5 @@ reconstruct_agent <- function(agent_config, base_dir = ".", ...) {
   agent@config[names(agent_config)] <- agent_config
   agent
 }
+
+

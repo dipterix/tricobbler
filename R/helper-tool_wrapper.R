@@ -52,7 +52,8 @@ tool2 <- function(
       json_args_str <- json_args
     }
 
-    args <- tryCatch(
+    trace_top <- rlang::current_env()
+    args <- rlang::try_fetch(
       {
         # message(json_args)
         json_args <- jsonlite::fromJSON(json_args_str, simplifyVector = TRUE)
@@ -87,17 +88,19 @@ tool2 <- function(
         result
 
       },
-      error = function(e) {
-
+      error = function(cnd) {
+        cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
+        trace_info <- format_error_trace(cnd)
         reason <- sprintf(
-          "Calling tool `%s` with argument\n\n```json\n%s\n```\n\n results in error: %s",
+          "Calling tool `%s` with argument\n\n```json\n%s\n```\n\n results in error: %s\n\nTraceback:\n%s",
           tl@name,
           json_args_str,
-          paste(conditionMessage(e), collapse = "\n")
+          paste(conditionMessage(cnd), collapse = "\n"),
+          trace_info
         )
         ellmer::tool_reject(reason = reason)
 
-        stop(e)
+        stop(cnd)
 
       }
     )

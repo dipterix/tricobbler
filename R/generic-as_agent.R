@@ -496,9 +496,16 @@ as_agent_from_chat <- function(
       )
     }
 
+    global_content <- context$global_chat_content
+
     if (!is.null(return_type)) {
       chat_impl <- function(..., .list = list()) {
-        args <- c(as.list(.list), list(..., type = return_type))
+        if (length(global_content)) {
+          args <- c(list(global_content, ...), as.list(.list), list(type = return_type))
+        } else {
+          args <- c(list(...), as.list(.list), list(type = return_type))
+        }
+
         if (is_async) {
           do.call(chat$chat_structured_async, args)
         } else {
@@ -507,7 +514,11 @@ as_agent_from_chat <- function(
       }
     } else {
       chat_impl <- function(..., .list = list()) {
-        args <- c(as.list(.list), list(...))
+        if (length(global_content)) {
+          args <- c(list(global_content, ...), as.list(.list))
+        } else {
+          args <- c(list(...), as.list(.list))
+        }
 
         if (is_async) {
           do.call(chat$chat_async, args)
@@ -594,14 +605,14 @@ as_agent_from_chat <- function(
 
     # Anchor trace top at the user-code boundary so backtraces
     # start here, not deep in scheduler/wrapper internals.
-    runtime$set_trace_top(rlang::current_env())
+    trace_top <- rlang::current_env()
+    runtime$set_trace_top(trace_top)
     while (chat_error_count < max_chat_errors) {
-      result <- tryCatch(
-        {
-          chat_impl(.list = c(contents, dependency_attachments))
-        },
-        error = function(e) {
-          e
+      result <- rlang::try_fetch(
+        chat_impl(.list = c(contents, dependency_attachments)),
+        error = function(cnd) {
+          cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
+          cnd
         }
       )
 
@@ -609,7 +620,10 @@ as_agent_from_chat <- function(
         if (is.null(result)) {
           result <- list()
         }
-        attr(result, "turns") <- chat$get_turns()
+        attr(result, "turns") <- structure(
+          class = c("chat_hidden", "chat_history"),
+          chat$get_turns()
+        )
         return(result)
       }
 

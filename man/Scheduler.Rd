@@ -61,6 +61,8 @@ names to integer attempt counts for retry scheduling}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TricobblerScheduler-new}{\code{Scheduler$new()}}
+\item \href{#method-TricobblerScheduler-get_agent}{\code{Scheduler$get_agent()}}
+\item \href{#method-TricobblerScheduler-get_policy}{\code{Scheduler$get_policy()}}
 \item \href{#method-TricobblerScheduler-save_workflow}{\code{Scheduler$save_workflow()}}
 \item \href{#method-TricobblerScheduler-on}{\code{Scheduler$on()}}
 \item \href{#method-TricobblerScheduler-off}{\code{Scheduler$off()}}
@@ -100,6 +102,53 @@ Initialize scheduler with manifest blueprint and agents
 (default: new \code{\link{AgentContext}})}
 }
 \if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerScheduler-get_agent"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerScheduler-get_agent}{}}}
+\subsection{Method \code{get_agent()}}{
+Get agent instance
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$get_agent(agent_id, missing = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{agent_id}}{character, agent ID}
+
+\item{\code{missing}}{value to return if agent is missing}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{\link{Agent}} instance or \code{missing} value
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerScheduler-get_policy"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerScheduler-get_policy}{}}}
+\subsection{Method \code{get_policy()}}{
+Get state policy
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$get_policy(stage, state = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{stage}}{policy stage, or stage with state separated by \code{'/'};
+for example, \code{'triage_stage/validator'}}
+
+\item{\code{state}}{policy state, character (explicit policy name)
+or \code{NULL} if the state cannot be inferred from \code{stage}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{\link{StatePolicy}} instance or list of
+\code{\link{StatePolicy}} instances
 }
 }
 \if{html}{\out{<hr>}}

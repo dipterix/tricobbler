@@ -12,7 +12,7 @@ workflow_save(
   manifest = NULL,
   agents = NULL,
   append = TRUE,
-  agent_folder = "scripts/tricobbler-agents"
+  agent_folder = "tricobbler-agents"
 )
 
 workflow_load(file, name = NULL, scheduler_class = Scheduler)

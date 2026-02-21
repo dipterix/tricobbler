@@ -26,6 +26,8 @@ AgentContext <- R6::R6Class(
 
     .tools = NULL,
 
+    .global_content = NULL,
+
     finalize = function() {
       if (!is.null(private$.cache)) {
         private$.cache$reset()
@@ -103,6 +105,18 @@ AgentContext <- R6::R6Class(
     #'   \code{init_resources()} is called.
     index = function() {
       private$.index
+    },
+
+    global_chat_content = function(value) {
+      if (!missing(value)) {
+        if (!length(value)) {
+          value <- NULL
+        } else if (!S7::S7_inherits(value, ellmer::Content)) {
+          value <- mcp_attach(value)
+        }
+        private$.global_content <- value
+      }
+      private$.global_content
     }
 
   ),

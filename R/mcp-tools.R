@@ -1919,7 +1919,7 @@ format.tricobbler_mcp_tool <- function(
   )
 }
 
-#' @export
+#' @exportS3Method base::print
 print.tricobbler_mcp_tool <- function(
   x,
   method = c("summary", "yaml", "markdown"),

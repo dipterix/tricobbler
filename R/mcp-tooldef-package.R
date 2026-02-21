@@ -989,9 +989,11 @@ mcp_tool_run_r <- function(code) {
   messages_list <- character(0)
   result_value <- NULL
 
-  # Use withCallingHandlers to capture warnings and messages
-  # Use tryCatch to capture errors and determine success
-  exec_result <- tryCatch(
+  # Use rlang::try_fetch so the error handler runs before the
+  # stack unwinds, capturing a backtrace at the error site.
+  # withCallingHandlers inside captures warnings and messages.
+  trace_top <- rlang::current_env()
+  exec_result <- rlang::try_fetch(
     {
       output_text <- capture.output({
         result_value <- withCallingHandlers(
@@ -1008,8 +1010,13 @@ mcp_tool_run_r <- function(code) {
       })
       list(success = TRUE, value = result_value)
     },
-    error = function(e) {
-      list(success = FALSE, error = conditionMessage(e))
+    error = function(cnd) {
+      cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
+      list(
+        success = FALSE,
+        error = conditionMessage(cnd),
+        trace = format_error_trace(cnd)
+      )
     }
   )
 

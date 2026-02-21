@@ -5,14 +5,12 @@
 #' @importFrom yaml as.yaml
 #' @importFrom utils capture.output
 #' @importFrom utils head
-#' @importFrom utils modifyList
 #' @importFrom utils str
 #' @importFrom coro await
 #' @importFrom coro async
 #' @importFrom promises promise
 #' @importFrom promises promise_resolve
 #' @importFrom RSQLite SQLite
-#' @importFrom processx run
 NULL
 
 ## usethis namespace: start
@@ -22,4 +20,10 @@ NULL
 
 .onLoad <- function(libname, pkgname) {
   S7::methods_register()
+}
+
+#' @exportS3Method base::print
+print.chat_hidden <- function(x, ...) {
+  cat("<chats hidden>\n")
+  invisible(x)
 }

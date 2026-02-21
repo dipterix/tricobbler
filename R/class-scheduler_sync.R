@@ -200,10 +200,21 @@ Scheduler <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Get agent instance
+    #' @param agent_id character, agent ID
+    #' @param missing value to return if agent is missing
+    #' @return \code{\link{Agent}} instance or \code{missing} value
     get_agent = function(agent_id, missing = NULL) {
       self$agents$get(key = agent_id, missing = missing)
     },
 
+    #' @description Get state policy
+    #' @param stage policy stage, or stage with state separated by \code{'/'};
+    #'   for example, \code{'triage_stage/validator'}
+    #' @param state policy state, character (explicit policy name)
+    #'   or \code{NULL} if the state cannot be inferred from \code{stage}
+    #' @return \code{\link{StatePolicy}} instance or list of
+    #'   \code{\link{StatePolicy}} instances
     get_policy = function(stage, state = NULL) {
 
       if (is.null(state) && grepl("/", stage)) {
@@ -297,7 +308,8 @@ Scheduler <- R6::R6Class(
       on_error <- match.arg(on_error)
 
       # Make sure the agents are ready
-      re <- tryCatch(
+      trace_top <- rlang::current_env()
+      re <- rlang::try_fetch(
         {
           state_agents <- unlist(lapply(
             self$manifest@states,
@@ -318,9 +330,10 @@ Scheduler <- R6::R6Class(
           }
           TRUE
         },
-        error = function(e) {
+        error = function(cnd) {
+          cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
           if (on_error == "error") {
-            stop(e)
+            stop(cnd)
           }
           FALSE
         }
@@ -388,34 +401,36 @@ Scheduler <- R6::R6Class(
 
       stages <- self$manifest@master@stages
 
+      lapply(stages, function(stage) {
 
-      tryCatch(
-        {
-
-          lapply(stages, function(stage) {
-            if (!identical(private$.run_flag, private$.stage_flag) &&
-                !is.null(private$.stage_flag)) {
-              stop("Scheduler cancelled; aborting.")
-            }
-
-            self$run_stage(stage)
-          })
-
-          self$current_stage <- "ready"
-          self$dispatch_event(
-            type = "scheduler.completed",
-            message = "All stages completed"
-          )
-        },
-        error = function(e) {
-          self$dispatch_event(
-            type = "scheduler.aborted",
-            message = sprintf("Scheduler aborted: %s", conditionMessage(e)),
-            error = e
-          )
-          stop(e)
+        if (!identical(private$.run_flag, private$.stage_flag) &&
+            !is.null(private$.stage_flag)) {
+          stop("Scheduler cancelled; aborting.", call. = NULL)
         }
+
+        trace_top <- rlang::current_env()
+        rlang::try_fetch(
+          {
+            self$run_stage(stage)
+          },
+          error = function(cnd) {
+            cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
+            self$dispatch_event(
+              type = "scheduler.aborted",
+              message = sprintf("Scheduler aborted: %s", conditionMessage(cnd)),
+              error = cnd
+            )
+            stop(cnd)
+          }
+        )
+      })
+
+      self$current_stage <- "ready"
+      self$dispatch_event(
+        type = "scheduler.completed",
+        message = "All stages completed"
       )
+
       invisible(self)
     },
 
