@@ -633,10 +633,12 @@ Scheduler <- R6::R6Class(
       # and calls .record_result(), returning the attachment.
       # Use rlang::try_fetch so unexpected errors (e.g. from
       # .record_result()) also get a backtrace attached.
+      # Anchor top-of-trace so scheduler frames above are trimmed.
+      trace_top <- rlang::current_env()
       result <- rlang::try_fetch(
         runtime$run(),
         error = function(cnd) {
-          cnd$trace <- cnd$trace %||% rlang::trace_back()
+          cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
           structure(
             list(succeed = FALSE, error = cnd,
                  ._unexpected = TRUE),

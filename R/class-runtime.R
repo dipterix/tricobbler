@@ -46,6 +46,7 @@ AgentRuntime <- R6::R6Class(
   cloneable = FALSE,
   private = list(
     .last_error = NULL,
+    .trace_top = NULL,
     .agent = NULL,
     .context = NULL,
     .policy = NULL,
@@ -229,6 +230,18 @@ AgentRuntime <- R6::R6Class(
       )
     },
 
+    #' @description Set the top-of-trace environment for backtraces.
+    #'   Agent wrappers call this right before invoking user code so
+    #'   that \code{rlang::trace_back(top = ...)} trims all
+    #'   infrastructure frames, leaving only the user's call chain.
+    #' @param env environment, typically \code{rlang::current_env()}
+    #'   captured at the wrapper/user-code boundary
+    #' @return \code{NULL} invisibly
+    set_trace_top = function(env) {
+      private$.trace_top <- env
+      invisible(NULL)
+    },
+
     #' @description Log a message with the agent as caller
     #' @param ... character, message components to paste together
     #' @param level character, log level (INFO, WARN, ERROR, FATAL, DEBUG)
@@ -348,10 +361,13 @@ AgentRuntime <- R6::R6Class(
       # the error escapes the promise; catch it and reject.
       # Use rlang::try_fetch so the handler runs before stack
       # unwinding, capturing a clean backtrace.
+      # Default trace top is this frame; wrappers can override
+      # via set_trace_top() to start from the user code boundary.
+      private$.trace_top <- private$.trace_top %||% rlang::current_env()
       agent_promise <- rlang::try_fetch(
         agent(runtime = self),
         error = function(cnd) {
-          cnd$trace <- rlang::trace_back()
+          cnd$trace <- rlang::trace_back(top = private$.trace_top)
           private$.last_error <- cnd
           private$.status <- "errored"
           promises::promise_reject(cnd)
@@ -429,6 +445,9 @@ AgentRuntime <- R6::R6Class(
       # the call stack unwinds, allowing us to snapshot a clean
       # backtrace that only contains agent-level frames (not
       # the scheduler internals above).
+      # Default trace top is this frame; wrappers can override
+      # via set_trace_top() to start from the user code boundary.
+      private$.trace_top <- private$.trace_top %||% rlang::current_env()
       attachment <- rlang::try_fetch(
         {
           result <- agent(runtime = self)
@@ -442,7 +461,7 @@ AgentRuntime <- R6::R6Class(
         },
         error = function(cnd) {
           # Capture backtrace at the error site (stack still live)
-          cnd$trace <- rlang::trace_back()
+          cnd$trace <- rlang::trace_back(top = private$.trace_top)
           private$.last_error <- cnd
           private$.status <- "errored"
           private$.record_result(

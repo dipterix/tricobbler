@@ -61,7 +61,7 @@ format_error_trace <- function(error, max_frames = 20L) {
       {
         # rlang::format_trace() returns a character vector;
         # drop = FALSE preserves the full tree
-        formatted <- format(error$trace, simplify = "branch")
+        formatted <- format(error$trace, simplify = "none")
         if (length(formatted) > max_frames) {
           formatted <- c(
             utils::head(formatted, max_frames),

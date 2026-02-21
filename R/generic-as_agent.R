@@ -212,6 +212,9 @@ S7::method(as_agent, S7::class_function) <- function(
       runtime$logger("Function call: ", deparse(call_obj), level = "DEBUG")
     }
 
+    # Anchor trace top at the user-code boundary so backtraces
+    # start here, not deep in scheduler/wrapper internals.
+    runtime$set_trace_top(rlang::current_env())
     do.call(x, input)
   }
 
@@ -589,6 +592,9 @@ as_agent_from_chat <- function(
     chat_error_count <- 0L
     last_error <- NULL
 
+    # Anchor trace top at the user-code boundary so backtraces
+    # start here, not deep in scheduler/wrapper internals.
+    runtime$set_trace_top(rlang::current_env())
     while (chat_error_count < max_chat_errors) {
       result <- tryCatch(
         {
@@ -765,6 +771,9 @@ as_agent_from_mcp_tool <- function(
       runtime$logger("Tool call: ", deparse(call_obj), level = "DEBUG")
     }
 
+    # Anchor trace top at the user-code boundary so backtraces
+    # start here, not deep in scheduler/wrapper internals.
+    runtime$set_trace_top(rlang::current_env())
     do.call(impl, input)
   }
 
