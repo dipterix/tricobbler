@@ -215,10 +215,18 @@ S7::method(as_agent, S7::class_function) <- function(
     do.call(x, input)
   }
 
-  Agent(
+  agent <- Agent(
     .data = wrapper_fun, id = id,
     description = description, describe = describe
   )
+
+  agent@config <- list(
+    id = id,
+    type = "script",
+    description = description,
+    impl = x
+  )
+  agent
 }
 
 S7::method(as_agent, S7::class_character) <- function(
@@ -249,7 +257,8 @@ S7::method(as_agent, S7::class_character) <- function(
     agent@config <- list(
       id = id,
       type = "package_function",
-      package_function = x
+      package_function = x,
+      description = description
     )
     return(agent)
   }
@@ -266,9 +275,27 @@ S7::method(as_agent, S7::class_character) <- function(
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal: as_agent_from_chat - Create Agent from ellmer Chat
-# ---------------------------------------------------------------------------
+S7::method(as_agent, S7::class_list) <- function(
+    x,
+    id = NULL,
+    description = "",
+    describe = mcp_describe,
+    base_dir = ".",
+    ...) {
+
+  x$id <- id %||% x$id
+
+  description <- trimws(paste(description, collapse = "\n"))
+  if (nzchar(description)) {
+    x$description <- description
+  }
+
+  reconstruct_agent(agent_config = x, base_dir = base_dir)
+}
+
+
+# ---- Internal: Create Agent from ellmer Chat --------
+
 #' @keywords internal
 #' @noRd
 as_agent_from_chat <- function(
@@ -592,7 +619,10 @@ as_agent_from_chat <- function(
         ),
         level = "WARN"
       )
-      traceback(result)
+      runtime$logger(
+        format_error_trace(result),
+        level = "TRACE"
+      )
 
       if (chat_error_count >= max_chat_errors) {
         break
@@ -628,15 +658,14 @@ as_agent_from_chat <- function(
 
   # Attach serialization config for workflow YAML round-trip
   agent@config <- extract_chat_config(chat)
+  agent@config$description <- description
   agent@config$id <- id
 
   agent
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal: as_agent_from_mcp_tool - Create Agent from MCP Tool Definition
-# ---------------------------------------------------------------------------
+# ---- Internal: Create Agent from MCP Tool Definition ----------------------
 #' @keywords internal
 #' @noRd
 as_agent_from_mcp_tool <- function(
@@ -757,7 +786,11 @@ as_agent_from_mcp_tool <- function(
   agent@config <- list(
     id = tool_id,
     type = "tool_definition",
-    tool = tool$name %||% tool$path
+    # tool <- mcptool_load_all('tricobbler')[[1]]$name
+    # mcptool_read(tool)
+    # mcptool_instantiate(mcptool_read(tool))
+    tool = tool$name %||% tool$path,
+    description = tool_desc
   )
 
   agent

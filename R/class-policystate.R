@@ -196,7 +196,9 @@ NULL
 #'   )
 #' )
 #'
-#' # AI agent with structured output
+#' # AI agent with structured output (JSON Schema format,
+#' # consistent with MCP returns spec and workflow YAML;
+#' # converted to ellmer types at runtime via map_type_to_ellmer())
 #' StatePolicy(
 #'   name = "planner",
 #'   stage = "planning",
@@ -206,8 +208,14 @@ NULL
 #'     system_prompt = "You are a task planning expert.",
 #'     user_prompt = "Plan the following task: ...",
 #'     keep_turns = FALSE,
-#'     return_type = ellmer::type_object(
-#'       steps = ellmer::type_array(items = ellmer::type_string())
+#'     return_type = list(
+#'       type = "object",
+#'       properties = list(
+#'         steps = list(
+#'           type = "array",
+#'           items = list(type = "string")
+#'         )
+#'       )
 #'     )
 #'   )
 #' )
@@ -286,8 +294,28 @@ StatePolicy <- S7::new_class(
     ),
 
     # Optional list of state-specific parameters (e.g., timeout, retries, or
-    # other constraints)
-    parameters = S7::new_property(class = S7::class_list),
+    # other constraints). Must be portable: only atomic values and plain
+    # lists allowed. S7/R6/function/environment objects are rejected so
+    # policies can be safely serialized to YAML. Use JSON Schema lists for
+    # return_type; map_type_to_ellmer() converts them at runtime.
+    parameters = S7::new_property(
+      class = S7::class_list,
+      validator = function(value) {
+        if (length(value) == 0L) {
+          return()
+        }
+        flat <- unlist(value, recursive = TRUE)
+        if (!is.null(flat) && !is.atomic(flat)) {
+          return(paste0(
+            "parameters must be portable (only atomic values and ",
+            "plain lists). Found non-atomic element. Use JSON Schema ",
+            "lists (e.g., list(type = 'object', properties = ...)) ",
+            "instead of ellmer::type_*() objects for return_type."
+          ))
+        }
+        return()
+      }
+    ),
     max_retry = S7::new_property(class = S7::class_integer, default = 0L),
 
     # Execution priority: higher values run first (0-999)

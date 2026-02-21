@@ -346,12 +346,15 @@ AgentRuntime <- R6::R6Class(
       # a promise that resolves with the agent's return value.
       # If the coroutine throws synchronously (before any await),
       # the error escapes the promise; catch it and reject.
-      agent_promise <- tryCatch(
+      # Use rlang::try_fetch so the handler runs before stack
+      # unwinding, capturing a clean backtrace.
+      agent_promise <- rlang::try_fetch(
         agent(runtime = self),
-        error = function(e) {
-          private$.last_error <- e
+        error = function(cnd) {
+          cnd$trace <- rlang::trace_back()
+          private$.last_error <- cnd
           private$.status <- "errored"
-          promises::promise_reject(e)
+          promises::promise_reject(cnd)
         }
       )
 
@@ -422,7 +425,11 @@ AgentRuntime <- R6::R6Class(
 
       time_started <- Sys.time()
 
-      attachment <- tryCatch(
+      # Use rlang::try_fetch so the error handler runs BEFORE
+      # the call stack unwinds, allowing us to snapshot a clean
+      # backtrace that only contains agent-level frames (not
+      # the scheduler internals above).
+      attachment <- rlang::try_fetch(
         {
           result <- agent(runtime = self)
           private$.status <- "finished"
@@ -433,11 +440,13 @@ AgentRuntime <- R6::R6Class(
             duration = Sys.time() - time_started
           )
         },
-        error = function(e) {
-          private$.last_error <- e
+        error = function(cnd) {
+          # Capture backtrace at the error site (stack still live)
+          cnd$trace <- rlang::trace_back()
+          private$.last_error <- cnd
           private$.status <- "errored"
           private$.record_result(
-            e,
+            cnd,
             succeed = FALSE,
             started = time_started,
             duration = Sys.time() - time_started

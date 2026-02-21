@@ -200,6 +200,31 @@ Scheduler <- R6::R6Class(
       invisible(self)
     },
 
+    get_agent = function(agent_id, missing = NULL) {
+      self$agents$get(key = agent_id, missing = missing)
+    },
+
+    get_policy = function(stage, state = NULL) {
+
+      if (is.null(state) && grepl("/", stage)) {
+        stage <- strsplit(stage, "/")[[1]]
+        state <- stage[[2]]
+        stage <- stage[[1]]
+      }
+
+      sel <- vapply(self$manifest@states, function(policy) {
+        # policy <- self$manifest@states[[1]]
+        if (!policy@stage %in% stage) { return(FALSE) }
+        if (is.null(state)) { return(TRUE) }
+        policy@name %in% state
+      }, FALSE)
+      res <- self$manifest@states[sel]
+      if (length(res) == 1) {
+        res <- res[[1]]
+      }
+      res
+    },
+
     #' @description Save the workflow (manifest + agent configurations)
     #'   to a \verb{YAML} file. Agent configurations are extracted from
     #'   each registered agent's \code{config} property.
@@ -216,31 +241,14 @@ Scheduler <- R6::R6Class(
       filename = "tricobbler-workflow.yaml",
       append = TRUE
     ) {
-      file <- file.path(skill_path, filename)
-
-      # Collect agent configs from registered agents
-      agent_ids <- self$agents$keys()
-      agent_configs <- lapply(agent_ids, function(aid) {
-        agent <- self$agents$get(aid)
-        cfg <- agent@config
-        if (is.null(cfg)) {
-          warning(sprintf(
-            "Agent '%s' has no config; skipping serialization", aid
-          ))
-          return(NULL)
-        }
-        # Ensure id is set
-        cfg$id <- aid
-        cfg
-      })
-      agent_configs <- Filter(Negate(is.null), agent_configs)
-
+      dir.create(skill_path, showWarnings = FALSE, recursive = TRUE)
       workflow_save(
-        file = file,
+        file = file.path(skill_path, filename),
         manifest = self$manifest,
-        agents = agent_configs,
+        agents = self$agents$as_list(),
         append = append
       )
+      invisible(file.path(skill_path, filename))
     },
 
     #' @description Register a listener for a \verb{lifecycle} event
@@ -622,12 +630,15 @@ Scheduler <- R6::R6Class(
       ))
 
       # Run synchronously; runtime$run() executes the agent
-      # and calls .record_result(), returning the attachment
-      result <- tryCatch(
+      # and calls .record_result(), returning the attachment.
+      # Use rlang::try_fetch so unexpected errors (e.g. from
+      # .record_result()) also get a backtrace attached.
+      result <- rlang::try_fetch(
         runtime$run(),
-        error = function(e) {
+        error = function(cnd) {
+          cnd$trace <- cnd$trace %||% rlang::trace_back()
           structure(
-            list(succeed = FALSE, error = e,
+            list(succeed = FALSE, error = cnd,
                  ._unexpected = TRUE),
             class = "tricobbler_unexpected_error"
           )
@@ -1027,19 +1038,7 @@ Scheduler <- R6::R6Class(
         stage, " -> ", state_name,
         "` due to a critical failure. ",
         "Human attention needed. \nLast error: \n",
-        paste0(
-          c(
-            local({
-              if (inherits(error, "condition")) {
-                conditionMessage(error)
-              } else {
-                as.character(error)
-              }
-            }),
-            utils::capture.output(traceback(error))
-          ),
-          collapse = "\n"
-        ),
+        format_error_trace(error),
         caller = self
       )
 

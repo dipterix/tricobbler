@@ -30,3 +30,55 @@ tricobbler_event <- function(type, message, ...) {
     )
   )
 }
+
+
+# Format an error for human-readable logging
+#
+# Extracts the error message and, if available, an \pkg{rlang}
+# backtrace captured at the point of failure. Falls back to
+# a single-line \code{call} deparse when no trace is attached.
+#
+# @param error A condition object, character, or any value.
+# @param max_frames integer, maximum number of backtrace frames
+#   to display (default 20). Keeps output from becoming
+#   overwhelming in deeply nested call stacks.
+# @return A single character string ready for logging.
+# @noRd
+format_error_trace <- function(error, max_frames = 20L) {
+  # --- Error message ---
+  msg <- if (inherits(error, "condition")) {
+    conditionMessage(error)
+  } else {
+    as.character(error)
+  }
+
+  # --- Backtrace ---
+  trace_lines <- NULL
+
+  # Prefer rlang trace captured at the error site
+  if (!is.null(error$trace)) {
+    trace_lines <- tryCatch(
+      {
+        # rlang::format_trace() returns a character vector;
+        # drop = FALSE preserves the full tree
+        formatted <- format(error$trace, simplify = "branch")
+        if (length(formatted) > max_frames) {
+          formatted <- c(
+            utils::head(formatted, max_frames),
+            sprintf("... and %d more frames", length(formatted) - max_frames)
+          )
+        }
+        formatted
+      },
+      error = function(e2) NULL
+    )
+  }
+
+  # Fall back: deparse the call stored on the condition
+  if (is.null(trace_lines) && inherits(error, "condition") &&
+      !is.null(error$call)) {
+    trace_lines <- paste("Call:", paste(deparse(error$call), collapse = " "))
+  }
+
+  paste(c(msg, trace_lines), collapse = "\n")
+}

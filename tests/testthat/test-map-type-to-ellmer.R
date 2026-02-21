@@ -121,3 +121,35 @@ test_that("map_type_to_ellmer handles empty properties object", {
   ))
   expect_s3_class(result, "ellmer::TypeObject")
 })
+
+test_that("map_type_to_ellmer handles type='enum' with values key", {
+  # MCP/workflow YAML style: type='enum', values=[...]
+  result <- map_type_to_ellmer(list(
+    type = "enum",
+    values = c("critical", "major", "minor"),
+    description = "Severity level"
+  ))
+  expect_s3_class(result, "ellmer::TypeEnum")
+
+  # Also works with values as list (from YAML)
+  result2 <- map_type_to_ellmer(list(
+    type = "enum",
+    values = list("success", "partial", "failed"),
+    description = "Status"
+  ))
+  expect_s3_class(result2, "ellmer::TypeEnum")
+
+  # Classic JSON Schema style (enum key) still works
+  result3 <- map_type_to_ellmer(list(
+    type = "string",
+    enum = c("red", "green", "blue"),
+    description = "Color"
+  ))
+  expect_s3_class(result3, "ellmer::TypeEnum")
+
+  # type='enum' without values or enum key should error
+  expect_error(
+    map_type_to_ellmer(list(type = "enum", description = "Bad")),
+    "enum.*values"
+  )
+})

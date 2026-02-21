@@ -78,6 +78,299 @@ test_that("manifest roundtrips through workflow list", {
 })
 
 
+test_that("manifest roundtrip preserves depends_on and return_type in parameters", {
+  # Build a manifest with rich depends_on and return_type in parameters
+  mp <- MasterPolicy(
+    name = "deps-return-type-test",
+    description = "Test depends_on and return_type roundtrip",
+    version = "2.0.0",
+    stages = c("planning", "executing", "review"),
+    parameters = list(global_timeout = 600)
+  )
+
+  sp_plan <- StatePolicy(
+    name = "planner",
+    stage = "planning",
+    description = "Generate a plan",
+    agent_id = "llm_planner",
+    priority = 100L,
+    parameters = list(
+      system_prompt = "You are a planner.",
+      user_prompt = "Create plan for the task.",
+      return_type = list(
+        type = "object",
+        properties = list(
+          steps = list(
+            type = "array",
+            description = "Ordered steps",
+            items = list(type = "string")
+          ),
+          summary = list(type = "string", description = "Plan summary")
+        )
+      )
+    )
+  )
+
+  sp_validate <- StatePolicy(
+    name = "validator",
+    stage = "executing",
+    description = "Validate the plan",
+    agent_id = "validator_agent",
+    priority = 900L,
+    critical = TRUE,
+    accessibility = "explicit",
+    depends_on = StateDeps(
+      plan_output = list(
+        state = "planner",
+        field = "result",
+        stage = "planning"
+      )
+    )
+  )
+
+  sp_execute <- StatePolicy(
+    name = "executor",
+    stage = "executing",
+    description = "Execute the plan",
+    agent_id = "exec_agent",
+    priority = 100L,
+    accessibility = "explicit",
+    max_retry = 2L,
+    on_failure = "validator",
+    depends_on = StateDeps(
+      plan_output = list(
+        state = "planner",
+        field = "result",
+        stage = "planning"
+      ),
+      validation = list(
+        state = "validator",
+        field = "description"
+      )
+    ),
+    parameters = list(
+      return_type = list(
+        type = "object",
+        properties = list(
+          status = list(
+            type = "enum",
+            enum = list("success", "partial", "failed"),
+            description = "Execution status"
+          ),
+          output = list(type = "string", description = "Result text")
+        )
+      )
+    )
+  )
+
+  sp_review <- StatePolicy(
+    name = "reviewer",
+    stage = "review",
+    description = "Review the results",
+    agent_id = "review_agent",
+    priority = 100L,
+    final = TRUE,
+    accessibility = "explicit",
+    depends_on = StateDeps(
+      exec_result = list(
+        state = "executor",
+        field = "result",
+        stage = "executing"
+      )
+    )
+  )
+
+  m <- Manifest(
+    master = mp,
+    states = list(sp_plan, sp_validate, sp_execute, sp_review)
+  )
+
+  # --- Round-trip through workflow list ---
+  wf_list <- manifest_to_workflow_list(m)
+  m2 <- workflow_list_to_manifest(wf_list)
+
+  # Master policy preserved
+  expect_equal(m2@master@name, "deps-return-type-test")
+  expect_equal(m2@master@version, "2.0.0")
+  expect_equal(m2@master@stages, c("planning", "executing", "review"))
+  expect_equal(m2@master@parameters$global_timeout, 600)
+
+  # Correct number of states
+
+  expect_length(m2@states, 4)
+
+  # --- Planner: return_type in parameters ---
+  planner <- Filter(function(s) s@name == "planner", m2@states)[[1]]
+  expect_equal(planner@stage, "planning")
+  expect_equal(planner@parameters$system_prompt, "You are a planner.")
+  expect_equal(planner@parameters$return_type$type, "object")
+  expect_equal(
+    planner@parameters$return_type$properties$steps$type, "array"
+  )
+  expect_equal(
+    planner@parameters$return_type$properties$steps$items$type, "string"
+  )
+  expect_equal(
+    planner@parameters$return_type$properties$summary$type, "string"
+  )
+
+  # --- Validator: cross-stage depends_on + critical ---
+  validator <- Filter(function(s) s@name == "validator", m2@states)[[1]]
+  expect_true(validator@critical)
+  expect_equal(validator@priority, 900L)
+  expect_equal(validator@accessibility, "explicit")
+  expect_length(validator@depends_on@deps, 1)
+  expect_equal(validator@depends_on@deps$plan_output$state, "planner")
+  expect_equal(validator@depends_on@deps$plan_output$field, "result")
+  expect_equal(validator@depends_on@deps$plan_output$stage, "planning")
+
+  # --- Executor: multiple depends_on + return_type + on_failure ---
+  executor <- Filter(function(s) s@name == "executor", m2@states)[[1]]
+  expect_equal(executor@max_retry, 2L)
+  expect_equal(executor@on_failure, "validator")
+  expect_length(executor@depends_on@deps, 2)
+  expect_equal(executor@depends_on@deps$plan_output$state, "planner")
+  expect_equal(executor@depends_on@deps$plan_output$stage, "planning")
+  expect_equal(executor@depends_on@deps$validation$state, "validator")
+  expect_equal(executor@depends_on@deps$validation$field, "description")
+  # Same-stage dep has no stage field (NULL after roundtrip)
+  expect_null(executor@depends_on@deps$validation$stage)
+  # return_type with enum
+  expect_equal(
+    executor@parameters$return_type$properties$status$type, "enum"
+  )
+  expect_equal(
+    executor@parameters$return_type$properties$status$enum,
+    list("success", "partial", "failed")
+  )
+
+  # --- Reviewer: cross-stage dep + final ---
+  reviewer <- Filter(function(s) s@name == "reviewer", m2@states)[[1]]
+  expect_true(reviewer@final)
+  expect_equal(reviewer@depends_on@deps$exec_result$state, "executor")
+  expect_equal(reviewer@depends_on@deps$exec_result$stage, "executing")
+  expect_equal(reviewer@depends_on@deps$exec_result$field, "result")
+
+  # --- Strict structural comparisons ---
+  # Parameters must round-trip without spurious class attributes
+  expect_identical(
+    planner@parameters,
+    sp_plan@parameters
+  )
+  expect_identical(
+    executor@parameters,
+    sp_execute@parameters
+  )
+  # depends_on must round-trip identically
+  expect_identical(
+    as.list(executor@depends_on),
+    as.list(sp_execute@depends_on)
+  )
+  expect_identical(
+    as.list(validator@depends_on),
+    as.list(sp_validate@depends_on)
+  )
+})
+
+
+test_that("manifest roundtrip through YAML preserves depends_on and return_type", {
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+
+  mp <- MasterPolicy(
+    name = "yaml-deps-rt",
+    version = "1.0.0",
+    stages = c("planning", "executing"),
+    parameters = list()
+  )
+
+  sp1 <- StatePolicy(
+    name = "planner",
+    stage = "planning",
+    description = "Plan task",
+    agent_id = "agent_plan",
+    parameters = list(
+      return_type = list(
+        type = "object",
+        properties = list(
+          plan = list(type = "string", description = "The plan"),
+          confidence = list(type = "number", description = "Confidence score")
+        )
+      )
+    )
+  )
+
+  sp2 <- StatePolicy(
+    name = "executor",
+    stage = "executing",
+    description = "Execute task",
+    agent_id = "agent_exec",
+    accessibility = "explicit",
+    depends_on = StateDeps(
+      plan_data = list(
+        state = "planner", field = "result", stage = "planning"
+      )
+    ),
+    parameters = list(
+      return_type = list(
+        type = "array",
+        items = list(type = "string"),
+        description = "List of outputs"
+      )
+    )
+  )
+
+  m <- Manifest(master = mp, states = list(sp1, sp2))
+
+  # Write to YAML and read back
+  agents <- list(
+    list(id = "agent_plan", type = "package_function",
+         package_function = "base::identity"),
+    list(id = "agent_exec", type = "package_function",
+         package_function = "base::identity")
+  )
+
+  workflow_save(tmp, manifest = m, agents = agents, append = FALSE)
+  wf <- workflow_load(tmp, name = "yaml-deps-rt", scheduler_class = NULL)
+  m2 <- wf$manifest
+
+  # return_type on planner survived YAML
+  planner <- Filter(function(s) s@name == "planner", m2@states)[[1]]
+  expect_equal(planner@parameters$return_type$type, "object")
+  expect_equal(
+    planner@parameters$return_type$properties$plan$type, "string"
+  )
+  expect_equal(
+    planner@parameters$return_type$properties$confidence$type, "number"
+  )
+
+  # depends_on on executor survived YAML
+  executor <- Filter(function(s) s@name == "executor", m2@states)[[1]]
+  expect_equal(executor@accessibility, "explicit")
+  expect_equal(executor@depends_on@deps$plan_data$state, "planner")
+  expect_equal(executor@depends_on@deps$plan_data$stage, "planning")
+  expect_equal(executor@depends_on@deps$plan_data$field, "result")
+
+  # return_type array on executor survived YAML
+  expect_equal(executor@parameters$return_type$type, "array")
+  expect_equal(executor@parameters$return_type$items$type, "string")
+
+  # --- Strict structural comparisons ---
+  expect_identical(
+    planner@parameters,
+    sp1@parameters
+  )
+  expect_identical(
+    executor@parameters,
+    sp2@parameters
+  )
+  expect_identical(
+    as.list(executor@depends_on),
+    as.list(sp2@depends_on)
+  )
+})
+
+
 # --- workflow_save / workflow_load / workflow_list ---
 test_that("workflow_save creates valid YAML that workflow_load reads back", {
   tmp <- tempfile(fileext = ".yaml")
@@ -456,4 +749,41 @@ test_that("load → save → load produces identical YAML (circular stability)",
   ids1 <- vapply(wf1$agents, function(a) a@id, character(1))
   ids2 <- vapply(wf2$agents, function(a) a@id, character(1))
   expect_equal(sort(ids2), sort(ids1))
+})
+
+test_that("manifest roundtrip preserves enum return_type with values key", {
+  mp <- MasterPolicy(
+    name = "enum-rt", version = "1.0.0",
+    stages = c("classify"),
+    parameters = list()
+  )
+  sp <- StatePolicy(
+    name = "classifier", stage = "classify",
+    description = "Classify input", agent_id = "c1",
+    parameters = list(
+      return_type = list(
+        type = "object",
+        properties = list(
+          label = list(
+            type = "enum",
+            values = list("positive", "negative", "neutral"),
+            description = "Sentiment label"
+          ),
+          confidence = list(type = "number", description = "Score")
+        )
+      )
+    )
+  )
+  m <- Manifest(master = mp, states = list(sp))
+
+  wf_list <- manifest_to_workflow_list(m)
+  m2 <- workflow_list_to_manifest(wf_list)
+  cl <- Filter(function(s) s@name == "classifier", m2@states)[[1]]
+
+  # Strict roundtrip: parameters must be identical
+  expect_identical(cl@parameters, sp@parameters)
+
+  # Also verify map_type_to_ellmer can convert the roundtripped return_type
+  etype <- map_type_to_ellmer(cl@parameters$return_type)
+  expect_s3_class(etype, "ellmer::TypeObject")
 })

@@ -48,10 +48,18 @@ map_type_to_ellmer <- function(type_def) {
   type <- type_def$type %||% "string"
   desc <- type_def$description %||% ""
 
-  # Handle enum types first (special case)
-  if (!is.null(type_def$enum)) {
+  # Handle enum types (special case)
+  # Accepts both JSON Schema style (enum: [a,b]) and
+  # MCP/workflow YAML style (type: enum, values: [a,b])
+  enum_vals <- type_def$enum %||% type_def$values
+  if (identical(type, "enum") && is.null(enum_vals)) {
+    stop(
+      "`type_def` with type='enum' must have 'enum' or 'values' field"
+    )
+  }
+  if (!is.null(enum_vals)) {
     return(ellmer::type_enum(
-      values = as.character(type_def$enum),
+      values = as.character(enum_vals),
       description = desc
     ))
   }

@@ -16,13 +16,19 @@ S7::method(as.list, BaseClass) <- function(x, recursive = TRUE, ...) {
       if ( is.atomic(x_) || !is.list(x_) ) {
         return(x_)
       }
-      structure(
+      re <- structure(
         names = names(x_),
-        class = class(x_),
         lapply(x_, function(x__) {
           as_list_impl(x__)
         })
       )
+      # Only preserve non-default class (avoid spurious class="list"
+      # on plain lists, which breaks identical() comparisons)
+      cls <- class(x_)
+      if (!identical(cls, "list")) {
+        class(re) <- cls
+      }
+      re
     }
 
     re <- as_list_impl(re)

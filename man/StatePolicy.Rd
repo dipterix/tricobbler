@@ -225,7 +225,9 @@ StatePolicy(
   )
 )
 
-# AI agent with structured output
+# AI agent with structured output (JSON Schema format,
+# consistent with MCP returns spec and workflow YAML;
+# converted to ellmer types at runtime via map_type_to_ellmer())
 StatePolicy(
   name = "planner",
   stage = "planning",
@@ -235,8 +237,14 @@ StatePolicy(
     system_prompt = "You are a task planning expert.",
     user_prompt = "Plan the following task: ...",
     keep_turns = FALSE,
-    return_type = ellmer::type_object(
-      steps = ellmer::type_array(items = ellmer::type_string())
+    return_type = list(
+      type = "object",
+      properties = list(
+        steps = list(
+          type = "array",
+          items = list(type = "string")
+        )
+      )
     )
   )
 )

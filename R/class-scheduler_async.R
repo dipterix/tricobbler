@@ -520,19 +520,7 @@ AsyncScheduler <- R6::R6Class(
         stage, " -> ", state_name,
         "` due to a critical failure. ",
         "Human attention needed. \nLast error: \n",
-        paste0(
-          c(
-            local({
-              if (inherits(error, "condition")) {
-                conditionMessage(error)
-              } else {
-                as.character(error)
-              }
-            }),
-            utils::capture.output(traceback(error))
-          ),
-          collapse = "\n"
-        ),
+        format_error_trace(error),
         caller = self
       )
 

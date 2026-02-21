@@ -722,3 +722,95 @@ test_that("manifest roundtrip handles empty depends_on", {
   expect_true(S7::S7_inherits(reconstructed@states[[1]]@depends_on, StateDeps))
   expect_length(reconstructed@states[[1]]@depends_on@deps, 0)
 })
+
+
+# --- StatePolicy parameter portability ---
+test_that("StatePolicy rejects non-portable parameters", {
+  # S7 objects (e.g., ellmer type indicators) are not allowed
+  expect_error(
+    StatePolicy(
+      name = "bad", stage = "idle",
+      description = "test", agent_id = "a1",
+      parameters = list(
+        return_type = ellmer::type_string()
+      )
+    ),
+    "portable"
+  )
+
+  # Nested S7 objects should also be caught
+  expect_error(
+    StatePolicy(
+      name = "bad", stage = "idle",
+      description = "test", agent_id = "a1",
+      parameters = list(
+        foo = list(
+          bar = ellmer::type_object(
+            x = ellmer::type_string()
+          )
+        )
+      )
+    ),
+    "portable"
+  )
+
+  # Functions are not allowed
+  expect_error(
+    StatePolicy(
+      name = "bad", stage = "idle",
+      description = "test", agent_id = "a1",
+      parameters = list(callback = identity)
+    ),
+    "portable"
+  )
+
+  # Environments are not allowed
+  expect_error(
+    StatePolicy(
+      name = "bad", stage = "idle",
+      description = "test", agent_id = "a1",
+      parameters = list(env = new.env())
+    ),
+    "portable"
+  )
+})
+
+test_that("StatePolicy accepts portable parameters", {
+  # Plain lists with atomics (JSON Schema style) are fine
+  sp <- StatePolicy(
+    name = "ok", stage = "idle",
+    description = "test", agent_id = "a1",
+    parameters = list(
+      system_prompt = "You are helpful.",
+      keep_turns = FALSE,
+      return_type = list(
+        type = "object",
+        properties = list(
+          steps = list(type = "array", items = list(type = "string")),
+          summary = list(type = "string", description = "Plan summary")
+        )
+      )
+    )
+  )
+  expect_true(S7::S7_inherits(sp, StatePolicy))
+
+  # Empty parameters are fine
+  sp2 <- StatePolicy(
+    name = "ok2", stage = "idle",
+    description = "test", agent_id = "a1",
+    parameters = list()
+  )
+  expect_true(S7::S7_inherits(sp2, StatePolicy))
+
+  # Numeric/integer/logical values are fine
+  sp3 <- StatePolicy(
+    name = "ok3", stage = "idle",
+    description = "test", agent_id = "a1",
+    parameters = list(
+      timeout = 300L,
+      threshold = 0.95,
+      verbose = TRUE
+    )
+  )
+  expect_true(S7::S7_inherits(sp3, StatePolicy))
+})

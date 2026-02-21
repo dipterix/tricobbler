@@ -1,115 +1,3 @@
-#' @include class-manifest.R
-#' @include generic-as_agent.R
-NULL
-
-# ---------------------------------------------------------------------------
-# Provider Name Lookup Table
-# ---------------------------------------------------------------------------
-# Maps ellmer provider@name (display string) to chat_*() function suffix
-# used by the ellmer::chat() dispatcher.
-# Fallback: tolower(gsub("[^a-zA-Z0-9]", "_", provider@name))
-
-.provider_name_to_suffix <- c(
-  "Anthropic"         = "anthropic",
-  "AWS/Bedrock"       = "aws_bedrock",
-  "Azure/OpenAI"      = "azure_openai",
-  "Cloudflare"        = "cloudflare",
-  "Databricks"        = "databricks",
-  "DeepSeek"          = "deepseek",
-  "gitHub"            = "github",
-  "Google/Gemini"     = "google_gemini",
-  "Google/Vertex"     = "google_vertex",
-  "Groq"              = "groq",
-  "HuggingFace"       = "huggingface",
-  "Mistral"           = "mistral",
-  "Ollama"            = "ollama",
-  "OpenAI"            = "openai",
-  "OpenRouter"        = "openrouter",
-  "Perplexity"        = "perplexity",
-  "PortkeyAI"         = "portkey",
-  "Snowflake/Cortex"  = "snowflake",
-  "VLLM"              = "vllm"
-)
-
-# Reverse lookup: suffix -> display name
-.provider_suffix_to_name <- structure(
-  names = .provider_name_to_suffix,
-  names(.provider_name_to_suffix)
-)
-
-#' Convert \pkg{ellmer} provider display name to \code{chat_*()} suffix
-#' @param provider_name character, the \code{provider@@name} display string
-#' @returns character, the suffix for \code{ellmer::chat_\{suffix\}()}
-#' @noRd
-provider_name_to_suffix <- function(provider_name) {
-  idx <- match(provider_name, names(.provider_name_to_suffix))
-  if (!is.na(idx)) {
-    suffix <- .provider_name_to_suffix[[idx]]
-  } else {
-    # Fallback: normalize display name to dispatcher string
-    suffix <- tolower(gsub("[^a-zA-Z0-9]", "_", provider_name))
-  }
-  suffix
-}
-
-
-# ---------------------------------------------------------------------------
-# Extract Chat Configuration from a Chat Object
-# ---------------------------------------------------------------------------
-
-#' Extract serialization configuration from an \pkg{ellmer} Chat object
-#'
-#' @description Extracts provider name, model, base URL, and parameters
-#'   from a \code{Chat} object for \verb{YAML} serialization. Credentials
-#'   are never included; they come from environment variables at runtime.
-#'
-#' @param chat an \pkg{ellmer} \code{Chat} object
-#' @returns A named list with fields: \code{type}, \code{provider},
-#'   \code{model}, \code{base_url}, \code{params}, \code{extra_args},
-#'   \code{extra_headers}. Empty fields are omitted.
-#' @noRd
-extract_chat_config <- function(chat) {
-  if (!inherits(chat, "Chat")) {
-    stop("'chat' must be an ellmer Chat object")
-  }
-  provider <- chat$get_provider()
-  suffix <- provider_name_to_suffix(provider@name)
-
-  config <- list(
-    type = "chat",
-    provider = suffix,
-    model = provider@model,
-    base_url = provider@base_url
-  )
-
-  # Serialize params (from ellmer::params()) - drop NULL entries
-  p <- provider@params
-  if (is.list(p) && length(p) > 0) {
-    p <- Filter(Negate(is.null), p)
-    if (length(p) > 0) {
-      config$params <- p
-    }
-  }
-
-  # Extra args
-  ea <- provider@extra_args
-  if (is.list(ea) && length(ea) > 0) {
-    config$extra_args <- ea
-  }
-
-  # Extra headers
-  eh <- provider@extra_headers
-  if (is.character(eh) && length(eh) > 0) {
-    config$extra_headers <- eh
-  }
-
-  config
-}
-
-
-# ---------------------------------------------------------------------------
-# Serialize Manifest to Stage-Grouped YAML Structure
-# ---------------------------------------------------------------------------
 
 #' Convert a \code{\link{Manifest}} to the workflow \verb{YAML} structure
 #'
@@ -211,150 +99,6 @@ workflow_list_to_manifest <- function(wf_list) {
 }
 
 
-# ---------------------------------------------------------------------------
-# Agent Config Reconstruction
-# ---------------------------------------------------------------------------
-
-#' Reconstruct an \code{\link{Agent}} from a config list
-#'
-#' @param agent_config A named list with at least \code{id} and \code{type}
-#' @param base_dir character, base directory for resolving relative paths
-#'   (typically \code{dirname(workflow_file)})
-#' @returns An \code{\link{Agent}} object
-#' @noRd
-reconstruct_agent <- function(agent_config, base_dir = ".") {
-  id <- agent_config$id
-  agent_type <- agent_config$type
-  description <- agent_config$description %||% ""
-
-  agent <- switch(
-    agent_type,
-    "chat" = {
-      reconstruct_chat_agent(agent_config, id = id, description = description)
-    },
-    "script" = {
-      reconstruct_script_agent(
-        agent_config, base_dir = base_dir,
-        id = id, description = description
-      )
-    },
-    "tool_definition" = {
-      reconstruct_tool_agent(agent_config, id = id, description = description)
-    },
-    "package_function" = {
-      reconstruct_package_agent(
-        agent_config, id = id, description = description
-      )
-    },
-    stop(sprintf("Unknown agent type: '%s'", agent_type))
-  )
-
-  agent@config <- agent_config
-  agent
-}
-
-
-#' @noRd
-reconstruct_chat_agent <- function(config, id, description) {
-  provider_suffix <- config$provider
-  model <- config$model %||% NULL
-
-  # Build arguments for ellmer::chat() or ellmer::chat_{suffix}()
-  chat_args <- list()
-  if (!is.null(model)) {
-    chat_args$model <- model
-  }
-  if (!is.null(config$base_url)) {
-    chat_args$base_url <- config$base_url
-  }
-  if (!is.null(config$params) && length(config$params) > 0) {
-    chat_args$params <- do.call(ellmer::params, config$params)
-  }
-  if (!is.null(config$extra_args) && length(config$extra_args) > 0) {
-    chat_args$extra_args <- config$extra_args
-  }
-  if (!is.null(config$extra_headers) && length(config$extra_headers) > 0) {
-    chat_args$extra_headers <- config$extra_headers
-  }
-
-  # Try to call ellmer::chat_{suffix}()
-  chat_fn_name <- paste0("chat_", provider_suffix)
-  chat_fn <- tryCatch(
-    get(chat_fn_name, envir = asNamespace("ellmer")),
-    error = function(e) NULL
-  )
-
-  if (is.null(chat_fn)) {
-    stop(sprintf(
-      "Cannot find ellmer provider function '%s'. Check provider: '%s'",
-      chat_fn_name, provider_suffix
-    ))
-  }
-
-  chat <- do.call(chat_fn, chat_args)
-  as_agent(chat, id = id, description = description)
-}
-
-
-#' @noRd
-reconstruct_script_agent <- function(config, base_dir, id, description) {
-  source_path <- config$source
-  fun_name <- config[["function"]]
-
-  if (is.null(source_path) || is.null(fun_name)) {
-    stop(sprintf(
-      "Script agent '%s' requires 'source' and 'function' fields", id
-    ))
-  }
-
-  # Resolve relative to YAML file directory
-  full_path <- normalizePath(
-    file.path(base_dir, source_path),
-    mustWork = FALSE
-  )
-  if (!file.exists(full_path)) {
-    stop(sprintf(
-      "Script agent '%s': source file not found: %s", id, full_path
-    ))
-  }
-
-  env <- new.env(parent = globalenv())
-  source(full_path, local = env)
-
-  fn <- env[[fun_name]]
-  if (!is.function(fn)) {
-    stop(sprintf(
-      "Script agent '%s': '%s' is not a function in %s",
-      id, fun_name, source_path
-    ))
-  }
-
-  as_agent(fn, id = id, description = description)
-}
-
-
-#' @noRd
-reconstruct_tool_agent <- function(config, id, description) {
-  tool_path <- config$tool
-  if (is.null(tool_path)) {
-    stop(sprintf(
-      "Tool definition agent '%s' requires a 'tool' field", id
-    ))
-  }
-  as_agent(tool_path, id = id, description = description)
-}
-
-
-#' @noRd
-reconstruct_package_agent <- function(config, id, description) {
-  pkg_fun <- config$package_function
-  if (is.null(pkg_fun)) {
-    stop(sprintf(
-      "Package function agent '%s' requires a 'package_function' field", id
-    ))
-  }
-  as_agent(pkg_fun, id = id, description = description)
-}
 
 
 # ===================================================================
@@ -492,63 +236,74 @@ NULL
 #' @export
 workflow_save <- function(file, manifest = NULL, agents = NULL,
                           append = TRUE,
-                          agent_folder = "scripts/tricobbler-agents") {
+                          agent_folder = "tricobbler-agents") {
+
+  # DIPSAUS DEBUG START
+  # self <- workflow_load('inst/skills/skill-creator/tricobbler-workflow.yaml', 'sandboxed-import-bids-skill')
+  # manifest <- self$manifest
+  # agents <- self$agents$as_list()
+  # append <- TRUE
+  # agent_folder = "tricobbler-agents"
+  # file <- tempfile()
+
+  stopifnot(length(agent_folder) == 1 && !is.na(agent_folder) &&
+              is.character(agent_folder))
+
+  parts <- strsplit(agent_folder, "[/\\\\]")[[1]]
+  if (any(parts == "..")) {
+    stop("'agent_folder' must not contain '..' components: ", agent_folder)
+  }
 
   base_dir <- dirname(normalizePath(file, mustWork = FALSE))
+  agent_abspath <- file.path(base_dir, agent_folder)
 
   # Normalize agents: convert Chat objects and Agent objects to config lists
   agents <- lapply(agents, function(a) {
-    if (inherits(a, "Chat")) {
-      return(extract_chat_config(a))
+    if (!S7::S7_inherits(a, Agent)) {
+      # invalid agent
+      return()
     }
-    if (S7::S7_inherits(a, Agent)) {
-      cfg <- a@config
-      if (is.null(cfg)) {
-        stop(sprintf(
-          "Agent '%s' has no config. Set agent@config before saving.",
-          a@id
-        ))
+    cfg <- a@config
+    if (!length(cfg)) {
+      stop(sprintf(
+        "Agent '%s' has no config. Set agent@config before saving.",
+        a@id
+      ))
+    }
+    # Check if source exists for script/function agents
+    if ( identical(cfg$type, "script") ) {
+
+      if ( is.function(cfg$impl) ) {
+        # Check if the source file is missing
+        if (
+          length(cfg$source) != 1 ||
+          is.na(cfg$source) ||
+          !is.character(cfg$source) ||
+          !nzchar(cfg$source) ||
+          !file.exists(file.path(agent_abspath, cfg$source))
+        ) {
+
+          # The function is in-memory and should be saved
+          agent_fpath <- file.path(agent_abspath, sprintf("%s.rds", a@id))
+          dir.create(dirname(agent_fpath), showWarnings = FALSE, recursive = TRUE)
+          saveRDS(cfg$impl, file = agent_fpath)
+
+          cfg$source <- file.path(agent_folder, sprintf("%s.rds", a@id))
+          cfg$function_name <- NULL
+
+        }
       }
-      return(cfg)
+      cfg$impl <- NULL
+
+      if (length(cfg$source)) {
+        cfg$source <- gsub("[/|\\\\]+", "/", cfg$source)
+      }
     }
-    # Must be a raw config list
-    if (!is.list(a) || is.null(a$id) || is.null(a$type)) {
-      stop("Each agent must be a list with 'id' and 'type' fields")
-    }
-    a
+
+    return(cfg)
   })
 
-  # For script agents, copy source files into agent_folder and
-  # rewrite source paths to be relative to the YAML file
-  if (!is.null(agent_folder) && nzchar(agent_folder)) {
-    # agent_folder is always relative to the YAML directory; ".." is forbidden
-    parts <- strsplit(agent_folder, "[/\\\\]")[[1]]
-    if (any(parts == "..")) {
-      stop("'agent_folder' must not contain '..' components: ", agent_folder)
-    }
-    agents <- lapply(agents, function(a) {
-      if (!identical(a$type, "script") || is.null(a$source)) {
-        return(a)
-      }
-      # source is always relative to base_dir
-      src_abs <- file.path(base_dir, a$source)
-      dest_dir <- file.path(base_dir, agent_folder)
-      dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
-      dest_file <- file.path(dest_dir, basename(src_abs))
-      # Only copy when the source is not already the destination
-      if (normalizePath(src_abs, mustWork = FALSE) !=
-          normalizePath(dest_file, mustWork = FALSE)) {
-        if (!file.exists(src_abs)) {
-          stop(sprintf(
-            "Script agent '%s': source file not found: %s", a$id, src_abs
-          ))
-        }
-        file.copy(src_abs, dest_file, overwrite = TRUE)
-      }
-      a$source <- file.path(agent_folder, basename(src_abs))
-      a
-    })
-  }
+  agents <- unname(agents[!vapply(agents, is.null, FALSE)])
 
   # Normalize manifest to list of manifests
   if (S7::S7_inherits(manifest, Manifest)) {
@@ -639,6 +394,10 @@ workflow_save <- function(file, manifest = NULL, agents = NULL,
 #'   }
 #' @export
 workflow_load <- function(file, name = NULL, scheduler_class = Scheduler) {
+  # DIPSAUS DEBUG START
+  # self <- workflow_load('inst/skills/skill-creator/tricobbler-workflow.yaml', 'sandboxed-import-bids-skill')
+  # file <- self$save_workflow(tempfile())
+  # name <- 'sandboxed-import-bids-skill'
   if (!file.exists(file)) {
     stop(sprintf("Workflow file not found: %s", file))
   }
@@ -681,13 +440,15 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler) {
     character(1)
   ))
 
-  agents_out <- list()
-  for (acfg in agent_configs) {
-    if (acfg$id %in% needed_ids) {
-      agent <- reconstruct_agent(acfg, base_dir = base_dir)
-      agents_out <- c(agents_out, list(agent))
+  agents_out <- lapply(agent_configs, function(acfg) {
+    # acfg <- agent_configs[[1]]
+    if (!acfg$id %in% needed_ids) {
+      return()
     }
-  }
+    agent <- reconstruct_agent(acfg, base_dir = base_dir)
+    agent
+  })
+  agents_out <- Filter(Negate(is.null), agents_out)
 
   if (!is.null(scheduler_class)) {
     return(scheduler_class$new(manifest = manifest, agents = agents_out))
