@@ -67,13 +67,7 @@ S7::method(mcp_describe, S7::new_S3_class("json")) <- function(x, ...) {
 
 # Method for error class
 S7::method(mcp_describe, S7::new_S3_class("error")) <- function(x, ...) {
-  sprintf(
-    "Error message: %s\nError class: %s\nCall: %s\nTraceback:\n%s",
-    paste(x$message, collapse = "\n"),
-    paste(class(x), collapse = ", "),
-    paste(deparse(x$call), collapse = "\n"),
-    paste(format_error_trace(error = x), collapse = "\n")
-  )
+  paste(format_error_trace(error = x), collapse = "\n")
 }
 
 # Method for NULL

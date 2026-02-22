@@ -72,6 +72,13 @@ format_error_trace <- function(error, max_frames = 20L) {
       },
       error = function(e2) NULL
     )
+  } else if (inherits(error, "error")) {
+    trace_lines <- paste(
+      utils::capture.output({
+        traceback(error)
+      }),
+      collapse = "\n"
+    )
   }
 
   # Fall back: deparse the call stored on the condition
@@ -80,5 +87,5 @@ format_error_trace <- function(error, max_frames = 20L) {
     trace_lines <- paste("Call:", paste(deparse(error$call), collapse = " "))
   }
 
-  paste(c(msg, trace_lines), collapse = "\n")
+  paste(c(sprintf("Error: %s", msg), trace_lines), collapse = "\n")
 }

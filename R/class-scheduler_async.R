@@ -290,9 +290,9 @@ AsyncScheduler <- R6::R6Class(
                   )
 
                   if (isTRUE(policy@critical)) {
-                    private$.last_error <- result$error
+                    private$.last_error <- result$result
                     self$suspend(
-                      error = result$error,
+                      error = result$result,
                       state_name = state_name,
                       stage = policy@stage,
                       runtime_summary = runtime_summary
@@ -306,18 +306,38 @@ AsyncScheduler <- R6::R6Class(
                     )
                   }
                 } else if (!is.na(policy@on_failure)) {
+                  # on_failure: re-run the target (upstream
+                  # producer), then re-run this state.
                   target <- policy@on_failure
 
-                  if (!self$completed_map$has(state_name)) {
-                    runtime_summary$status <- "errored"
-                    self$completed_map$set(
-                      key = state_name,
-                      value = runtime_summary
+                  # Store failure context so the re-run target
+                  # knows WHY it is being re-run.
+                  error_obj <- result$result
+                  feedback_key <- sprintf(
+                    "on_failure_feedback:%s", target
+                  )
+                  self$context$cache$set(
+                    feedback_key,
+                    list(
+                      from_state = state_name,
+                      from_stage = policy@stage,
+                      attempt = runtime$attempt,
+                      error_message = if (
+                        inherits(error_obj, "error")
+                      ) {
+                        conditionMessage(error_obj)
+                      } else {
+                        mcp_describe(error_obj)
+                      },
+                      timestamp = Sys.time()
                     )
+                  )
+
+                  if (self$completed_map$has(target)) {
+                    self$completed_map$remove(target)
                   }
 
-                  if (!self$completed_map$has(target) &&
-                      !self$waiting_pool$has(target)) {
+                  if (!self$waiting_pool$has(target)) {
                     target_policy <- NULL
                     for (sp in self$manifest@states) {
                       if (identical(sp@name, target)) {
@@ -341,6 +361,13 @@ AsyncScheduler <- R6::R6Class(
                       )
                     }
                   }
+
+                  # Re-queue failing state for retry; stays
+                  # blocked until target re-completes.
+                  self$retry_map$set(
+                    key = state_name,
+                    value = runtime_summary
+                  )
 
                   self$dispatch_event(
                     type = "runtime.redirect",

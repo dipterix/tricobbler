@@ -755,13 +755,13 @@ Scheduler <- R6::R6Class(
           )
 
           if (isTRUE(policy@critical)) {
-            private$.last_error <- result$error
+            private$.last_error <- result$result
             # suspend() sets the action synchronously (via
             # injected handler). For "abort", it throws an error
             # that propagates to start()'s tryCatch. For other
             # actions it returns and the advance() loop continues.
             self$suspend(
-              error = result$error,
+              error = result$result,
               state_name = state_name,
               stage = policy@stage,
               runtime_summary = runtime_summary
@@ -776,24 +776,38 @@ Scheduler <- R6::R6Class(
             )
           }
         } else if (!is.na(policy@on_failure)) {
-          # Redirect to on_failure target
+          # Redirect to on_failure target.
+          # on_failure means the *target* produced bad input;
+          # re-run the target, then re-run this state once the
+          # target completes (via depends_on).
           target <- policy@on_failure
 
-          # Mark the failed state as errored in completed_map
-          # so the target's depends_on (if it references this
-          # state) is satisfied and doesn't deadlock
-          if (!self$completed_map$has(state_name)) {
-            runtime_summary$status <- "errored"
-            self$completed_map$set(
-              key = state_name,
-              value = runtime_summary
+          # Store the failure context so the re-run target
+          # knows WHY it is being re-run and can adjust.
+          error_obj <- result$result
+          feedback_key <- sprintf("on_failure_feedback:%s", target)
+          self$context$cache$set(
+            feedback_key,
+            list(
+              from_state = state_name,
+              from_stage = policy@stage,
+              attempt = runtime$attempt,
+              error_message = if (inherits(error_obj, "error")) {
+                conditionMessage(error_obj)
+              } else {
+                mcp_describe(error_obj)
+              },
+              timestamp = Sys.time()
             )
+          )
+
+          # Remove the target from completed_map so it is no
+          # longer considered done and can be re-dispatched.
+          if (self$completed_map$has(target)) {
+            self$completed_map$remove(target)
           }
 
-          if (
-            !self$completed_map$has(target) &&
-            !self$waiting_pool$has(target)
-          ) {
+          if (!self$waiting_pool$has(target)) {
             # Create a runtime for the target state
             target_policy <- NULL
             for (sp in self$manifest@states) {
@@ -818,6 +832,15 @@ Scheduler <- R6::R6Class(
               )
             }
           }
+
+          # Re-queue the failing state for retry; attempt will
+          # be incremented by retry_runtime(). The state stays
+          # blocked in runtime_map until its depends_on (the
+          # target) re-completes.
+          self$retry_map$set(
+            key = state_name,
+            value = runtime_summary
+          )
 
           self$dispatch_event(
             type = "runtime.redirect",

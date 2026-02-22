@@ -196,6 +196,14 @@ S7::method(as_agent, S7::class_function) <- function(
       }
     }
 
+    # Inject on_failure feedback if available (populated by the
+    # scheduler when a downstream state redirected back here).
+    feedback_key <- sprintf("on_failure_feedback:%s", policy@name)
+    feedback <- context$cache$get(feedback_key)
+    if (!is.null(feedback) && ".on_failure_feedback" %in% fun_params) {
+      input[[".on_failure_feedback"]] <- feedback
+    }
+
     # filter the inputs
     if (!"..." %in% fun_params) {
       input <- input[names(input) %in% fun_params]
@@ -469,7 +477,7 @@ as_agent_from_chat <- function(
 
     # Clear conversation history unless keep_turns is TRUE
     if (!isTRUE(keep_turns)) {
-      chat$set_turns(list())
+      chat$set_turns(context$chat_content)
     }
 
     # Debug mode: log prompts and tools for inspection
@@ -496,15 +504,11 @@ as_agent_from_chat <- function(
       )
     }
 
-    global_content <- context$global_chat_content
-
     if (!is.null(return_type)) {
       chat_impl <- function(..., .list = list()) {
-        if (length(global_content)) {
-          args <- c(list(global_content, ...), as.list(.list), list(type = return_type))
-        } else {
-          args <- c(list(...), as.list(.list), list(type = return_type))
-        }
+        args <- c(list(...),
+                  as.list(.list),
+                  list(type = return_type))
 
         if (is_async) {
           do.call(chat$chat_structured_async, args)
@@ -514,11 +518,7 @@ as_agent_from_chat <- function(
       }
     } else {
       chat_impl <- function(..., .list = list()) {
-        if (length(global_content)) {
-          args <- c(list(global_content, ...), as.list(.list))
-        } else {
-          args <- c(list(...), as.list(.list))
-        }
+        args <- c(list(...), as.list(.list))
 
         if (is_async) {
           do.call(chat$chat_async, args)
@@ -585,10 +585,35 @@ as_agent_from_chat <- function(
       }
     }
 
+    # Inject on_failure feedback if a downstream state redirected
+    # back to this one. This tells the LLM *why* it is being
+    # re-run so it can produce a different/corrected answer.
+    failure_feedback_content <- NULL
+    feedback_key <- sprintf("on_failure_feedback:%s", policy@name)
+    feedback <- context$cache$get(feedback_key)
+    if (!is.null(feedback)) {
+      failure_feedback_content <- mcp_attach(
+        sprintf(
+          paste0(
+            "Your previous output was consumed by state '%s' ",
+            "(stage '%s'), which FAILED with this error:\n\n",
+            "```\n%s\n```\n\n",
+            "Please produce a corrected result that avoids ",
+            "this error."
+          ),
+          feedback$from_state,
+          feedback$from_stage,
+          feedback$error_message
+        ),
+        .header = "## IMPORTANT: Downstream Failure Feedback"
+      )
+    }
+
     # Build content list, filtering out NULLs (e.g. log_content
     # when accessibility = "none") to avoid empty Content elements
     contents <- list(
       log_content,
+      failure_feedback_content,
       mcp_attach(sprintf("Stage: %s --> State: %s", policy@stage, policy@name),
                  .header = "## Current Execution"),
       mcp_attach(user_prompt, .header = "## Task")
@@ -598,7 +623,7 @@ as_agent_from_chat <- function(
     # Call the LLM, catching errors gracefully so the scheduler
     # records them as failed attachments and can retry.
     max_chat_errors <- as.numeric(
-      params$max_chat_errors %||% Inf
+      params$max_chat_errors %||% 20L
     )
     chat_error_count <- 0L
     last_error <- NULL
@@ -607,9 +632,20 @@ as_agent_from_chat <- function(
     # start here, not deep in scheduler/wrapper internals.
     trace_top <- rlang::current_env()
     runtime$set_trace_top(trace_top)
+
+
+
     while (chat_error_count < max_chat_errors) {
+      # result <- chat_impl(.list = c(contents, dependency_attachments))
+
       result <- rlang::try_fetch(
-        chat_impl(.list = c(contents, dependency_attachments)),
+        {
+          if (length(last_error)) {
+            chat_impl(paste(format_error_trace(last_error), collapse = "\n"))
+          } else {
+            chat_impl(.list = c(contents, dependency_attachments))
+          }
+        },
         error = function(cnd) {
           cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
           cnd

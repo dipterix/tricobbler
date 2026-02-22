@@ -26,7 +26,7 @@ AgentContext <- R6::R6Class(
 
     .tools = NULL,
 
-    .global_content = NULL,
+    .chat_content = NULL,
 
     finalize = function() {
       if (!is.null(private$.cache)) {
@@ -107,16 +107,8 @@ AgentContext <- R6::R6Class(
       private$.index
     },
 
-    global_chat_content = function(value) {
-      if (!missing(value)) {
-        if (!length(value)) {
-          value <- NULL
-        } else if (!S7::S7_inherits(value, ellmer::Content)) {
-          value <- mcp_attach(value)
-        }
-        private$.global_content <- value
-      }
-      private$.global_content
+    chat_content = function() {
+      private$.chat_content$as_list()
     }
 
   ),
@@ -161,6 +153,7 @@ AgentContext <- R6::R6Class(
 
       private$.cache <- fastmap::fastmap()
       private$.tools <- fastmap::fastmap()
+      private$.chat_content <- fastmap::fastqueue()
       private$.index <- NULL
 
       if (!dir.exists(path)) {
@@ -199,6 +192,52 @@ AgentContext <- R6::R6Class(
       private$.index <- AttachmentIndex$new(db_path)
 
       invisible(self)
+    },
+
+    add_turn = function(contents, role = c("user", "assistant", "system")) {
+
+      if (!S7::S7_inherits(contents, ellmer::Turn)) {
+        role <- match.arg(role)
+
+        ellmer <- asNamespace('ellmer')
+        contents <- lapply(contents, function(content) {
+          if (is.null(content)) { return() }
+
+          if (S7::S7_inherits(content, ellmer::Content)) {
+            return(content)
+          }
+
+          ellmer::ContentText(text = content)
+
+        })
+
+        contents <- contents[!vapply(contents, is.null, FALSE)]
+        contents <- ellmer::Turn(role = role, contents = contents)
+      }
+
+      if (length(contents)) {
+        private$.chat_content$add(contents)
+      }
+      invisible(private$.chat_content$size())
+    },
+
+    set_turns = function(turns, append = FALSE) {
+      if (!append) {
+        private$.chat_content$reset()
+      }
+      turns <- lapply(turns, function(turn) {
+        if (is.null(turn)) { return() }
+        if (!S7::S7_inherits(turn, ellmer::Turn)) {
+          stop("Every element of `turns` in `$set_turns()` must be a `ellmer::Turn`")
+        }
+        turn
+      })
+      lapply(turns, function(turn) {
+        if (!is.null(turn)) {
+          private$.chat_content$add(turn)
+        }
+      })
+      invisible(private$.chat_content$size())
     },
 
     #' @description Write time-stamped messages to log file
