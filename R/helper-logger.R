@@ -39,7 +39,7 @@ log_to_file <- function(
   }
 
   # Console output based on verbose setting
-  if (verbose == "none") {
+  if (verbose == "none" || identical(Sys.getenv("TRICOBBLER_QUIET", unset = ""), 'true')) {
     return(invisible(NULL))
   }
 

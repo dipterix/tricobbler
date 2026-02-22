@@ -110,37 +110,43 @@ AsyncScheduler <- R6::R6Class(
       stages <- self$manifest@master@stages
 
       impl <- coro::async(function() {
-        for (stage in stages) {
-          if (!identical(private$.run_flag,
-                         private$.stage_flag) &&
-              !is.null(private$.stage_flag)) {
-            stop("Scheduler cancelled; aborting.")
+
+        tryCatch(
+          {
+            for (stage in stages) {
+              if (!identical(private$.run_flag,
+                             private$.stage_flag) &&
+                  !is.null(private$.stage_flag)) {
+                stop("Scheduler cancelled; aborting.")
+              }
+              coro::await(self$run_stage(stage))
+            }
+
+            private$.stage_resolve <- NULL
+            private$.stage_reject <- NULL
+            self$current_stage <- "ready"
+            self$dispatch_event(
+              type = "scheduler.completed",
+              message = "All stages completed"
+            )
+          },
+          error = function(cnd) {
+            private$.stage_resolve <- NULL
+            private$.stage_reject <- NULL
+            self$current_stage <- "ready"
+            msg <- conditionMessage(cnd)
+            self$dispatch_event(
+              type = "scheduler.aborted",
+              message = sprintf("Scheduler aborted: %s", msg),
+              error = cnd
+            )
+            stop(cnd)
           }
-          coro::await(self$run_stage(stage))
-        }
-        invisible()
+        )
+        invisible(self)
       })
 
-      impl()$then(
-        onFulfilled = function(...) {
-          self$current_stage <- "ready"
-          self$dispatch_event(
-            type = "scheduler.completed",
-            message = "All stages completed"
-          )
-          invisible(self)
-        },
-        onRejected = function(e) {
-          self$current_stage <- "ready"
-          msg <- conditionMessage(e)
-          self$dispatch_event(
-            type = "scheduler.aborted",
-            message = sprintf("Scheduler aborted: %s", msg),
-            error = e
-          )
-          promises::promise_reject(e)
-        }
-      )
+      impl()
     },
 
     #' @description Dispatch queued runtimes as \verb{async} promises.

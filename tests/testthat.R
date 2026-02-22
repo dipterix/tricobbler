@@ -9,4 +9,5 @@
 library(testthat)
 library(tricobbler)
 
+Sys.setenv("TRICOBBLER_QUIET" = "true")
 test_check("tricobbler")

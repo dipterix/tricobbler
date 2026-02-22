@@ -7,6 +7,7 @@
 
 # --- provider_name_to_suffix ---
 test_that("provider_name_to_suffix maps known providers", {
+  provider_name_to_suffix <- tricobbler:::provider_name_to_suffix
   expect_equal(provider_name_to_suffix("Ollama"), "ollama")
   expect_equal(provider_name_to_suffix("Anthropic"), "anthropic")
   expect_equal(provider_name_to_suffix("OpenAI"), "openai")
@@ -15,8 +16,8 @@ test_that("provider_name_to_suffix maps known providers", {
 })
 
 test_that("provider_name_to_suffix falls back gracefully for unknown", {
-  # Unknown provider — should normalize to lowercase with underscores
-
+  provider_name_to_suffix <- tricobbler:::provider_name_to_suffix
+  # Unknown provider -- should normalize to lowercase with underscores
   result <- provider_name_to_suffix("Custom/Provider")
   expect_type(result, "character")
   expect_equal(result, "custom_provider")
@@ -324,10 +325,8 @@ test_that("manifest roundtrip through YAML preserves depends_on and return_type"
 
   # Write to YAML and read back
   agents <- list(
-    list(id = "agent_plan", type = "package_function",
-         package_function = "base::identity"),
-    list(id = "agent_exec", type = "package_function",
-         package_function = "base::identity")
+    as_agent("base::identity", id = "agent_plan"),
+    as_agent("base::identity", id = "agent_exec")
   )
 
   workflow_save(tmp, manifest = m, agents = agents, append = FALSE)
@@ -397,8 +396,7 @@ test_that("workflow_save creates valid YAML that workflow_load reads back", {
   m <- Manifest(master = mp, states = list(sp_idle, sp))
 
   agents <- list(
-    list(id = "worker", type = "package_function",
-         package_function = "base::identity")
+    as_agent("base::identity", id = "worker")
   )
 
   workflow_save(tmp, manifest = m, agents = agents)
@@ -431,8 +429,7 @@ test_that("workflow_load returns Scheduler instance by default", {
   )
   m <- Manifest(master = mp, states = list(sp))
   agents <- list(
-    list(id = "a1", type = "package_function",
-         package_function = "base::identity")
+    as_agent("base::identity", id = "a1")
   )
   workflow_save(tmp, manifest = m, agents = agents)
 
@@ -457,8 +454,7 @@ test_that("workflow_load returns error for missing workflow", {
   )
   m <- Manifest(master = mp, states = list(sp))
   agents <- list(
-    list(id = "a1", type = "package_function",
-         package_function = "base::identity")
+    as_agent("base::identity", id = "a1")
   )
   workflow_save(tmp, manifest = m, agents = agents, append = FALSE)
 
@@ -492,12 +488,11 @@ test_that("workflow_save append=TRUE merges by name and id", {
   )
   m1 <- Manifest(master = mp1, states = list(sp1))
   agents1 <- list(
-    list(id = "a1", type = "package_function",
-         package_function = "base::cat")
+    as_agent("base::cat", id = "a1")
   )
   workflow_save(tmp, manifest = m1, agents = agents1, append = FALSE)
 
-  # Second save — add new workflow + update existing agent
+  # Second save -- add new workflow + update existing agent
   mp2 <- MasterPolicy(
     name = "wf-beta", version = "2.0.0",
     stages = "idle"
@@ -508,8 +503,7 @@ test_that("workflow_save append=TRUE merges by name and id", {
   )
   m2 <- Manifest(master = mp2, states = list(sp2))
   agents2 <- list(
-    list(id = "a1", type = "package_function",
-         package_function = "base::print")
+    as_agent("base::print", id = "a1")
   )
   workflow_save(tmp, manifest = m2, agents = agents2, append = TRUE)
 
@@ -541,13 +535,12 @@ test_that("workflow_save append=FALSE overwrites", {
   workflow_save(
     tmp, manifest = m1,
     agents = list(
-      list(id = "a", type = "package_function",
-           package_function = "base::identity")
+      as_agent("base::identity", id = "a")
     ),
     append = FALSE
   )
 
-  # Second save — overwrite
+  # Second save -- overwrite
   mp2 <- MasterPolicy(
     name = "new", version = "2.0.0", stages = "idle"
   )
@@ -559,8 +552,7 @@ test_that("workflow_save append=FALSE overwrites", {
   workflow_save(
     tmp, manifest = m2,
     agents = list(
-      list(id = "b", type = "package_function",
-           package_function = "base::cat")
+      as_agent("base::cat", id = "b")
     ),
     append = FALSE
   )
@@ -587,7 +579,7 @@ test_that("reconstruct_agent handles script type", {
     id = "test_script",
     type = "script",
     source = basename(tmp_r),
-    "function" = "my_agent_fn"
+    function_name = "my_agent_fn"
   )
 
   agent <- reconstruct_agent(config, base_dir = dirname(tmp_r))
@@ -641,10 +633,8 @@ test_that("full YAML roundtrip preserves stage structure", {
   m <- Manifest(master = mp, states = list(sp1, sp2, sp3))
 
   agents <- list(
-    list(id = "a1", type = "package_function",
-         package_function = "base::identity"),
-    list(id = "a2", type = "package_function",
-         package_function = "base::print")
+    as_agent("base::identity", id = "a1"),
+    as_agent("base::print", id = "a2")
   )
 
   workflow_save(tmp, manifest = m, agents = agents, append = FALSE)
@@ -697,10 +687,8 @@ test_that("load → save → load produces identical YAML (circular stability)",
   )
   m <- Manifest(master = mp, states = list(sp1, sp2))
   agents <- list(
-    list(id = "agent1", type = "package_function",
-         package_function = "base::identity"),
-    list(id = "agent2", type = "package_function",
-         package_function = "base::print")
+    as_agent("base::identity", id = "agent1"),
+    as_agent("base::print", id = "agent2")
   )
 
   workflow_save(tmp1, manifest = m, agents = agents, append = FALSE)

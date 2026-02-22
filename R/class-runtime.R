@@ -367,7 +367,7 @@ AgentRuntime <- R6::R6Class(
       agent_promise <- rlang::try_fetch(
         agent(runtime = self),
         error = function(cnd) {
-          cnd$trace <- rlang::trace_back(top = private$.trace_top)
+          cnd$trace <- cnd$trace %||% rlang::trace_back(top = private$.trace_top)
           private$.last_error <- cnd
           private$.status <- "errored"
           promises::promise_reject(cnd)
@@ -475,7 +475,7 @@ AgentRuntime <- R6::R6Class(
         },
         error = function(cnd) {
           # Capture backtrace at the error site (stack still live)
-          cnd$trace <- rlang::trace_back(top = private$.trace_top)
+          cnd$trace <- cnd$trace %||% rlang::trace_back(top = private$.trace_top)
           private$.last_error <- cnd
           private$.status <- "errored"
           # Append error to context chat if policy requests it
