@@ -17,6 +17,8 @@ StatePolicy(
   critical = FALSE,
   final = FALSE,
   on_failure = NA_character_,
+  append_errors_to_chat = FALSE,
+  clear_chat_on_pass = FALSE,
   depends_on = StateDeps()
 )
 }
@@ -74,7 +76,18 @@ infinite loops: if this state is re-entered and total attempts exceed
 \code{max_retry}, execution stops with an error. Common patterns:
 validation loops (\code{on_failure = "executor"}), alternative strategies
 (\code{on_failure = "slower_alternative"}), or repair chains
-(\code{on_failure = "repair_step"})}
+\code{on_failure = "repair_step"})}
+
+\item{append_errors_to_chat}{logical, if \code{TRUE}, the runtime
+automatically appends the error message as a \code{"user"} turn to
+the context chat when the agent fails (default \code{FALSE}). Useful
+for feeding validation errors back to a downstream \verb{LLM} agent
+via \code{on_failure}}
+
+\item{clear_chat_on_pass}{logical, if \code{TRUE}, the runtime clears
+all context chat turns when the agent succeeds without errors
+(default \code{FALSE}). Useful for resetting conversation state
+after a validation gate passes}
 
 \item{depends_on}{\code{StateDeps} object or named list specifying explicit
 dependencies on prior state outputs. Each entry maps a parameter name to

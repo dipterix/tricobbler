@@ -389,6 +389,10 @@ AgentRuntime <- R6::R6Class(
       agent_promise$then(
         onFulfilled = function(result) {
           private$.status <- "finished"
+          # Clear context chat turns on success if policy requests it
+          if (isTRUE(private$.policy@clear_chat_on_pass)) {
+            private$.context$set_turns(list(), append = FALSE)
+          }
           private$.record_result(
             result,
             succeed = TRUE,
@@ -399,6 +403,12 @@ AgentRuntime <- R6::R6Class(
         onRejected = function(e) {
           private$.last_error <- e
           private$.status <- "errored"
+          # Append error to context chat if policy requests it
+          if (isTRUE(private$.policy@append_errors_to_chat)) {
+            private$.context$add_turn(
+              conditionMessage(e), role = "user"
+            )
+          }
           private$.record_result(
             e,
             succeed = FALSE,
@@ -452,6 +462,10 @@ AgentRuntime <- R6::R6Class(
         {
           result <- agent(runtime = self)
           private$.status <- "finished"
+          # Clear context chat turns on success if policy requests it
+          if (isTRUE(private$.policy@clear_chat_on_pass)) {
+            private$.context$set_turns(list(), append = FALSE)
+          }
           private$.record_result(
             result,
             succeed = TRUE,
@@ -464,6 +478,12 @@ AgentRuntime <- R6::R6Class(
           cnd$trace <- rlang::trace_back(top = private$.trace_top)
           private$.last_error <- cnd
           private$.status <- "errored"
+          # Append error to context chat if policy requests it
+          if (isTRUE(private$.policy@append_errors_to_chat)) {
+            private$.context$add_turn(
+              conditionMessage(cnd), role = "user"
+            )
+          }
           private$.record_result(
             cnd,
             succeed = FALSE,

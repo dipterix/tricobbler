@@ -107,6 +107,8 @@ AgentContext <- R6::R6Class(
       private$.index
     },
 
+    #' @field chat_content list, chat content turns stored in this
+    #'   context (read-only)
     chat_content = function() {
       private$.chat_content$as_list()
     }
@@ -194,6 +196,12 @@ AgentContext <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Add a turn to the chat content
+    #' @param contents an \code{ellmer::Turn} object, or a list of content
+    #'   items (character strings or \code{ellmer::Content} objects)
+    #' @param role character, the role for the turn when \code{contents}
+    #'   is not already a \code{Turn}; one of \code{"user"},
+    #'   \code{"assistant"}, or \code{"system"}
     add_turn = function(contents, role = c("user", "assistant", "system")) {
 
       if (!S7::S7_inherits(contents, ellmer::Turn)) {
@@ -221,6 +229,10 @@ AgentContext <- R6::R6Class(
       invisible(private$.chat_content$size())
     },
 
+    #' @description Set or append turns to the chat content
+    #' @param turns list of \code{ellmer::Turn} objects
+    #' @param append logical, if \code{FALSE} (default) replaces all
+    #'   existing turns; if \code{TRUE} appends to existing content
     set_turns = function(turns, append = FALSE) {
       if (!append) {
         private$.chat_content$reset()

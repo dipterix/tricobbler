@@ -162,7 +162,16 @@ NULL
 #'   \code{max_retry}, execution stops with an error. Common patterns:
 #'   validation loops (\code{on_failure = "executor"}), alternative strategies
 #'   (\code{on_failure = "slower_alternative"}), or repair chains
-#'   (\code{on_failure = "repair_step"})
+#'   \code{on_failure = "repair_step"})
+#' @param append_errors_to_chat logical, if \code{TRUE}, the runtime
+#'   automatically appends the error message as a \code{"user"} turn to
+#'   the context chat when the agent fails (default \code{FALSE}). Useful
+#'   for feeding validation errors back to a downstream \verb{LLM} agent
+#'   via \code{on_failure}
+#' @param clear_chat_on_pass logical, if \code{TRUE}, the runtime clears
+#'   all context chat turns when the agent succeeds without errors
+#'   (default \code{FALSE}). Useful for resetting conversation state
+#'   after a validation gate passes
 #' @examples
 #'
 #' # Basic state
@@ -361,6 +370,18 @@ StatePolicy <- S7::new_class(
     on_failure = S7::new_property(
       class = S7::class_character,
       default = NA_character_
+    ),
+
+    # If TRUE, runtime appends error message to context chat on failure
+    append_errors_to_chat = S7::new_property(
+      class = S7::class_logical,
+      default = FALSE
+    ),
+
+    # If TRUE, runtime clears context chat turns on successful execution
+    clear_chat_on_pass = S7::new_property(
+      class = S7::class_logical,
+      default = FALSE
     ),
 
     # Explicit dependencies for async execution

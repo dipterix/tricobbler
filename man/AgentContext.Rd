@@ -50,6 +50,9 @@ directory (read-only)}
 \item{\code{index}}{\code{\link{AttachmentIndex}}, the attachment
 index (read-only). Available after
 \code{init_resources()} is called.}
+
+\item{\code{chat_content}}{list, chat content turns stored in this
+context (read-only)}
 }
 \if{html}{\out{</div>}}
 }
@@ -59,6 +62,8 @@ index (read-only). Available after
 \item \href{#method-TricobblerAgentContext-set_scheduler}{\code{AgentContext$set_scheduler()}}
 \item \href{#method-TricobblerAgentContext-new}{\code{AgentContext$new()}}
 \item \href{#method-TricobblerAgentContext-init_resources}{\code{AgentContext$init_resources()}}
+\item \href{#method-TricobblerAgentContext-add_turn}{\code{AgentContext$add_turn()}}
+\item \href{#method-TricobblerAgentContext-set_turns}{\code{AgentContext$set_turns()}}
 \item \href{#method-TricobblerAgentContext-logger}{\code{AgentContext$logger()}}
 \item \href{#method-TricobblerAgentContext-record_attachment}{\code{AgentContext$record_attachment()}}
 \item \href{#method-TricobblerAgentContext-last_results}{\code{AgentContext$last_results()}}
@@ -128,6 +133,48 @@ Create directory structure and initialize logging
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{debug}}{logical, whether to enable verbose agent-call output}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-add_turn"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-add_turn}{}}}
+\subsection{Method \code{add_turn()}}{
+Add a turn to the chat content
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$add_turn(contents, role = c("user", "assistant", "system"))}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{contents}}{an \code{ellmer::Turn} object, or a list of content
+items (character strings or \code{ellmer::Content} objects)}
+
+\item{\code{role}}{character, the role for the turn when \code{contents}
+is not already a \code{Turn}; one of \code{"user"},
+\code{"assistant"}, or \code{"system"}}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-set_turns"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-set_turns}{}}}
+\subsection{Method \code{set_turns()}}{
+Set or append turns to the chat content
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$set_turns(turns, append = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{turns}}{list of \code{ellmer::Turn} objects}
+
+\item{\code{append}}{logical, if \code{FALSE} (default) replaces all
+existing turns; if \code{TRUE} appends to existing content}
 }
 \if{html}{\out{</div>}}
 }
