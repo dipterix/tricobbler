@@ -12,6 +12,8 @@
 
 ## Critical Rules
 
+**⚠️ FAIL HARD ON ERRORS: Never add silent normalization, fallback defaults, or backward-compatibility shims** - When input is invalid or doesn't match the current spec, raise an error immediately. Do not silently coerce or accommodate old formats. See `.github/copilot/DEVELOPMENT-RULES.md` Section 10.
+
 **⚠️ MANDATORY FIRST STEP: Always read `.github/copilot/DEVELOPMENT-RULES.md` (lines 1-40) BEFORE performing ANY task** - This contains non-negotiable conventions that prevent repeated mistakes.
 
 **ENFORCEMENT RULE:** You MUST call `read_file` on `.github/copilot/DEVELOPMENT-RULES.md` (lines 1-40) as your FIRST action when the user requests:

@@ -35,7 +35,8 @@ curl -s "wttr.in/London?format=%l:+%C+%t+%w+%h+%p"
 ### Parameters
 
 - **location**: City name, airport code (e.g., `JFK`), domain (`@domain.com`),
-  or GPS coordinates (`48.8566,2.3522`).
+  or GPS coordinates (`48.8566,2.3522`). When there are spaces in the city 
+  name, replace with `+` sign, e.g. `Salt+Lake+City`
 - **format**: Output format — plain text (default), `j1` for JSON, `j2` for
   extended JSON, or custom format strings using `%`-codes.
 - **lang**: Language code (e.g., `fr`, `de`, `zh`).

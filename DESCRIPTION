@@ -28,6 +28,7 @@ Imports:
     docopt,
     ellmer (>= 0.4.0),
     fastmap,
+    glue,
     jsonlite,
     pkgsearch,
     processx,

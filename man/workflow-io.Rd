@@ -15,7 +15,12 @@ workflow_save(
   agent_folder = "tricobbler-agents"
 )
 
-workflow_load(file, name = NULL, scheduler_class = Scheduler)
+workflow_load(
+  file,
+  name = NULL,
+  scheduler_class = Scheduler,
+  config = scheduler_config_default()
+)
 
 workflow_list(file)
 }
@@ -50,6 +55,13 @@ loads that specific workflow.}
 constructor used to instantiate the workflow. Defaults to
 \code{\link{Scheduler}}. Pass \code{NULL} to
 return a plain \code{list(manifest, agents)} instead.}
+
+\item{config}{list, user-configurable values available for template
+substitution in the \code{YAML} file (default:
+\code{scheduler_config_default()}). Expressions wrapped in
+\code{$\{ \}} delimiters are interpolated via \code{glue::glue()}
+before parsing. The \code{config} object is also forwarded to the
+scheduler constructor.}
 }
 \value{
 \code{workflow_save()}: invisibly returns the file path

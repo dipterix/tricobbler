@@ -146,6 +146,10 @@ reconstruct_chat_agent <- function(config, id, description) {
     chat_args$extra_headers <- config$extra_headers
   }
 
+  if (length(config$echo) > 0) {
+    chat_args$echo <- match.arg(config$echo, c("output", "none", "all"))
+  }
+
   # Try to call ellmer::chat_{suffix}()
   chat_fn_name <- paste0("chat_", provider_suffix)
   chat_fn <- tryCatch(

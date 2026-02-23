@@ -14,6 +14,10 @@ scheduler_config_default <- function(profile = c("default", "rave")) {
     paths = list(
       workdir = workdir
     ),
+    ollama = list(
+      base_url = "http://127.0.0.1:11434",
+      echo = "output"
+    ),
     binary = list()
   )
   if ( profile == "rave" && package_installed('rpymat') ) {

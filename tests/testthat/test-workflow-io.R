@@ -775,3 +775,171 @@ test_that("manifest roundtrip preserves enum return_type with values key", {
   etype <- map_type_to_ellmer(cl@parameters$return_type)
   expect_s3_class(etype, "ellmer::TypeObject")
 })
+
+# --- workflow_load config templating ---
+test_that("workflow_load interpolates ${ } templates with config", {
+  yaml_text <- '
+workflows:
+- name: tmpl-test
+  version: "1.0.0"
+  stages:
+    main:
+    - name: step1
+      description: A step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: chat
+  provider: ollama
+  model: test-model
+  base_url: "${ config$ollama$base_url }"
+  description: templated agent
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  custom_cfg <- list(paths = list(
+    workdir = tempdir(),
+    ollama = "http://myhost:9999"
+  ))
+
+  wf <- workflow_load(tmp, name = "tmpl-test", scheduler_class = NULL,
+                      config = custom_cfg)
+  expect_type(wf, "list")
+  expect_s7_class(wf$manifest, Manifest)
+  expect_equal(wf$config, custom_cfg)
+})
+
+test_that("workflow_load forwards config to Scheduler constructor", {
+  yaml_text <- '
+workflows:
+- name: cfg-fwd
+  version: "1.0.0"
+  stages:
+    main:
+    - name: s1
+      description: step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: script
+  description: dummy
+  source: nonexistent.R
+  function_name: fn
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  custom_cfg <- list(paths = list(
+    workdir = tempdir(),
+    ollama = "http://custom:1234"
+  ))
+
+  sched <- workflow_load(tmp, name = "cfg-fwd",
+                         scheduler_class = Scheduler,
+                         config = custom_cfg)
+  expect_r6_class(sched, "TricobblerScheduler")
+  expect_equal(sched$config, custom_cfg)
+})
+
+test_that("workflow_load errors on bad template expressions (fail hard)", {
+  yaml_text <- '
+workflows:
+- name: bad-tmpl
+  version: "1.0.0"
+  stages:
+    main:
+    - name: s1
+      description: step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: chat
+  provider: ollama
+  model: m
+  base_url: "${ config$nonexistent_key$deeply$nested }"
+  description: bad
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  # Should error - no tryCatch, fail hard
+  expect_error(
+    workflow_load(tmp, name = "bad-tmpl", scheduler_class = NULL,
+                  config = list(paths = list(ollama = "http://localhost")))
+  )
+})
+
+test_that("workflow_load with no templates is a no-op for glue", {
+  # Existing YAML without ${ } should load identically
+  yaml_text <- '
+workflows:
+- name: plain
+  version: "1.0.0"
+  stages:
+    main:
+    - name: s1
+      description: plain step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: script
+  description: dummy
+  source: dummy.R
+  function_name: fn
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  wf <- workflow_load(tmp, name = "plain", scheduler_class = NULL)
+  expect_s7_class(wf$manifest, Manifest)
+  expect_equal(wf$manifest@master@name, "plain")
+})

@@ -62,7 +62,9 @@ curl_weather <- function(location, .runtime = NULL) {
       wind_dir = current$winddir16Point,
       visibility = current$visibility,
       uv_index = current$uvIndex
-    )
+    ),
+    nearest_area = response$nearest_area,
+    details = response$weather
   )
 
 }
@@ -80,7 +82,7 @@ Usage:
   curl_weather.R --help
 
 Arguments:
-  <location>  City name or location string (e.g., 'Boston', 'London')
+  <location>  City name or location string (e.g., 'Boston', 'London', 'Salt+lake+city', do NOT use space, use `+`)
 
 Options:
   --help  Show this help message.

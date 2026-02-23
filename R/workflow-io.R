@@ -372,6 +372,12 @@ workflow_save <- function(file, manifest = NULL, agents = NULL,
 #'   constructor used to instantiate the workflow. Defaults to
 #'   \code{\link{Scheduler}}. Pass \code{NULL} to
 #'   return a plain \code{list(manifest, agents)} instead.
+#' @param config list, user-configurable values available for template
+#'   substitution in the \code{YAML} file (default:
+#'   \code{scheduler_config_default()}). Expressions wrapped in
+#'   \code{$\{ \}} delimiters are interpolated via \code{glue::glue()}
+#'   before parsing. The \code{config} object is also forwarded to the
+#'   scheduler constructor.
 #' @returns \code{workflow_load()}:
 #'   \itemize{
 #'     \item If \code{name = NULL}: character vector of available
@@ -384,7 +390,8 @@ workflow_save <- function(file, manifest = NULL, agents = NULL,
 #'       \code{agents} (list of \code{\link{Agent}} objects)
 #'   }
 #' @export
-workflow_load <- function(file, name = NULL, scheduler_class = Scheduler) {
+workflow_load <- function(file, name = NULL, scheduler_class = Scheduler,
+                          config = scheduler_config_default()) {
   # DIPSAUS DEBUG START
   # self <- workflow_load('inst/skills/skill-creator/tricobbler-workflow.yaml', 'sandboxed-import-bids-skill')
   # file <- self$save_workflow(tempfile())
@@ -392,7 +399,12 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler) {
   if (!file.exists(file)) {
     stop(sprintf("Workflow file not found: %s", file))
   }
-  li <- yaml::read_yaml(file, readLines.warn = FALSE)
+  txt <- paste(readLines(file, warn = FALSE), collapse = "\n")
+  parse_env <- new.env(parent = baseenv())
+  parse_env$config <- config
+  txt <- as.character(glue::glue(txt, .open = "${", .close = "}",
+                                 .envir = parse_env))
+  li <- yaml::yaml.load(txt)
   workflows <- li$workflows %||% list()
 
   # Extract workflow names
@@ -442,9 +454,10 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler) {
   agents_out <- Filter(Negate(is.null), agents_out)
 
   if (!is.null(scheduler_class)) {
-    return(scheduler_class$new(manifest = manifest, agents = agents_out))
+    return(scheduler_class$new(manifest = manifest, agents = agents_out,
+                               config = config))
   }
-  list(manifest = manifest, agents = agents_out)
+  list(manifest = manifest, agents = agents_out, config = config)
 }
 
 
