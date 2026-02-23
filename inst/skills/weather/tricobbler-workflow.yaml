@@ -1,0 +1,166 @@
+workflows:
+- name: default
+  description: Skill to get weather based on city name
+  version: 0.1.0
+  stages:
+    triage:
+    - name: gather_information
+      description: Collect system information such as timezone, IP address
+      agent_id: gather_agent
+      resources:
+        tools: []
+        skills: []
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+    executing:
+    - name: get_weather
+      description: |-
+        You are a weather assistant.
+        You will be given an user prompt and system information.
+        Please infer the location from the user_prompt based on the system information.
+        Use the skill_weather tool to fetch the weather.
+        First call action='readme' to learn the tool,
+        then call action='script' with cli_kwargs to run
+        curl_weather.R with the user's requested location.
+        Summarize the result in a friendly report.
+
+        Do infer location information from user_prompt.
+        Users might make typos, automatically correct the typo.
+
+        Do NOT use system information if the user asks for a specific location
+        (such as heading to a location, plan to go).
+        ONLY use the city from system_info if you cannot find any city from the user's prompt.
+      agent_id: weather_agent
+      resources:
+        skills: tricobbler::weather
+      accessibility: explicit
+      parameters:
+        keep_turns: yes
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on:
+        geo_information:
+          state: gather_information
+          field: result
+          stage: triage
+  parameters:
+    user_prompt: How's the weather today?
+agents:
+- type: chat
+  provider: ollama
+  model: qwen3-coder:30b
+  base_url: "${ config$ollama$base_url %||% 'http://127.0.0.1:11434' }"
+  description: LLM agent powered by qwen3-coder:30b
+  id: weather_agent
+  echo: "${ config$ollama$echo %||% 'output' }"
+- id: gather_agent
+  type: script
+  description: ''
+  source: tricobbler-agents/get_sysinfo.R
+  function_name: get_sysinfo
+
+### Generated from the following code:
+# # -- Agents ----------------------------------------------------------
+#
+# # Triage agent: gather system info (timezone, IP, locale)
+# gather_agent <- as_agent(function() {
+#   geo_info <- list(
+#     tz = Sys.timezone(),
+#     locale = Sys.getlocale("LC_TIME")
+#   )
+#   tz <- Sys.timezone()
+#   locale <- Sys.getlocale("LC_TIME")
+#   ip <- tryCatch(
+#     trimws(readLines("https://api.ipify.org", warn = FALSE)),
+#     error = function(e) "unknown"
+#   )
+#   tryCatch(
+#     {
+#       json <- trimws(readLines(sprintf("http://ip-api.com/json/%s", ip), warn = FALSE))
+#       info <- jsonlite::fromJSON(json)
+#       nms <- c("country", "countryCode", "region", "regionName", "city", "zip")
+#       geo_info[nms] <- info[nms]
+#     },
+#     error = function(e) "unknown"
+#   )
+#
+#   geo_info
+# }, id = "gather_agent")
+#
+# # Chat agent: uses weather skill to answer the user's question
+# weather_chat <- ellmer::chat_ollama(
+#   model = "qwen3-coder:30b",
+#   echo = "all"
+# )
+# weather_agent <- as_agent(weather_chat, id = "weather_agent")
+#
+# # -- Scheduler -------------------------------------------------------
+#
+# scheduler <- Scheduler$new(
+#   manifest = Manifest(
+#     master = MasterPolicy(
+#       name = "default",
+#       description = "Skill to get weather based on city name",
+#       version = "0.1.0",
+#       stages = c("triage", "executing"),
+#       parameters = list(
+#         user_prompt = "How's the weather today?"
+#       )
+#     ),
+#     states = list(
+#       StatePolicy(
+#         name = "gather_information",
+#         stage = "triage",
+#         agent_id = "gather_agent",
+#         description = "Collect system information such as timezone, IP address"
+#       ),
+#       StatePolicy(
+#         name = "get_weather",
+#         stage = "executing",
+#         agent_id = "weather_agent",
+#         description = paste(
+#           collapse = "\n",
+#           c(
+#             "You are a weather assistant.",
+#             "You will be given an user prompt and system information.",
+#             "Please infer the location from the user_prompt based on the system information.",
+#             "Use the skill_weather tool to fetch the weather.",
+#             "First call action='readme' to learn the tool,",
+#             "then call action='script' with cli_kwargs to run",
+#             "curl_weather.R with the user's requested location.",
+#             "Summarize the result in a friendly report.",
+#             "",
+#             "Do infer location information from user_prompt.",
+#             "If the user asks for a specific location, ignore the system_info.",
+#             "ONLY use the city from system_info if the city is implicit."
+#           )
+#         ),
+#         resources = list(
+#           skills = "tricobbler::weather"
+#         ),
+#         depends_on = StateDeps(
+#           geo_information = list(state = "gather_information", stage = "triage")
+#         ),
+#         accessibility = "explicit",
+#         parameters = list(
+#           keep_turns = TRUE
+#         )
+#       )
+#     )
+#   ),
+#   agents = list(gather_agent, weather_agent)
+# )
+# scheduler$save_workflow('inst/skills/weather/')

@@ -363,6 +363,35 @@ workflow_save <- function(file, manifest = NULL, agents = NULL,
   invisible(file)
 }
 
+#' Apply provider-aware chat override to an agent config
+#' @param agent_config list, YAML agent config
+#' @param override list or NULL, override from config$agents[[agent_id]]
+#' @returns merged agent config
+#' @noRd
+apply_chat_agent_override <- function(agent_config, override) {
+  if (is.null(override)) {
+    return(agent_config)
+  }
+
+  agent_type <- paste(agent_config$type, collapse = " ")
+  if (!identical(agent_type, "chat")) {
+    return(agent_config)
+  }
+
+  override <- as.list(override)
+  same_provider <- is.null(override$provider) ||
+    identical(override$provider, agent_config$provider)
+
+  if (same_provider) {
+    return(utils::modifyList(agent_config, override))
+  }
+
+  # Provider changed: replace config but preserve id and type
+  override$id <- override$id %||% agent_config$id
+  override$type <- override$type %||% agent_config$type
+  return(override)
+}
+
 
 #' @rdname workflow-io
 #' @param name character or \code{NULL}. If \code{NULL}, returns a
@@ -434,6 +463,7 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler,
 
   # Reconstruct agents
   agent_configs <- li$agents %||% list()
+  agent_overrides <- as.list(config$agents)
   base_dir <- dirname(normalizePath(file, mustWork = FALSE))
 
   # Only reconstruct agents referenced by this workflow
@@ -448,6 +478,7 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler,
     if (!acfg$id %in% needed_ids) {
       return()
     }
+    acfg <- apply_chat_agent_override(acfg, override = agent_overrides[[acfg$id]])
     agent <- reconstruct_agent(acfg, base_dir = base_dir)
     agent
   })

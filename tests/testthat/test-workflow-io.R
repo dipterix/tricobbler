@@ -800,20 +800,18 @@ workflows:
       depends_on: []
 agents:
 - id: a1
-  type: chat
-  provider: ollama
-  model: test-model
-  base_url: "${ config$ollama$base_url }"
-  description: templated agent
+  type: package_function
+  package_function: "base::identity"
+  description: "${ config$description }"
 '
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp), add = TRUE)
   writeLines(yaml_text, tmp)
 
-  custom_cfg <- list(paths = list(
-    workdir = tempdir(),
-    ollama = "http://myhost:9999"
-  ))
+  custom_cfg <- list(
+    description = "templated agent",
+    paths = list(workdir = tempdir())
+  )
 
   wf <- workflow_load(tmp, name = "tmpl-test", scheduler_class = NULL,
                       config = custom_cfg)
@@ -845,10 +843,9 @@ workflows:
       depends_on: []
 agents:
 - id: a1
-  type: script
+  type: package_function
+  package_function: base::identity
   description: dummy
-  source: nonexistent.R
-  function_name: fn
 '
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp), add = TRUE)
@@ -930,10 +927,9 @@ workflows:
       depends_on: []
 agents:
 - id: a1
-  type: script
+  type: package_function
+  package_function: base::identity
   description: dummy
-  source: dummy.R
-  function_name: fn
 '
   tmp <- tempfile(fileext = ".yaml")
   on.exit(unlink(tmp), add = TRUE)
@@ -942,4 +938,150 @@ agents:
   wf <- workflow_load(tmp, name = "plain", scheduler_class = NULL)
   expect_s7_class(wf$manifest, Manifest)
   expect_equal(wf$manifest@master@name, "plain")
+})
+
+test_that("apply_chat_agent_override merges when provider unchanged", {
+  apply_chat_agent_override <- tricobbler:::apply_chat_agent_override
+
+  agent_config <- list(
+    id = "a1",
+    type = "chat",
+    provider = "ollama",
+    model = "base-model",
+    base_url = "http://127.0.0.1:11434",
+    echo = "output",
+    params = list(max_tokens = 64, temperature = 0.5)
+  )
+  override <- list(
+    provider = "ollama",
+    model = "override-model",
+    params = list(max_tokens = 128)
+  )
+
+  result <- apply_chat_agent_override(agent_config, override)
+
+  expect_equal(result$id, "a1")
+  expect_equal(result$type, "chat")
+  expect_equal(result$provider, "ollama")
+  expect_equal(result$model, "override-model")
+  expect_equal(result$base_url, "http://127.0.0.1:11434")
+  expect_equal(result$echo, "output")
+  expect_equal(result$params$max_tokens, 128)
+})
+
+test_that("apply_chat_agent_override replaces config when provider changes", {
+  apply_chat_agent_override <- tricobbler:::apply_chat_agent_override
+
+  agent_config <- list(
+    id = "a1",
+    type = "chat",
+    provider = "ollama",
+    model = "base-model",
+    base_url = "http://127.0.0.1:11434",
+    echo = "output"
+  )
+  override <- list(
+    provider = "openai",
+    model = "gpt-4o-mini"
+  )
+
+  result <- apply_chat_agent_override(agent_config, override)
+
+  # Provider switched: override replaces config, but id and type preserved
+  expect_equal(result$id, "a1")
+  expect_equal(result$type, "chat")
+  expect_equal(result$provider, "openai")
+  expect_equal(result$model, "gpt-4o-mini")
+  # Old provider-specific fields are dropped
+  expect_null(result$base_url)
+  expect_null(result$echo)
+})
+
+test_that("workflow_load ignores override for non-chat agent", {
+  yaml_text <- '
+workflows:
+- name: non-chat-override
+  version: "1.0.0"
+  stages:
+    main:
+    - name: s1
+      description: step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: package_function
+  package_function: base::identity
+  description: dummy
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  wf <- workflow_load(
+    tmp,
+    name = "non-chat-override",
+    scheduler_class = NULL,
+    config = list(agents = list(a1 = list(model = "x")))
+  )
+  expect_length(wf$agents, 1)
+  expect_equal(wf$agents[[1]]@config$type, "package_function")
+})
+
+test_that("workflow_load ignores malformed config$agents shape", {
+  yaml_text <- '
+workflows:
+- name: malformed-overrides
+  version: "1.0.0"
+  stages:
+    main:
+    - name: s1
+      description: step
+      agent_id: a1
+      resources: {tools: [], skills: []}
+      accessibility: all
+      parameters: []
+      max_retry: 0
+      priority: 100
+      critical: no
+      final: no
+      on_failure: .na.character
+      append_errors_to_chat: no
+      clear_chat_on_pass: no
+      depends_on: []
+agents:
+- id: a1
+  type: package_function
+  package_function: base::identity
+'
+  tmp <- tempfile(fileext = ".yaml")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(yaml_text, tmp)
+
+  wf <- workflow_load(
+    tmp,
+    name = "malformed-overrides",
+    scheduler_class = NULL,
+    config = list(agents = 1)
+  )
+  expect_length(wf$agents, 1)
+
+  wf2 <- workflow_load(
+    tmp,
+    name = "malformed-overrides",
+    scheduler_class = NULL,
+    config = list(agents = list(a1 = list(unknown_field = "x")))
+  )
+  # Non-chat agents ignore overrides, so unknown_field is not merged
+  expect_null(wf2$agents[[1]]@config$unknown_field)
 })
