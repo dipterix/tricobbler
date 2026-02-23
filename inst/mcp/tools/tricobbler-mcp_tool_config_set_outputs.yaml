@@ -36,14 +36,10 @@ implementation_example: |
   tricobbler:::mcp_tool_config_set_outputs()
   #
   #> $success
-  #> [1] TRUE
-  #> 
-  #> $message
-  #> [1] "No settings changed (returning current configuration)"
-  #> 
-  #> $settings
-  #> $settings$tricobbler.mcp_describe.max_size
-  #> [1] 100
-  #> 
-  #>
-execution_time: 0.001
+  [1] TRUE
+  $message
+  [1] "No settings changed (returning current configuration)"
+  $settings
+  $settings$tricobbler.mcp_describe.max_size
+  [1] 100
+execution_time: 0.0

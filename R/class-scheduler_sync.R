@@ -5,7 +5,41 @@
 #' @include class-event-dispatcher.R
 NULL
 
+scheduler_config_default <- function(profile = c("default", "rave")) {
+  profile <- match.arg(profile)
 
+  workdir <- normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+
+  config <- list(
+    paths = list(
+      workdir = workdir
+    ),
+    binary = list()
+  )
+  if ( profile == "rave" && package_installed('rpymat') ) {
+    rpymat <- asNamespace('rpymat')
+
+    # Configured for RAVE
+    if (rpymat$env_available()) {
+      py_setup <- rpymat$cmd_build(rpymat$run_command(
+        "",
+        dry_run = TRUE,
+        workdir = workdir,
+        print_cmd = FALSE
+      ))
+      py_setup <- strsplit(py_setup, "\n")[[1]]
+      py_setup <- py_setup[!startsWith(py_setup, "#")]
+
+      # check build_script_command
+      config$binary$python <- list(
+        setup = paste(py_setup, collapse = "\n")
+      )
+      # build_script_command("", ext = 'py', runtime = config$binary)
+    }
+  }
+
+  config
+}
 
 
 # DIPSAUS DEBUG START
@@ -114,6 +148,9 @@ Scheduler <- R6::R6Class(
     #'   for logging and storage
     context = NULL,
 
+    #' @field config configuration used by the runtime and skills
+    config = NULL,
+
     # ready, ... (from manifest), finish
     #' @field current_stage character, the currently executing stage name
     current_stage = character(),
@@ -170,7 +207,8 @@ Scheduler <- R6::R6Class(
     initialize = function(
       manifest,
       agents = list(),
-      context = AgentContext$new()
+      context = AgentContext$new(),
+      config = scheduler_config_default()
     ) {
       stopifnot(S7::S7_inherits(manifest, Manifest))
 
@@ -193,6 +231,7 @@ Scheduler <- R6::R6Class(
       self$waiting_pool <- fastmap::fastmap()
       self$completed_map <- fastmap::fastmap()
       self$retry_map <- fastmap::fastmap()
+      self$config <- config
 
       self$current_stage <- "ready"
       self$stage_started <- Sys.time()

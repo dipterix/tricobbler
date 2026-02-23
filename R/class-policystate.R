@@ -130,8 +130,23 @@ NULL
 #' @param agent_id character, unique identifier for the agent responsible for
 #'   executing this state. Must contain only letters, digits, underscores, or
 #'   dashes
-#' @param resources character vector, tools that the agent may call during
-#'   execution (default empty vector)
+#' @param resources list or character vector, external resources available
+#'   to the agent during execution. A named list with:
+#'   \describe{
+#'     \item{\code{tools}}{character vector of \verb{MCP} tool names
+#'       (in \code{pkg-function_name} format resolved via
+#'       \code{\link{mcptool_read}}), or \code{package::function} style
+#'       where the function returns an \code{ellmer::ToolDef} object
+#'       (or a list of them)}
+#'     \item{\code{skills}}{character vector of skill paths. Can be an
+#'       absolute path to a skill directory, or \code{package::skill_name}
+#'       which resolves via \code{system.file("skills", skill_name,
+#'       package = pkg)} then falls back to
+#'       \code{tools::R_user_dir(pkg, "data")/skills/skill_name}}
+#'   }
+#'   For backward compatibility, a plain character vector is treated as
+#'   \code{list(tools = ..., skills = character(0))}.
+#'   Default is \code{list(tools = character(0), skills = character(0))}
 #' @param accessibility character, context accessibility level for the agent.
 #'   Controls what context data the agent can read. One of \code{"all"}
 #'   (full access to previous results and logs), \code{"logs"} (log
@@ -229,6 +244,30 @@ NULL
 #'   )
 #' )
 #'
+#' # Resources: MCP tools and skills
+#' StatePolicy(
+#'   name = "researcher",
+#'   stage = "executing",
+#'   description = "Research using tools and skills",
+#'   agent_id = "llm_researcher",
+#'   resources = list(
+#'     tools = c(
+#'       "tricobbler-mcp_tool_context_logs_tail",
+#'       "btw::btw_tools"
+#'     ),
+#'     skills = c("tricobbler::weather")
+#'   )
+#' )
+#'
+#' # Backward compatible: character vector treated as tools
+#' StatePolicy(
+#'   name = "helper",
+#'   stage = "executing",
+#'   description = "Helper with MCP tools only",
+#'   agent_id = "llm_helper",
+#'   resources = c("tricobbler-mcp_tool_context_logs_tail")
+#' )
+#'
 #'
 #' @export
 StatePolicy <- S7::new_class(
@@ -273,10 +312,51 @@ StatePolicy <- S7::new_class(
       }
     ),
 
-    # WHAT: Tools available to this stage
+    # WHAT: Tools and skills available to this stage
     resources = S7::new_property(
-      class = S7::class_character,
-      default = character(0L)
+      class = S7::class_list,
+      default = list(tools = character(0L), skills = character(0L)),
+      setter = function(self, value) {
+        if (is.null(value)) {
+          value <- list(tools = character(0L), skills = character(0L))
+        } else if (is.character(value)) {
+          # Plain character vector -> tools only
+          value <- list(
+            tools = as.character(value),
+            skills = character(0L)
+          )
+        } else if (is.list(value)) {
+          # Coerce elements to character (YAML parsers return lists)
+          if (!is.null(value$tools)) {
+            value$tools <- as.character(value$tools)
+          }
+          if (!is.null(value$skills)) {
+            value$skills <- as.character(value$skills)
+          }
+        }
+        S7::prop(self, "resources") <- value
+        self
+      },
+      validator = function(value) {
+        if (!is.list(value)) {
+          return("resources must be a list (or character vector).")
+        }
+        allowed <- c("tools", "skills")
+        extra <- setdiff(names(value), allowed)
+        if (length(extra)) {
+          return(sprintf(
+            "resources contains unknown keys: %s. Allowed: tools, skills.",
+            paste(sQuote(extra), collapse = ", ")
+          ))
+        }
+        if (!is.null(value$tools) && !is.character(value$tools)) {
+          return("resources$tools must be a character vector.")
+        }
+        if (!is.null(value$skills) && !is.character(value$skills)) {
+          return("resources$skills must be a character vector.")
+        }
+        return()
+      }
     ),
 
     # What context the agent may access: this is a safe-check

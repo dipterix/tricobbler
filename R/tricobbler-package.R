@@ -29,3 +29,17 @@ print.chat_hidden <- function(x, ...) {
   cat("<chats hidden>\n")
   invisible(x)
 }
+
+#' @exportS3Method base::print
+print.skill_output <- function(x, ...) {
+  if (is.character(x)) {
+    if (package_installed("cli")) {
+      cli::cat_line(x)
+    } else {
+      cat(x, "", sep = "\n")
+    }
+  } else {
+    NextMethod()
+  }
+  invisible(x)
+}

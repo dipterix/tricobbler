@@ -28,7 +28,7 @@ returns:
     attachments:
       type: object
       description: List of attachment metadata, each with stage, state, agent_id,
-        current_attempt, filename
+        attempt, attachment_id
     count:
       type: integer
       description: Integer, number of attachments found

@@ -9,7 +9,7 @@ StatePolicy(
   description = character(0),
   stage = character(0),
   agent_id = character(0),
-  resources = character(0),
+  resources = list(tools = character(0), skills = character(0)),
   accessibility = "all",
   parameters = list(),
   max_retry = 0L,
@@ -33,8 +33,23 @@ StatePolicy(
 executing this state. Must contain only letters, digits, underscores, or
 dashes}
 
-\item{resources}{character vector, tools that the agent may call during
-execution (default empty vector)}
+\item{resources}{list or character vector, external resources available
+to the agent during execution. A named list with:
+\describe{
+\item{\code{tools}}{character vector of \verb{MCP} tool names
+(in \code{pkg-function_name} format resolved via
+\code{\link{mcptool_read}}), or \code{package::function} style
+where the function returns an \code{ellmer::ToolDef} object
+(or a list of them)}
+\item{\code{skills}}{character vector of skill paths. Can be an
+absolute path to a skill directory, or \code{package::skill_name}
+which resolves via \code{system.file("skills", skill_name,
+      package = pkg)} then falls back to
+\code{tools::R_user_dir(pkg, "data")/skills/skill_name}}
+}
+For backward compatibility, a plain character vector is treated as
+\code{list(tools = ..., skills = character(0))}.
+Default is \code{list(tools = character(0), skills = character(0))}}
 
 \item{accessibility}{character, context accessibility level for the agent.
 Controls what context data the agent can read. One of \code{"all"}
@@ -260,6 +275,30 @@ StatePolicy(
       )
     )
   )
+)
+
+# Resources: MCP tools and skills
+StatePolicy(
+  name = "researcher",
+  stage = "executing",
+  description = "Research using tools and skills",
+  agent_id = "llm_researcher",
+  resources = list(
+    tools = c(
+      "tricobbler-mcp_tool_context_logs_tail",
+      "btw::btw_tools"
+    ),
+    skills = c("tricobbler::weather")
+  )
+)
+
+# Backward compatible: character vector treated as tools
+StatePolicy(
+  name = "helper",
+  stage = "executing",
+  description = "Helper with MCP tools only",
+  agent_id = "llm_helper",
+  resources = c("tricobbler-mcp_tool_context_logs_tail")
 )
 
 

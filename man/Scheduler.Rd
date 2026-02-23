@@ -21,6 +21,8 @@ see \code{\link{AsyncScheduler}} for the promise-based variant.
 \item{\code{context}}{\code{\link{AgentContext}}, the execution environment
 for logging and storage}
 
+\item{\code{config}}{configuration used by the runtime and skills}
+
 \item{\code{current_stage}}{character, the currently executing stage name}
 
 \item{\code{stage_started}}{\code{POSIXct} or \code{NULL}, timestamp when
@@ -88,7 +90,12 @@ names to integer attempt counts for retry scheduling}
 \subsection{Method \code{new()}}{
 Initialize scheduler with manifest blueprint and agents
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Scheduler$new(manifest, agents = list(), context = AgentContext$new())}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Scheduler$new(
+  manifest,
+  agents = list(),
+  context = AgentContext$new(),
+  config = scheduler_config_default()
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

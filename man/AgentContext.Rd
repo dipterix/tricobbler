@@ -78,6 +78,7 @@ context (read-only)}
 \item \href{#method-TricobblerAgentContext-set_tool}{\code{AgentContext$set_tool()}}
 \item \href{#method-TricobblerAgentContext-clear_tools}{\code{AgentContext$clear_tools()}}
 \item \href{#method-TricobblerAgentContext-has_tools}{\code{AgentContext$has_tools()}}
+\item \href{#method-TricobblerAgentContext-init_skill}{\code{AgentContext$init_skill()}}
 }
 }
 \if{html}{\out{<hr>}}
@@ -492,6 +493,29 @@ Check whether tools are registered under given keys
 }
 \subsection{Returns}{
 logical vector, \code{TRUE} for each key with a registered tool
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TricobblerAgentContext-init_skill"></a>}}
+\if{latex}{\out{\hypertarget{method-TricobblerAgentContext-init_skill}{}}}
+\subsection{Method \code{init_skill()}}{
+Initialize and register a skill into current context
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$init_skill(path, register_tools = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{path}}{path to the skill folder}
+
+\item{\code{register_tools}}{whether to register skill to the context; default
+is \code{FALSE}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+a \code{\link{Skill}} instance
 }
 }
 }

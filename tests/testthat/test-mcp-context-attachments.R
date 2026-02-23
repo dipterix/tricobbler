@@ -501,11 +501,8 @@ test_that(
     runtime <- create_test_runtime(context, accessibility = "none")
     result <- mcp_tool_context_logs_head(.runtime = runtime)
 
-    parsed <- jsonlite::fromJSON(as.character(result))
-
-    expect_false(parsed$success)
-    expect_true("error" %in% names(parsed))
-    expect_true(grepl("none", parsed$error, ignore.case = TRUE))
+    expect_type(result, "character")
+    expect_true(grepl("none", result, ignore.case = TRUE))
   }
 )
 
@@ -523,10 +520,8 @@ test_that(
     runtime <- create_test_runtime(context, accessibility = "none")
     result <- mcp_tool_context_logs_tail(.runtime = runtime)
 
-    parsed <- jsonlite::fromJSON(as.character(result))
-
-    expect_false(parsed$success)
-    expect_true(grepl("none", parsed$error, ignore.case = TRUE))
+    expect_type(result, "character")
+    expect_true(grepl("none", result, ignore.case = TRUE))
   }
 )
 
@@ -544,10 +539,8 @@ test_that(
     runtime <- create_test_runtime(context, accessibility = "none")
     result <- mcp_tool_context_logs_search(pattern = "test", .runtime = runtime)
 
-    parsed <- jsonlite::fromJSON(as.character(result))
-
-    expect_false(parsed$success)
-    expect_true(grepl("none", parsed$error, ignore.case = TRUE))
+    expect_type(result, "character")
+    expect_true(grepl("none", result, ignore.case = TRUE))
   }
 )
 

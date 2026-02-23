@@ -87,17 +87,9 @@
 #'   \code{\link{mcptool_instantiate}} when tools are used within agent
 #'   execution). Should not be set manually.
 #'
-#' @return A list containing:
-#' \describe{
-#'   \item{success}{Logical, whether the operation completed successfully}
-#'   \item{context_id}{Character, the context identifier}
-#'   \item{count}{Integer, number of log entries returned}
-#'   \item{entries}{List of log entries, each with \code{line_no},
-#'     \code{level}, \code{time}, \code{caller}, \code{content}}
-#'   \item{error}{Character, error message if success is \code{FALSE}}
-#' }
+#' @return A string of log content or an error message
 #'
-#' @keywords mcp-tool mcp-category-info mcp-output-json
+#' @keywords mcp-tool mcp-category-info mcp-output-string
 #' @noRd
 mcp_tool_context_logs_head <- function(
     max_lines = 300L,
@@ -110,29 +102,17 @@ mcp_tool_context_logs_head <- function(
   # Check accessibility - logs require "logs" or "all"
   access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = access$error),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return(access$error)
   }
 
   # Get context from runtime or return error
   if (is.null(.runtime) || is.null(.runtime$context)) {
-    return(jsonlite::toJSON(
-      list(
-        success = FALSE,
-        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
-      ),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("No runtime context. This tool must be called within agent execution.") # nolint: line_length_linter.
   }
   context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = "Invalid context object."),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("Invalid context object.")
   }
 
   result <- tryCatch(
@@ -145,25 +125,21 @@ mcp_tool_context_logs_head <- function(
         levels = levels
       )
 
-      jsonlite::toJSON(
-        list(
-          success = TRUE,
-          context_id = context$id,
-          count = nrow(logs),
-          entries = logs
+      paste(
+        sprintf(
+          "% 3d: [%s][%s][%s] %s",
+          logs$line_no,
+          logs$time,
+          logs$caller,
+          logs$level,
+          logs$content
         ),
-        auto_unbox = TRUE, dataframe = "rows", pretty = FALSE
+        collapse = "\n"
       )
     },
     error = function(e) {
-      jsonlite::toJSON(
-        list(
-          success = FALSE,
-          context_id = context$id,
-          error = conditionMessage(e)
-        ),
-        auto_unbox = TRUE, pretty = FALSE
-      )
+      sprintf("Unable to get logs due to error: %s",
+              paste(conditionMessage(e), collapse = " "))
     }
   )
 
@@ -191,17 +167,9 @@ mcp_tool_context_logs_head <- function(
 #'   \code{\link{mcptool_instantiate}} when tools are used within agent
 #'   execution). Should not be set manually.
 #'
-#' @return A list containing:
-#' \describe{
-#'   \item{success}{Logical, whether the operation completed successfully}
-#'   \item{context_id}{Character, the context identifier}
-#'   \item{count}{Integer, number of log entries returned}
-#'   \item{entries}{List of log entries, each with \code{line_no},
-#'     \code{level}, \code{time}, \code{caller}, \code{content}}
-#'   \item{error}{Character, error message if success is \code{FALSE}}
-#' }
+#' @return A string of formatted log entries or an error message
 #'
-#' @keywords mcp-tool mcp-category-info mcp-output-json
+#' @keywords mcp-tool mcp-category-info mcp-output-string
 #' @noRd
 mcp_tool_context_logs_tail <- function(
     max_lines = 300L,
@@ -213,29 +181,17 @@ mcp_tool_context_logs_tail <- function(
   # Check accessibility - logs require "logs" or "all"
   access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = access$error),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return(access$error)
   }
 
   # Get context from runtime or return error
   if (is.null(.runtime) || is.null(.runtime$context)) {
-    return(jsonlite::toJSON(
-      list(
-        success = FALSE,
-        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
-      ),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("No runtime context. This tool must be called within agent execution.") # nolint: line_length_linter.
   }
   context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = "Invalid context object."),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("Invalid context object.")
   }
 
   result <- tryCatch(
@@ -248,25 +204,24 @@ mcp_tool_context_logs_tail <- function(
         levels = levels
       )
 
-      jsonlite::toJSON(
-        list(
-          success = TRUE,
-          context_id = context$id,
-          count = nrow(logs),
-          entries = logs
+      logs <- paste(
+        sprintf(
+          "% 3d: [%s][%s][%s] %s",
+          logs$line_no,
+          logs$time,
+          logs$caller,
+          logs$level,
+          logs$content
         ),
-        auto_unbox = TRUE, dataframe = "rows", pretty = FALSE
+        collapse = "\n"
       )
+
+      logs
     },
     error = function(e) {
-      jsonlite::toJSON(
-        list(
-          success = FALSE,
-          context_id = context$id,
-          error = conditionMessage(e)
-        ),
-        auto_unbox = TRUE, pretty = FALSE
-      )
+
+      sprintf("Unable to get logs due to error: %s",
+              paste(conditionMessage(e), collapse = " "))
     }
   )
 
@@ -293,18 +248,9 @@ mcp_tool_context_logs_tail <- function(
 #'   \code{\link{mcptool_instantiate}} when tools are used within agent
 #'   execution). Should not be set manually.
 #'
-#' @return A list containing:
-#' \describe{
-#'   \item{success}{Logical, whether the operation completed successfully}
-#'   \item{context_id}{Character, the context identifier}
-#'   \item{pattern}{Character, the search pattern used}
-#'   \item{count}{Integer, number of matching log entries}
-#'   \item{entries}{List of matching log entries, each with \code{line_no},
-#'     \code{level}, \code{time}, \code{caller}, \code{content}}
-#'   \item{error}{Character, error message if success is \code{FALSE}}
-#' }
+#' @return A string of formatted log entries or an error message
 #'
-#' @keywords mcp-tool mcp-category-info mcp-output-json
+#' @keywords mcp-tool mcp-category-info mcp-output-string
 #' @noRd
 mcp_tool_context_logs_search <- function(
     pattern,
@@ -315,41 +261,23 @@ mcp_tool_context_logs_search <- function(
   # Check accessibility - logs require "logs" or "all"
   access <- .check_runtime_accessibility(.runtime, "logs")
   if (!access$allowed) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = access$error),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return(access$error)
   }
 
   # Validate pattern
   if (missing(pattern) || !is.character(pattern) ||
       length(pattern) != 1 || !nzchar(pattern)) {
-    return(jsonlite::toJSON(
-      list(
-        success = FALSE,
-        error = "pattern parameter is required and must be a non-empty string" # nolint: line_length_linter.
-      ),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("pattern parameter is required and must be a non-empty string") # nolint: line_length_linter.
   }
 
   # Get context from runtime or return error
   if (is.null(.runtime) || is.null(.runtime$context)) {
-    return(jsonlite::toJSON(
-      list(
-        success = FALSE,
-        error = "No runtime context. This tool must be called within agent execution." # nolint: line_length_linter.
-      ),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("No runtime context. This tool must be called within agent execution.") # nolint: line_length_linter.
   }
   context <- .runtime$context
 
   if (!R6::is.R6(context) || !inherits(context, "TricobblerAgentContext")) {
-    return(jsonlite::toJSON(
-      list(success = FALSE, error = "Invalid context object."),
-      auto_unbox = TRUE, pretty = FALSE
-    ))
+    return("Invalid context object.")
   }
 
   result <- tryCatch(
@@ -362,25 +290,21 @@ mcp_tool_context_logs_search <- function(
         levels = levels
       )
 
-      jsonlite::toJSON(
-        list(
-          success = TRUE,
-          context_id = context$id,
-          pattern = pattern,
-          count = nrow(logs),
-          entries = logs
+      paste(
+        sprintf(
+          "% 3d: [%s][%s][%s] %s",
+          logs$line_no,
+          logs$time,
+          logs$caller,
+          logs$level,
+          logs$content
         ),
-        auto_unbox = TRUE, dataframe = "rows", pretty = FALSE
+        collapse = "\n"
       )
     },
     error = function(e) {
-      jsonlite::toJSON(
-        list(
-          success = FALSE, context_id = context$id, pattern = pattern,
-          error = conditionMessage(e)
-        ),
-        auto_unbox = TRUE, pretty = FALSE
-      )
+      sprintf("Unable to search logs due to error: %s",
+              paste(conditionMessage(e), collapse = " "))
     }
   )
 

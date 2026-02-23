@@ -1,93 +1,51 @@
-# Test MCP context log tools against YAML specifications
+# Test MCP context log tools - plain text output format
 
-# Helper function to validate R value against YAML type spec
-validate_type_against_spec <- function(value, type_spec, path = "root") {
-  spec_type <- type_spec$type %||% "unknown"
-
-  result <- list(valid = TRUE, errors = character())
-
-  # Handle NULL values
-if (is.null(value)) {
-    # NULL is acceptable for optional fields
-    return(result)
+# Helper to parse a single line from log output format:
+# "  1: [HH:MM:SS][caller][LEVEL] content"
+parse_log_line <- function(line) {
+  m <- regmatches(
+    line,
+    regexec(
+      "^\\s*(\\d+):\\s*\\[([^]]+)\\]\\[([^]]+)\\]\\[([^]]+)\\]\\s*(.*)$",
+      line
+    )
+  )[[1]]
+  if (length(m) == 0) {
+    return(NULL)
   }
-
-  switch(spec_type,
-    "boolean" = {
-      if (!is.logical(value) || length(value) != 1) {
-        result$valid <- FALSE
-        result$errors <- c(result$errors,
-          sprintf("%s: expected boolean, got %s", path, class(value)[1]))
-      }
-    },
-    "integer" = {
-      if (!is.numeric(value) || length(value) != 1) {
-        result$valid <- FALSE
-        result$errors <- c(result$errors,
-          sprintf("%s: expected integer, got %s", path, class(value)[1]))
-      }
-    },
-    "string" = {
-      if (!is.character(value) || length(value) != 1) {
-        result$valid <- FALSE
-        result$errors <- c(result$errors,
-          sprintf("%s: expected string, got %s", path, class(value)[1]))
-      }
-    },
-    "array" = {
-      if (!is.list(value) && !is.vector(value) && !is.data.frame(value)) {
-        result$valid <- FALSE
-        result$errors <- c(result$errors,
-          sprintf("%s: expected array, got %s", path, class(value)[1]))
-      }
-    },
-    "object" = {
-      # Object can be list, data.frame, or named structure
-      if (!is.list(value) && !is.data.frame(value)) {
-        result$valid <- FALSE
-        result$errors <- c(result$errors,
-          sprintf("%s: expected object, got %s", path, class(value)[1]))
-      }
-    }
+  list(
+    line_no = as.integer(m[2]),
+    time = m[3],
+    caller = m[4],
+    level = m[5],
+    content = m[6]
   )
-
-  result
 }
 
-# Validate entire response against YAML returns spec
-validate_response_against_spec <- function(parsed, yaml_spec) {
-  errors <- character()
-
-  returns_spec <- yaml_spec$returns
-  if (is.null(returns_spec)) {
-    return(list(valid = TRUE, errors = errors))
+# Helper to parse all lines from log output into a data.frame
+parse_log_output <- function(text) {
+  empty <- data.frame(
+    line_no = integer(), time = character(),
+    caller = character(), level = character(),
+    content = character(), stringsAsFactors = FALSE
+  )
+  if (!nzchar(trimws(text))) {
+    return(empty)
   }
-
-  # Check top-level type
-  if (returns_spec$type == "object" && !is.list(parsed)) {
-    errors <- c(errors, "Response should be an object (list)")
+  lines <- strsplit(text, "\n")[[1]]
+  parsed <- lapply(lines, parse_log_line)
+  parsed <- parsed[!vapply(parsed, is.null, logical(1))]
+  if (length(parsed) == 0) {
+    return(empty)
   }
-
-  # Check each property in the spec
-  properties <- returns_spec$properties
-  if (!is.null(properties)) {
-    for (prop_name in names(properties)) {
-      prop_spec <- properties[[prop_name]]
-      prop_value <- parsed[[prop_name]]
-
-      # Validate if property exists and has value
-      if (!is.null(prop_value)) {
-        validation <- validate_type_against_spec(
-          prop_value, prop_spec, path = prop_name
-        )
-        if (!validation$valid) {
-          errors <- c(errors, validation$errors)
-        }
-      }
-    }
-  }
-
-  list(valid = length(errors) == 0, errors = errors)
+  data.frame(
+    line_no = vapply(parsed, `[[`, integer(1), "line_no"),
+    time = vapply(parsed, `[[`, character(1), "time"),
+    caller = vapply(parsed, `[[`, character(1), "caller"),
+    level = vapply(parsed, `[[`, character(1), "level"),
+    content = vapply(parsed, `[[`, character(1), "content"),
+    stringsAsFactors = FALSE
+  )
 }
 
 # Helper to create a test context with its directory
@@ -122,7 +80,7 @@ create_test_runtime <- function(context, accessibility = "all") {
 }
 
 test_that(
-  "mcp_tool_context_logs_head output types match YAML spec exactly",
+  "mcp_tool_context_logs_head returns formatted log lines",
   {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
 
@@ -142,49 +100,38 @@ test_that(
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  # Result should be a plain character string
+  expect_type(result, "character")
+  expect_true(nzchar(result))
 
-  # Validate response structure against YAML spec
-  validation <- validate_response_against_spec(parsed, yaml_spec)
-  expect_true(validation$valid, info = paste(validation$errors, collapse = "\n")) # nolint: line_length_linter.
+  # Parse the formatted output
+  entries <- parse_log_output(result)
+  expect_true(nrow(entries) > 0)
 
-  # Explicitly verify each property type matches spec
-  props <- yaml_spec$returns$properties
+  # Each entry should have the expected fields
+  expect_true(all(!is.na(entries$line_no)))
+  expect_true(all(!is.na(entries$level)))
+  expect_true(all(!is.na(entries$time)))
+  expect_true(all(!is.na(entries$caller)))
+  expect_true(all(!is.na(entries$content)))
 
-  # success: boolean
-  expect_equal(props$success$type, "boolean")
-  expect_type(parsed$success, "logical")
-  expect_length(parsed$success, 1)
+  # line_no should be positive integers
+  expect_true(all(entries$line_no > 0))
 
-  # context_id: string
-  expect_equal(props$context_id$type, "string")
-  expect_type(parsed$context_id, "character")
-  expect_length(parsed$context_id, 1)
+  # level should be valid log levels
+  valid_levels <- c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+  expect_true(all(entries$level %in% valid_levels))
 
-  # count: integer
-  expect_equal(props$count$type, "integer")
-  expect_type(parsed$count, "integer")
-  expect_length(parsed$count, 1)
-
-  # entries: object (which in JSON becomes array of objects -> data.frame)
-  expect_equal(props$entries$type, "object")
-  # Note: YAML says "object" but actual output is array of entry objects
-  # This is a spec issue - entries should be type: array with items: object
-  expect_true(is.data.frame(parsed$entries) || is.list(parsed$entries))
+  # time should match HH:MM:SS format
+  expect_true(all(grepl("^\\d{2}:\\d{2}:\\d{2}$", entries$time)))
 })
 
-test_that("mcp_tool_context_logs_head returns JSON matching YAML spec", {
+test_that("mcp_tool_context_logs_head returns string matching YAML spec", {
   # Load YAML specification
- yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
+  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
 
   # Verify YAML spec structure
-expect_equal(yaml_spec$output_format, "json")
-  expect_equal(yaml_spec$returns$type, "object")
-  expect_true("success" %in% names(yaml_spec$returns$properties))
-  expect_true("context_id" %in% names(yaml_spec$returns$properties))
-  expect_true("count" %in% names(yaml_spec$returns$properties))
-  expect_true("entries" %in% names(yaml_spec$returns$properties))
-  expect_true("error" %in% names(yaml_spec$returns$properties))
+  expect_equal(yaml_spec$output_format, "string")
 
   # Create test context with logs
   context <- create_test_context()
@@ -214,63 +161,41 @@ expect_equal(yaml_spec$output_format, "json")
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  # Verify result has "json" class
-  expect_s3_class(result, "json")
+  # Result is a plain character string
+  expect_type(result, "character")
 
-  # Parse JSON result
-  parsed <- jsonlite::fromJSON(as.character(result))
+  # Parse formatted output
+  entries <- parse_log_output(result)
 
-  # Validate against YAML spec: success case
-  expect_true(parsed$success)
-  expect_type(parsed$success, "logical")
-  expect_type(parsed$context_id, "character")
-  expect_type(parsed$count, "integer")
+  # Should have entries
+  expect_true(nrow(entries) >= 3)
 
-  # Validate entries structure - should be data.frame (array of objects)
-  expect_true(is.data.frame(parsed$entries) || is.list(parsed$entries))
+  # Validate entries structure
+  expect_true(all(c("line_no", "level", "time", "caller", "content") %in%
+    names(entries)))
 
-  if (is.data.frame(parsed$entries)) {
-    # When dataframe="rows", jsonlite returns data.frame
-    expect_true("line_no" %in% names(parsed$entries))
-    expect_true("level" %in% names(parsed$entries))
-    expect_true("time" %in% names(parsed$entries))
-    expect_true("caller" %in% names(parsed$entries))
-    expect_true("content" %in% names(parsed$entries))
-
-    # Validate types within entries
-    expect_type(parsed$entries$line_no, "integer")
-    expect_type(parsed$entries$level, "character")
-    expect_type(parsed$entries$time, "character")
-    expect_type(parsed$entries$caller, "character")
-    expect_type(parsed$entries$content, "character")
-  }
-
-  # Verify count matches entries
-  expect_equal(parsed$count, nrow(parsed$entries))
+  # Validate types within entries
+  expect_type(entries$line_no, "integer")
+  expect_type(entries$level, "character")
+  expect_type(entries$time, "character")
+  expect_type(entries$caller, "character")
+  expect_type(entries$content, "character")
 })
 
-test_that("mcp_tool_context_logs_search error case matches YAML spec", {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_search")
-
+test_that("mcp_tool_context_logs_search error case returns plain error", {
   # Execute with missing required pattern parameter
   result <- mcp_tool_context_logs_search(pattern = "")
 
-  expect_s3_class(result, "json")
+  expect_type(result, "character")
 
-  parsed <- jsonlite::fromJSON(as.character(result))
-
-  # Validate error structure per YAML spec
-  expect_false(parsed$success)
-  expect_type(parsed$success, "logical")
-  expect_type(parsed$error, "character")
-  expect_true(nzchar(parsed$error))
+  # Error response should contain a meaningful message
+  expect_true(grepl("pattern", result, ignore.case = TRUE))
 })
 
-test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
+test_that("mcp_tool_context_logs_tail returns string matching YAML spec", {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_tail")
 
-  expect_equal(yaml_spec$output_format, "json")
-  expect_equal(yaml_spec$returns$type, "object")
+  expect_equal(yaml_spec$output_format, "string")
 
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
@@ -303,7 +228,7 @@ test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
 
   # Create runtime and read only last 2 entries
   runtime <- create_test_runtime(context)
-  
+
   # Log additional messages AFTER runtime creation so they are the "tail"
   # (Runtime initialization adds a log line which would otherwise be last)
   context$logger(
@@ -314,29 +239,23 @@ test_that("mcp_tool_context_logs_tail returns JSON matching YAML spec", {
     "Fourth message",
     caller = context, level = "INFO", verbose = "none"
   )
-  
+
   result <- mcp_tool_context_logs_tail(max_lines = 2L, .runtime = runtime)
 
-  expect_s3_class(result, "json")
+  expect_type(result, "character")
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
-  expect_true(parsed$success)
-  expect_equal(parsed$count, 2L)
-  expect_equal(nrow(parsed$entries), 2L)
+  expect_equal(nrow(entries), 2L)
 
   # Tail should return last entries (Third and Fourth)
-  expect_true(all(grepl("message", parsed$entries$content)))
+  expect_true(all(grepl("message", entries$content)))
 })
 
-test_that("mcp_tool_context_logs_search returns JSON matching YAML spec", {
+test_that("mcp_tool_context_logs_search returns string matching YAML spec", {
   yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_search")
 
-  expect_equal(yaml_spec$output_format, "json")
-  expect_equal(yaml_spec$returns$type, "object")
-
-  # YAML spec should include pattern field
-  expect_true("pattern" %in% names(yaml_spec$returns$properties))
+  expect_equal(yaml_spec$output_format, "string")
 
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
@@ -375,14 +294,12 @@ test_that("mcp_tool_context_logs_search returns JSON matching YAML spec", {
     .runtime = runtime
   )
 
-  expect_s3_class(result, "json")
+  expect_type(result, "character")
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
-  expect_true(parsed$success)
-  expect_equal(parsed$pattern, "error")
-  expect_equal(parsed$count, 1L)
-  expect_true(grepl("error", parsed$entries$content, ignore.case = TRUE))
+  expect_equal(nrow(entries), 1L)
+  expect_true(grepl("error", entries$content, ignore.case = TRUE))
 })
 
 test_that("mcp_tool_context_logs_search validates required pattern parameter", {
@@ -395,17 +312,12 @@ test_that("mcp_tool_context_logs_search validates required pattern parameter", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
-  # Create runtime and call without pattern - should return error
+  # Create runtime and call without pattern - should return error string
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_search(.runtime = runtime)
 
-  expect_s3_class(result, "json")
-
-  parsed <- jsonlite::fromJSON(as.character(result))
-
-  expect_false(parsed$success)
-  expect_type(parsed$error, "character")
-  expect_true(grepl("pattern", parsed$error, ignore.case = TRUE))
+  expect_type(result, "character")
+  expect_true(grepl("pattern", result, ignore.case = TRUE))
 })
 
 test_that("ellmer tool instantiation preserves YAML spec metadata", {
@@ -426,10 +338,9 @@ test_that("ellmer tool instantiation preserves YAML spec metadata", {
   expect_true(grepl("Category", tool@description))
   expect_true(grepl("info", tool@description))
   expect_true(grepl("Returns", tool@description))
-  expect_true(grepl("JSON", tool@description)) # Output format
 })
 
-test_that("instantiated tool executes and returns valid JSON", {
+test_that("instantiated tool executes and returns valid output", {
   skip_if_not_installed("ellmer")
 
   # Create context and add logs first (needed to create runtime)
@@ -450,19 +361,14 @@ test_that("instantiated tool executes and returns valid JSON", {
   tool <- mcptool_instantiate(yaml_spec, runtime = runtime)
 
   # Execute the tool (ToolDef is callable as a function)
+  # Result goes through mcp_describe() which may transform short strings
   result <- tool(max_lines = 10L)
 
-  # The wrapper should preserve the json class (since it inherits "json")
-  # and mcp_describe.json should return it as-is
   expect_type(result, "character")
-
-  # Parse and validate
-  parsed <- jsonlite::fromJSON(result)
-  expect_true(parsed$success)
-  expect_true("entries" %in% names(parsed))
+  expect_true(nzchar(result))
 })
 
-test_that("entries array elements have consistent structure", {
+test_that("entries have consistent structure", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
@@ -490,30 +396,29 @@ test_that("entries array elements have consistent structure", {
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 100L, .runtime = runtime)
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
   # Each entry should have exactly these fields
   expected_fields <- c("line_no", "content", "level", "caller", "time")
 
-  expect_true(all(expected_fields %in% names(parsed$entries)))
-  expect_equal(length(names(parsed$entries)), length(expected_fields))
+  expect_true(all(expected_fields %in% names(entries)))
 
   # All entries should have non-NA values for required fields
-  expect_true(all(!is.na(parsed$entries$line_no)))
-  expect_true(all(!is.na(parsed$entries$level)))
-  expect_true(all(!is.na(parsed$entries$time)))
-  expect_true(all(!is.na(parsed$entries$caller)))
-  expect_true(all(!is.na(parsed$entries$content)))
+  expect_true(all(!is.na(entries$line_no)))
+  expect_true(all(!is.na(entries$level)))
+  expect_true(all(!is.na(entries$time)))
+  expect_true(all(!is.na(entries$caller)))
+  expect_true(all(!is.na(entries$content)))
 
   # line_no should be positive integers
-  expect_true(all(parsed$entries$line_no > 0))
+  expect_true(all(entries$line_no > 0))
 
   # level should be valid log levels
   valid_levels <- c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")
-  expect_true(all(parsed$entries$level %in% valid_levels))
+  expect_true(all(entries$level %in% valid_levels))
 
   # time should match HH:MM:SS format
-  expect_true(all(grepl("^\\d{2}:\\d{2}:\\d{2}$", parsed$entries$time)))
+  expect_true(all(grepl("^\\d{2}:\\d{2}:\\d{2}$", entries$time)))
 })
 
 test_that("level filtering works correctly", {
@@ -547,12 +452,11 @@ test_that("level filtering works correctly", {
     .runtime = runtime
   )
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
-  expect_true(parsed$success)
-  expect_equal(parsed$count, 1L)
-  expect_equal(parsed$entries$level, "ERROR")
-  expect_true(grepl("Error only", parsed$entries$content))
+  expect_equal(nrow(entries), 1L)
+  expect_equal(entries$level, "ERROR")
+  expect_true(grepl("Error only", entries$content))
 })
 
 test_that("pattern filtering works correctly", {
@@ -586,11 +490,10 @@ test_that("pattern filtering works correctly", {
     .runtime = runtime
   )
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
-  expect_true(parsed$success)
-  expect_equal(parsed$count, 2L)
-  expect_true(all(grepl("Processing", parsed$entries$content)))
+  expect_equal(nrow(entries), 2L)
+  expect_true(all(grepl("Processing", entries$content)))
 })
 
 test_that("skip_lines pagination works", {
@@ -665,12 +568,11 @@ test_that("skip_lines pagination works", {
     .runtime = runtime
   )
 
-  parsed <- jsonlite::fromJSON(as.character(result))
+  entries <- parse_log_output(result)
 
-  expect_true(parsed$success)
-  expect_equal(parsed$count, 2L)
-  expect_true(grepl("Line 3", parsed$entries$content[1]))
-  expect_true(grepl("Line 4", parsed$entries$content[2]))
+  expect_equal(nrow(entries), 2L)
+  expect_true(grepl("Line 3", entries$content[1]))
+  expect_true(grepl("Line 4", entries$content[2]))
 })
 
 test_that("empty log file returns valid empty response", {
@@ -686,14 +588,11 @@ test_that("empty log file returns valid empty response", {
   
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  expect_s3_class(result, "json")
+  expect_type(result, "character")
 
-  parsed <- jsonlite::fromJSON(as.character(result))
-
-  expect_true(parsed$success)
-  expect_equal(parsed$count, 0L)
-  # entries should be empty but valid
-  expect_true(is.data.frame(parsed$entries) || length(parsed$entries) == 0)
+  # Empty log should produce empty or whitespace-only string
+  entries <- parse_log_output(result)
+  expect_equal(nrow(entries), 0L)
 })
 
 # =============================================================================
@@ -710,30 +609,13 @@ test_that("all context log tools have consistent YAML spec structure", {
   for (tool_name in tools) {
     yaml_spec <- mcptool_read(tool_name)
 
-    # All should have output_format: json
-    expect_equal(yaml_spec$output_format, "json",
-      info = sprintf("%s should have output_format: json", tool_name))
+    # All should have output_format: string
+    expect_equal(yaml_spec$output_format, "string",
+      info = sprintf("%s should have output_format: string", tool_name))
 
     # All should have category: info
     expect_equal(yaml_spec$category, "info",
       info = sprintf("%s should have category: info", tool_name))
-
-    # All should return object type
-    expect_equal(yaml_spec$returns$type, "object",
-      info = sprintf("%s returns should be object type", tool_name))
-
-    # All should have success and error properties
-    props <- names(yaml_spec$returns$properties)
-    expect_true("success" %in% props,
-      info = sprintf("%s should have success property", tool_name))
-    expect_true("error" %in% props,
-      info = sprintf("%s should have error property", tool_name))
-    expect_true("entries" %in% props,
-      info = sprintf("%s should have entries property", tool_name))
-    expect_true("count" %in% props,
-      info = sprintf("%s should have count property", tool_name))
-    expect_true("context_id" %in% props,
-      info = sprintf("%s should have context_id property", tool_name))
   }
 })
 
@@ -772,14 +654,9 @@ test_that("search_logs YAML spec includes pattern as required", {
 
   # pattern should have string type
   expect_equal(yaml_spec$parameters$properties$pattern$type, "string")
-
-  # search_logs should also have pattern in returns
-  expect_true("pattern" %in% names(yaml_spec$returns$properties))
 })
 
-test_that("actual JSON output field types match YAML spec types", {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-
+test_that("actual output matches plain text format", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
@@ -790,85 +667,29 @@ test_that("actual JSON output field types match YAML spec types", {
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  parsed <- jsonlite::fromJSON(as.character(result))
-  props <- yaml_spec$returns$properties
+  expect_type(result, "character")
 
-  # Map YAML types to R types for validation
-  yaml_to_r_type <- function(yaml_type) {
-    switch(yaml_type,
-      "boolean" = "logical",
-      "integer" = "integer",
-      "string" = "character",
-      "object" = c("list", "data.frame"),
-      "array" = c("list", "data.frame", "character", "numeric"),
-      "unknown"
-    )
-  }
-
-  # Validate each field
-  for (prop_name in names(props)) {
-    if (!is.null(parsed[[prop_name]])) {
-      expected_types <- yaml_to_r_type(props[[prop_name]]$type)
-      actual_type <- typeof(parsed[[prop_name]])
-
-      # For data.frame, typeof returns "list"
-      if (is.data.frame(parsed[[prop_name]])) {
-        actual_type <- "data.frame"
-      }
-
-      expect_true(
-        actual_type %in% expected_types ||
-          class(parsed[[prop_name]])[1] %in% expected_types,
-        info = sprintf(
-          "Field '%s': YAML type '%s' (expects %s), got R type '%s'",
-          prop_name, props[[prop_name]]$type,
-          paste(expected_types, collapse = "/"), actual_type
-        )
-      )
-    }
-  }
+  # Parse and verify line format
+  entries <- parse_log_output(result)
+  expect_true(nrow(entries) > 0)
+  expect_true(all(entries$line_no > 0))
+  expect_true(all(entries$level %in%
+    c("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL")))
 })
 
 test_that(
-  "error response only contains fields specified in YAML for error case",
+  "error response returns a plain error string",
   {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_search")
-
   # Call with empty pattern to get error (search requires a pattern)
   result <- mcp_tool_context_logs_search(pattern = "")
-  parsed <- jsonlite::fromJSON(as.character(result))
 
-  # Error response should have success: false
-  expect_false(parsed$success)
-
-  # Error response should have error field
-  expect_true(!is.null(parsed$error))
-  expect_type(parsed$error, "character")
-
-  # Verify error field is in YAML spec
-  expect_true("error" %in% names(yaml_spec$returns$properties))
-  expect_equal(yaml_spec$returns$properties$error$type, "string")
+  # Error response should be a plain string
+  expect_type(result, "character")
+  expect_true(nzchar(result))
+  expect_true(grepl("pattern", result, ignore.case = TRUE))
 })
 
-test_that("entries structure matches documented entry fields", {
-  yaml_spec <- mcptool_read("tricobbler-mcp_tool_context_logs_head")
-
-  # The YAML description says entries contain:
-  # line_no, level, time, caller, content
-  entries_desc <- yaml_spec$returns$properties$entries$description
-  expected_fields <- c("line_no", "level", "time", "caller", "content")
-
-  # Verify all expected fields are mentioned in description
-  for (field in expected_fields) {
-    expect_true(
-      grepl(field, entries_desc),
-      info = sprintf(
-        "Field '%s' should be documented in entries description",
-        field
-      )
-    )
-  }
-
+test_that("log output contains all documented entry fields", {
   # Now verify actual output matches
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
@@ -885,21 +706,20 @@ test_that("entries structure matches documented entry fields", {
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  parsed <- jsonlite::fromJSON(as.character(result))
-
-  # Verify entries has exactly the documented fields
-  actual_fields <- names(parsed$entries)
-  expect_setequal(actual_fields, expected_fields)
+  # Verify entries have the documented fields
+  entries <- parse_log_output(result)
+  expected_fields <- c("line_no", "level", "time", "caller", "content")
+  expect_true(all(expected_fields %in% names(entries)))
 })
 
 # =============================================================================
 # ellmer tool_string integration tests
 # =============================================================================
-# These tests verify that JSON output from MCP tools flows correctly through
-# ellmer's tool_string() function, ensuring AI receives properly formatted JSON.
+# These tests verify that plain text output from MCP tools flows correctly
+# through ellmer's tool_string() function.
 
 test_that(
-  "JSON tool output flows correctly through ellmer tool_string",
+  "tool output flows correctly through ellmer tool_string",
   {
   skip_if_not_installed("ellmer")
 
@@ -915,12 +735,12 @@ test_that(
     verbose = "none"
   )
 
-  # Create runtime and get raw JSON output from tool
+  # Create runtime and get raw output from tool
   runtime <- create_test_runtime(context)
   raw_result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  # Verify it has json class (from jsonlite::toJSON)
-  expect_s3_class(raw_result, "json")
+  # Verify it is a plain character string
+  expect_type(raw_result, "character")
 
   # Simulate what ellmer does: wrap in ContentToolResult and call tool_string
   content_result <- ellmer::ContentToolResult(value = raw_result)
@@ -928,13 +748,12 @@ test_that(
   # This is what gets sent to AI
   ai_receives <- ellmer:::tool_string(content_result)
 
-  # The JSON should be passed through unchanged
-  expect_identical(ai_receives, raw_result)
+  # The string should be passed through unchanged
   expect_identical(as.character(ai_receives), as.character(raw_result))
 })
 
 test_that(
-  "tool_string preserves exact JSON structure for all log tools",
+  "tool_string preserves exact output for all log tools",
   {
   skip_if_not_installed("ellmer")
 
@@ -985,26 +804,22 @@ test_that(
   for (tool_name in names(tools)) {
     raw_result <- tools[[tool_name]]()
 
+    # All results should be plain character strings
+    expect_type(raw_result, "character")
+
     # Wrap in ContentToolResult like ellmer does
     content_result <- ellmer::ContentToolResult(value = raw_result)
     ai_receives <- ellmer:::tool_string(content_result)
 
-    # Parse both to compare structure
-    original_parsed <- jsonlite::fromJSON(as.character(raw_result))
-    ai_parsed <- jsonlite::fromJSON(as.character(ai_receives))
-
-    # Structure should be identical
-    expect_equal(names(original_parsed), names(ai_parsed),
-      info = sprintf("Tool %s: top-level field names preserved", tool_name))
-    expect_equal(original_parsed$success, ai_parsed$success,
-      info = sprintf("Tool %s: success field preserved", tool_name))
-    expect_equal(original_parsed$count, ai_parsed$count,
-      info = sprintf("Tool %s: count field preserved", tool_name))
+    # String should be preserved through the flow
+    expect_identical(as.character(ai_receives), as.character(raw_result),
+      info = sprintf("Tool %s: output preserved through tool_string",
+        tool_name))
   }
 })
 
 test_that(
-  "instantiated ellmer tool returns JSON that flows through tool_string",
+  "instantiated ellmer tool returns output that flows through tool_string",
   {
   skip_if_not_installed("ellmer")
 
@@ -1028,25 +843,17 @@ test_that(
   # Execute through instantiated tool (simulates real usage)
   result <- tool(max_lines = 10L)
 
-  # Result should be a character with json class
-  # (mcp_describe.json returns x as-is, preserving the json class)
+  # Result should be a plain character string
   expect_type(result, "character")
   expect_true(nzchar(result))
-  expect_s3_class(result, "json")
 
   # Wrap in ContentToolResult and verify tool_string passes it through
   content_result <- ellmer::ContentToolResult(value = result)
   ai_receives <- ellmer:::tool_string(content_result)
 
-  # Should be identical
-  expect_identical(ai_receives, result)
-
-  # Verify structure is valid JSON with expected schema
-  parsed <- jsonlite::fromJSON(as.character(ai_receives))
-  expect_true(parsed$success)
-  expect_true("context_id" %in% names(parsed))
-  expect_true("entries" %in% names(parsed))
-  expect_true("count" %in% names(parsed))
+  # Verify the output came through
+  expect_type(as.character(ai_receives), "character")
+  expect_true(nzchar(as.character(ai_receives)))
 })
 
 test_that(
@@ -1054,26 +861,22 @@ test_that(
   {
   skip_if_not_installed("ellmer")
 
-  # Test with empty pattern - should return error JSON
+  # Test with empty pattern - should return error string
   result <- mcp_tool_context_logs_search(pattern = "")
 
-  expect_s3_class(result, "json")
+  expect_type(result, "character")
 
   # Simulate ellmer flow
   content_result <- ellmer::ContentToolResult(value = result)
   ai_receives <- ellmer:::tool_string(content_result)
 
-  # Parse and verify error structure
-  parsed <- jsonlite::fromJSON(as.character(ai_receives))
-  expect_false(parsed$success)
-  expect_true(!is.null(parsed$error) && nzchar(parsed$error))
+  # Verify error message comes through
+  expect_true(grepl("pattern", as.character(ai_receives), ignore.case = TRUE))
 })
 
 test_that(
-  "JSON output is compact (no pretty printing) for efficient AI consumption",
+  "plain text output is human-readable with consistent line format",
   {
-  skip_if_not_installed("ellmer")
-
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
@@ -1089,19 +892,20 @@ test_that(
   runtime <- create_test_runtime(context)
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  # Verify JSON is compact (single line, no indentation)
-  json_str <- as.character(result)
-
-  # Should not have newlines except within string values
-  # A compact JSON should be a single line
-  lines <- strsplit(json_str, "\n")[[1]]
-  expect_equal(length(lines), 1,
-    info = "JSON should be compact (single line) for efficient AI consumption")
+  # Each line should match the format: "  N: [time][caller][LEVEL] content"
+  lines <- strsplit(result, "\n")[[1]]
+  for (line_text in lines) {
+    expect_true(
+      grepl("^\\s*\\d+:\\s*\\[", line_text),
+      info = sprintf(
+        "Line should match format 'N: [time][caller][LEVEL] content': %s",
+        line_text
+      )
+    )
+  }
 })
 
-test_that("JSON arrays are serialized as rows not columns", {
-  skip_if_not_installed("ellmer")
-
+test_that("multiple log entries are separated by newlines", {
   context <- create_test_context()
   on.exit(unlink(context$store_path, recursive = TRUE), add = TRUE)
 
@@ -1109,21 +913,18 @@ test_that("JSON arrays are serialized as rows not columns", {
   runtime <- create_test_runtime(context)
   # Clear runtime init log to keep test clean
   if (file.exists(context$logger_path)) unlink(context$logger_path)
-  
+
   # Log test messages (no with_activated needed)
   context$logger("First", caller = context, level = "INFO", verbose = "none")
   context$logger("Second", caller = context, level = "WARN", verbose = "none")
 
   result <- mcp_tool_context_logs_head(max_lines = 10L, .runtime = runtime)
 
-  # Parse JSON
-  parsed <- jsonlite::fromJSON(as.character(result))
-
-  # entries should be a data.frame with rows (not a list of columns)
-  expect_s3_class(parsed$entries, "data.frame")
-  expect_equal(nrow(parsed$entries), 2)
+  # Should have 2 lines
+  entries <- parse_log_output(result)
+  expect_equal(nrow(entries), 2)
 
   # Each row should represent one log entry
-  expect_equal(parsed$entries$content[1], "First")
-  expect_equal(parsed$entries$content[2], "Second")
+  expect_equal(entries$content[1], "First")
+  expect_equal(entries$content[2], "Second")
 })

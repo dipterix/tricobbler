@@ -28,6 +28,7 @@ Use this checklist to verify your work before committing. Click items for detail
 - [ ] MCP tools have `@keywords mcp-tool mcp-category-*` and `@noRd` → [Section 8](#8-mcp-tool-conventions)
 - [ ] Ran `mcptool_build()` after MCP tool doc changes → [Section 8](#8-mcp-tool-conventions)
 - [ ] Examples run without `\dontrun{}` unless truly necessary → [Section 9](#examples-best-practices)
+- [ ] **⛔ NEVER add backward-compatibility normalization layers** → [Section 10](#10-no-backward-compatibility)
 
 ---
 
@@ -881,6 +882,32 @@ ClassName <- R6::R6Class(
    - ❌ WRONG: Wrapping working examples in `\dontrun{}`
    - ✅ CORRECT: Let examples run during R CMD check unless they require external resources
    - ⚠️ CAUTION: Don't remove existing `\dontrun{}` without understanding why it's there
+
+---
+
+## 10. No Backward Compatibility
+
+### Why This Matters
+
+This package does NOT consider backward compatibility for file specifications (YAML manifests, workflow configs, etc.). Adding normalization or conversion layers for old formats increases the maintainer's burden and leads to ugly code design. Flexibility is good for programmatic APIs (e.g., S7 setters accepting multiple input types), but NOT for file specifications.
+
+### Rules
+
+1. **Do NOT add format normalization layers** for YAML/manifest deserialization. If the spec changes, authors must update their files.
+2. **S7 setters MAY accept multiple types** (e.g., `NULL`, character vector, named list) for programmatic convenience — this is the API contract, not backward compatibility.
+3. **YAML files must comply with the current spec.** Do not write helper functions to silently upgrade old formats.
+4. **Specification compliance is the author's responsibility**, not the package's.
+
+### Examples
+
+```r
+# ❌ WRONG: Adding a normalization function for YAML deserialization
+state$resources <- normalize_resources_from_yaml(state$resources)
+
+# ✅ CORRECT: Let the S7 setter handle it via do.call()
+# YAML must already be in the correct format
+do.call(StatePolicy, state)
+```
 
 ---
 

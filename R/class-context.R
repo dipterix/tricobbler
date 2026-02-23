@@ -674,6 +674,29 @@ AgentContext <- R6::R6Class(
     #' @return logical vector, \code{TRUE} for each key with a registered tool
     has_tools = function(keys) {
       private$.tools$has(keys)
+    },
+
+    #' @description Initialize and register a skill into current context
+    #' @param path path to the skill folder
+    #' @param register_tools whether to register skill to the context; default
+    #'    is \code{FALSE}
+    #' @return a \code{\link{Skill}} instance
+    init_skill = function(path, register_tools = FALSE) {
+      path <- normalizePath(path, mustWork = FALSE)
+      if (endsWith(path, "SKILL.md")) {
+        path <- dirname(path)
+      }
+      config <- private$.scheduler$config
+      skill <- tricobbler::Skill$new(path = path, runtime = config$binary)
+
+      if (register_tools) {
+        skill_tools <- skill$make_tools()
+        lapply(names(skill_tools), function(nm) {
+          self$set_tool(nm, skill_tools[[nm]])
+        })
+      }
+
+      return(skill)
     }
 
   )

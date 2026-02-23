@@ -85,7 +85,7 @@ tool2 <- function(
         # print(args)
         result <- do.call(fun, args)
         # print(result)
-        result
+        return(result)
 
       },
       error = function(cnd) {

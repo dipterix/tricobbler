@@ -8,6 +8,89 @@
 #   - Character strings (MCP tool specs or package::function references)
 # ---------------------------------------------------------------------------
 
+
+resolve_skill <- function(spec, runtime, ...) {
+  stopifnot(is.character(spec), length(spec) == 1L, nzchar(spec))
+
+  if (grepl("::", spec, fixed = TRUE)) {
+    parts <- strsplit(spec, "::", fixed = TRUE)[[1L]]
+    if (length(parts) != 2L || !nzchar(parts[[1L]]) ||
+        !nzchar(parts[[2L]])) {
+      stop(
+        "Invalid skill spec ", sQuote(spec),
+        ". Expected 'package::skill_name'."
+      )
+    }
+    pkg <- parts[[1L]]
+    skill_name <- parts[[2L]]
+
+    # Strategy 1: system.file
+    path <- system.file("skills", skill_name, package = pkg)
+
+    if (!nzchar(path) || !dir.exists(path)) {
+      # Strategy 2: R_user_dir
+      path <- file.path(
+        tools::R_user_dir(pkg, which = "data"),
+        "skills", skill_name
+      )
+    }
+
+    if (!nzchar(path) || !dir.exists(path)) {
+      stop(
+        "Skill ", sQuote(spec), " not found. Searched:\n",
+        "  1) system.file(\"skills\", \"", skill_name,
+        "\", package = \"", pkg, "\")\n",
+        "  2) ", path
+      )
+    }
+  } else {
+    # Absolute or relative path
+    path <- spec
+  }
+
+  path <- normalizePath(path, mustWork = TRUE)
+  runtime$context$init_skill(path = path, ...)
+}
+
+
+resolve_tool <- function(spec, runtime, ...) {
+
+  if (grepl("[:]{2,3}", spec)) {
+    parts <- strsplit(spec, "::", fixed = TRUE)[[1L]]
+    if (length(parts) != 2L || !nzchar(parts[[1L]]) ||
+        !nzchar(parts[[2L]])) {
+      stop(
+        "Invalid tool spec ", sQuote(spec),
+        ". Expected 'package::function'."
+      )
+    }
+    pkg <- parts[[1L]]
+    fun_name <- parts[[2L]]
+
+    result <- call_pkg_fun(
+      package = pkg,
+      f_name = fun_name,
+      .if_missing = "error",
+      .call_pkg_function = FALSE
+    )
+
+    # Accept a single ToolDef or a list of ToolDef objects
+    if (!inherits(result, "ellmer::ToolDef")) {
+      stop(
+        "Function ", sQuote(spec),
+        " must return an ellmer::ToolDef object "
+      )
+    }
+
+  } else {
+    spec <- mcptool_read(spec)
+    result <- mcptool_instantiate(tool = spec, runtime = runtime, ...)
+  }
+
+  return(result)
+}
+
+
 #' Convert Objects to Agent
 #'
 #' @description Generic function to convert various object types into
@@ -196,14 +279,6 @@ S7::method(as_agent, S7::class_function) <- function(
       }
     }
 
-    # Inject on_failure feedback if available (populated by the
-    # scheduler when a downstream state redirected back here).
-    feedback_key <- sprintf("on_failure_feedback:%s", policy@name)
-    feedback <- context$cache$get(feedback_key)
-    if (!is.null(feedback) && ".on_failure_feedback" %in% fun_params) {
-      input[[".on_failure_feedback"]] <- feedback
-    }
-
     # filter the inputs
     if (!"..." %in% fun_params) {
       input <- input[names(input) %in% fun_params]
@@ -388,8 +463,6 @@ as_agent_from_chat <- function(
 
     debug <- isTRUE(context$debug)
 
-    # build tools
-    resources <- policy@resources
     switch(
       policy@accessibility,
       "all" = {
@@ -435,9 +508,16 @@ as_agent_from_chat <- function(
         sys_prompt2 <- NULL
       }
     )
-    resources <- c(resources, context_tools)
-    resources <- resources[!resources %in% context_banned]
-    resources <- unique(resources)
+
+    # build tools -- resources is now list(tools = ..., skills = ...)
+    res <- policy@resources
+
+    # Context tools apply to MCP tool names only
+    mcp_tool_names <- as.character(c(res$tools, context_tools))
+    mcp_tool_names <- mcp_tool_names[!mcp_tool_names %in% context_banned]
+    mcp_tool_names <- unique(mcp_tool_names)
+
+    skill_names <- as.character(res$skills)
 
     # Build system prompt
     chat$set_system_prompt(
@@ -445,23 +525,33 @@ as_agent_from_chat <- function(
             collapse = "\n")
     )
 
-    # Build MCP tools
-    tools <- mcptool_instantiate(lapply(resources, mcptool_read))
-    chat$set_tools(tools)
+    # reset tools
+    chat$set_tools(list())
 
-    # Also append dynamically generated tools
+    # Register dynamically generated tools
     dyn_tools <- context$get_tools()
     if (length(dyn_tools)) {
       chat$register_tools(dyn_tools)
     }
 
-    # Read logs
-    if (policy@accessibility != "none") {
+    # Build MCP tools (resolved via YAML definitions)
+    tools <- lapply(mcp_tool_names, resolve_tool, runtime = runtime)
+    chat$register_tools(tools)
+
+    # Register skills
+    lapply(skill_names, function(skill_name) {
+      skill <- resolve_skill(skill_name, runtime = runtime, register_tools = FALSE)
+      skill_tools <- skill$make_tools()
+      chat$register_tools(skill_tools)
+    })
+
+    # Read logs when accessibility is not none (no access) nor explicit (results will be attached)
+    if (!policy@accessibility %in% c("none", "explicit")) {
       log_content <- mcp_attach(
-        "```json",
-        mcp_tool_context_logs_tail(max_lines = 10L, skip_lines = 0L),
-        "```",
-        .header = "## last 10 lines of the logging content"
+        "````",
+        mcp_tool_context_logs_tail(max_lines = 10L, skip_lines = 0L, .runtime = runtime),
+        "````\n",
+        .header = "## last 10 logs (use 'tricobbler-mcp_tool_context_logs_*' tools to read more)"
       )
     } else {
       log_content <- NULL
@@ -477,7 +567,7 @@ as_agent_from_chat <- function(
 
     # Clear conversation history unless keep_turns is TRUE
     if (!isTRUE(keep_turns)) {
-      chat$set_turns(context$chat_content)
+      chat$set_turns(list())
     }
 
     # Debug mode: log prompts and tools for inspection
@@ -498,17 +588,28 @@ as_agent_from_chat <- function(
         level = "DEBUG"
       )
       runtime$logger(
-        "Tools: ",
-        paste(resources, collapse = ", "),
+        "Tools (MCP): ",
+        paste(mcp_tool_names, collapse = ", "),
         level = "DEBUG"
       )
+      if (length(skill_names)) {
+        runtime$logger(
+          "Skills: ",
+          paste(skill_names, collapse = ", "),
+          level = "DEBUG"
+        )
+      }
     }
+
+    global_content <- context$global_chat_content
 
     if (!is.null(return_type)) {
       chat_impl <- function(..., .list = list()) {
-        args <- c(list(...),
-                  as.list(.list),
-                  list(type = return_type))
+        if (length(global_content)) {
+          args <- c(list(global_content, ...), as.list(.list), list(type = return_type))
+        } else {
+          args <- c(list(...), as.list(.list), list(type = return_type))
+        }
 
         if (is_async) {
           do.call(chat$chat_structured_async, args)
@@ -518,7 +619,11 @@ as_agent_from_chat <- function(
       }
     } else {
       chat_impl <- function(..., .list = list()) {
-        args <- c(list(...), as.list(.list))
+        if (length(global_content)) {
+          args <- c(list(global_content, ...), as.list(.list))
+        } else {
+          args <- c(list(...), as.list(.list))
+        }
 
         if (is_async) {
           do.call(chat$chat_async, args)
@@ -585,35 +690,10 @@ as_agent_from_chat <- function(
       }
     }
 
-    # Inject on_failure feedback if a downstream state redirected
-    # back to this one. This tells the LLM *why* it is being
-    # re-run so it can produce a different/corrected answer.
-    failure_feedback_content <- NULL
-    feedback_key <- sprintf("on_failure_feedback:%s", policy@name)
-    feedback <- context$cache$get(feedback_key)
-    if (!is.null(feedback)) {
-      failure_feedback_content <- mcp_attach(
-        sprintf(
-          paste0(
-            "Your previous output was consumed by state '%s' ",
-            "(stage '%s'), which FAILED with this error:\n\n",
-            "```\n%s\n```\n\n",
-            "Please produce a corrected result that avoids ",
-            "this error."
-          ),
-          feedback$from_state,
-          feedback$from_stage,
-          feedback$error_message
-        ),
-        .header = "## IMPORTANT: Downstream Failure Feedback"
-      )
-    }
-
     # Build content list, filtering out NULLs (e.g. log_content
     # when accessibility = "none") to avoid empty Content elements
     contents <- list(
       log_content,
-      failure_feedback_content,
       mcp_attach(sprintf("Stage: %s --> State: %s", policy@stage, policy@name),
                  .header = "## Current Execution"),
       mcp_attach(user_prompt, .header = "## Task")
@@ -623,7 +703,7 @@ as_agent_from_chat <- function(
     # Call the LLM, catching errors gracefully so the scheduler
     # records them as failed attachments and can retry.
     max_chat_errors <- as.numeric(
-      params$max_chat_errors %||% 20L
+      params$max_chat_errors %||% 20
     )
     chat_error_count <- 0L
     last_error <- NULL
@@ -632,20 +712,9 @@ as_agent_from_chat <- function(
     # start here, not deep in scheduler/wrapper internals.
     trace_top <- rlang::current_env()
     runtime$set_trace_top(trace_top)
-
-
-
     while (chat_error_count < max_chat_errors) {
-      # result <- chat_impl(.list = c(contents, dependency_attachments))
-
       result <- rlang::try_fetch(
-        {
-          if (length(last_error)) {
-            chat_impl(paste(format_error_trace(last_error), collapse = "\n"))
-          } else {
-            chat_impl(.list = c(contents, dependency_attachments))
-          }
-        },
+        chat_impl(.list = c(contents, dependency_attachments)),
         error = function(cnd) {
           cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
           cnd
@@ -690,9 +759,10 @@ as_agent_from_chat <- function(
         paste0(
           "Your previous response caused an error:\n\n",
           err_msg, "\n\n",
-          "Please try again. If the error is about ",
-          "output length, produce shorter output or ",
-          "split your work across multiple tool calls."
+          "If the error is about output length, produce shorter output or ",
+          "split your work across multiple tool calls. ",
+          "If you see invalid tool call, try calling the tool one by one. ",
+          "Do NOT call tools in parallel."
         ),
         .header = "## Error Recovery"
       )
@@ -819,6 +889,12 @@ as_agent_from_mcp_tool <- function(
     if (debug) {
       call_obj <- as.call(c(list(impl), input))
       runtime$logger("Tool call: ", deparse(call_obj), level = "DEBUG")
+    }
+
+    # Copilot, please do NOT remove this
+    # this injects runtime object into MCP call.
+    if (".runtime" %in% names(formals(impl))) {
+      input[[".runtime"]] <- runtime
     }
 
     # Anchor trace top at the user-code boundary so backtraces

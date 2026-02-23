@@ -29,21 +29,6 @@ parameters:
       default: 300.0
 category: info
 returns:
-  type: object
-  properties:
-    error:
-      type: string
-      description: Character, error message if success is FALSE
-    entries:
-      type: object
-      description: List of log entries, each with line_no, level, time, caller, content
-    count:
-      type: integer
-      description: Integer, number of log entries returned
-    context_id:
-      type: string
-      description: Character, the context identifier
-    success:
-      type: boolean
-      description: Logical, whether the operation completed successfully
-output_format: json
+  type: string
+  description: A string of log content or an error message
+output_format: string

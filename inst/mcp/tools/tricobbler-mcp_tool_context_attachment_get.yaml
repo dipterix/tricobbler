@@ -10,8 +10,9 @@ parameters:
   properties:
     attachment_id:
       type: string
-      description: 'The attachment identifier. This is the filename value from mcp_tool_context_attachment_list
-        or the identifier logged when a result is recorded. Format: \verb{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.'
+      description: 'The attachment identifier. This is the attachment_id value from
+        mcp_tool_context_attachment_list or the identifier logged when a result is
+        recorded. Format: \verb{[stage][state][agent_id]_YYMMDDTHHMMSS_attempt}.'
   required:
   - attachment_id
 category: info
@@ -24,7 +25,7 @@ returns:
     attachment:
       type: object
       description: List, the attachment data including result, description, stage,
-        state, agent_id, current_attempt, and ._timestamp
+        state, agent_id, current_attempt, and timestamp
     attachment_id:
       type: string
       description: Character, the queried attachment identifier

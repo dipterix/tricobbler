@@ -74,15 +74,6 @@ workflow_list_to_manifest <- function(wf_list) {
         trim_collapsed = TRUE
       )
       state$parameters <- as.list(state$parameters)
-      # Fix resources: YAML may read empty arrays as list()
-      if (
-        is.null(state$resources) ||
-        (is.list(state$resources) && length(state$resources) == 0)
-      ) {
-        state$resources <- character(0L)
-      } else {
-        state$resources <- as.character(state$resources)
-      }
       # Fix depends_on: YAML may read empty/missing as NULL
       if (
         is.null(state$depends_on) || length(state$depends_on) == 0

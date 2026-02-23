@@ -88,20 +88,15 @@ implementation_example: |
   )
   #
   #> $success
-  #> [1] TRUE
-  #> 
-  #> $package
-  #> [1] "tricobbler"
-  #> 
-  #> $relpath
-  #> [1] "mcp/SPECIFICATION-TOOLS.md"
-  #> 
-  #> $range
-  #> [1] 1 3
-  #> 
-  #> $content
-  #> [1] "# RAVE MCP Tools YAML Specification"                                                                                                     
-  #> [2] ""                                                                                                                                        
-  #> [3] "This document describes the YAML format specification for RAVE MCP (Model Context Protocol) tools generated from roxygen2 documentation."
-  #>
-execution_time: 0.087
+  [1] TRUE
+  $package
+  [1] "tricobbler"
+  $relpath
+  [1] "mcp/SPECIFICATION-TOOLS.md"
+  $range
+  [1] 1 3
+  $content
+  [1] "# RAVE MCP Tools YAML Specification"                                                                                                     
+  [2] ""                                                                                                                                        
+  [3] "This document describes the YAML format specification for RAVE MCP (Model Context Protocol) tools generated from roxygen2 documentation."
+execution_time: 0.043

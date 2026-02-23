@@ -62,12 +62,17 @@ extract_chat_config <- function(chat) {
   }
   provider <- chat$get_provider()
   suffix <- provider_name_to_suffix(provider@name)
+  base_url <- provider@base_url
+  if (suffix == "ollama") {
+    # get IP and port as OLLAMA does not use http://xxx/v1
+    base_url <- gsub("/v[0-9]+$", "", base_url)
+  }
 
   config <- list(
     type = "chat",
     provider = suffix,
     model = provider@model,
-    base_url = provider@base_url
+    base_url = base_url
   )
 
   # Serialize params (from ellmer::params()) - drop NULL entries

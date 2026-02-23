@@ -220,7 +220,7 @@ Manifest <- S7::new_class(
     }
 
     # Map names to policy objects for O(1) lookup
-    state_map <- stats::setNames(self@states, state_names)
+    state_map <- structure(self@states, names = state_names)
     stages <- self@master@stages
 
     for (state in self@states) {
@@ -424,16 +424,6 @@ manifest_read <- function(file, ...) {
       trim_collapsed = TRUE
     )
     state$parameters <- as.list(state$parameters)
-    # Fix resources field: YAML may read empty arrays as list(),
-    # convert to character()
-    if (
-      is.null(state$resources) ||
-      (is.list(state$resources) && length(state$resources) == 0)
-    ) {
-      state$resources <- character(0L)
-    } else {
-      state$resources <- as.character(state$resources)
-    }
     # Fix depends_on field: YAML may read empty/missing as NULL,
     # convert to StateDeps object
     if (is.null(state$depends_on) || length(state$depends_on) == 0) {

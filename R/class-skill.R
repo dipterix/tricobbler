@@ -721,7 +721,8 @@ Skill <- R6::R6Class(
 
         version_info <- utils::capture.output(str(R.Version()))
         version_info[[1]] <- "## Current Runtime Info\n"
-        paste(c(skill_body, "\n---\n", version_info), collapse = "\n")
+        readme <- paste(c(skill_body, "\n---\n", version_info), collapse = "\n")
+        return(readme)
       }
 
       # ------ Function when action=reference -------
@@ -783,7 +784,8 @@ Skill <- R6::R6Class(
           lines <- lines[sel]
         }
 
-        paste0("L", line_index, ": ", lines, collapse = "\n")
+        reference <- paste0("L", line_index, ": ", lines, collapse = "\n")
+        return(reference)
       }
 
       # ------ Function when action=script ------
@@ -921,7 +923,7 @@ Skill <- R6::R6Class(
         }
 
         # ---- Dispatch ----
-        switch(
+        result <- switch(
           action,
 
           # ============================================================
@@ -966,6 +968,8 @@ Skill <- R6::R6Class(
             paste(action_values, collapse = ", ")
           )
         )
+
+        return(structure(result, class = "skill_output"))
       }
 
       # ------ Build tool ------
@@ -1091,9 +1095,10 @@ Skill <- R6::R6Class(
               stop("`action` can only be `readme`, `reference`, or `script`")
             }
           )
-          tool_fn(action = action,
-                  reference_kwargs = reference_kwargs,
-                  cli_kwargs = cli_kwargs)
+          fn_res <- tool_fn(action = action,
+                            reference_kwargs = reference_kwargs,
+                            cli_kwargs = cli_kwargs)
+          return(fn_res)
         },
         description = tool_desc,
         arguments = tool_arguments,
