@@ -24,6 +24,26 @@
   "VLLM"              = "vllm"
 )
 
+#' Available Chat Provider Choices
+#'
+#' @description
+#' Returns a named character vector of \pkg{ellmer} chat providers
+#' suitable for use in \code{shiny::selectInput()}. Names are
+#' human-readable labels; values are the \code{chat_*()} function
+#' suffixes used by \pkg{ellmer}.
+#'
+#' @returns A named character vector where names are display labels
+#'   and values are \pkg{ellmer} provider suffixes (e.g.,
+#'   \code{c("OpenAI" = "openai", "Anthropic" = "anthropic", ...)}).
+#'
+#' @examples
+#' provider_choices()
+#'
+#' @export
+provider_choices <- function() {
+  .provider_name_to_suffix
+}
+
 # Reverse lookup: suffix -> display name
 .provider_suffix_to_name <- structure(
   names = .provider_name_to_suffix,
@@ -35,9 +55,10 @@
 #' @returns character, the suffix for \code{ellmer::chat_\{suffix\}()}
 #' @noRd
 provider_name_to_suffix <- function(provider_name) {
-  idx <- match(provider_name, names(.provider_name_to_suffix))
+  provider_lut <- provider_choices()
+  idx <- match(provider_name, names(provider_lut))
   if (!is.na(idx)) {
-    suffix <- .provider_name_to_suffix[[idx]]
+    suffix <- provider_lut[[idx]]
   } else {
     # Fallback: normalize display name to dispatcher string
     suffix <- tolower(gsub("[^a-zA-Z0-9]", "_", provider_name))
@@ -289,3 +310,61 @@ reconstruct_agent <- function(agent_config, base_dir = ".", ...) {
 }
 
 
+
+#' Create a Chat Object from Provider Selection
+#'
+#' @description
+#' Constructs an \code{ellmer::Chat} object from a provider suffix and
+#' model name. Used by the \code{Shiny} module when the user selects
+#' a provider from the \verb{UI} selection menu.
+#'
+#' @param provider character, the provider suffix (e.g., \code{"openai"},
+#'   \code{"anthropic"}, \code{"ollama"}). Must match one of the
+#'   values returned by \code{\link{provider_choices}()}.
+#' @param model character or \code{NULL}, the model identifier (e.g.,
+#'   \code{"gpt-4o"}, \code{"claude-sonnet-4-20250514"}). If \code{NULL},
+#'   the \pkg{ellmer} provider default is used.
+#' @param system_prompt character or \code{NULL}, optional system prompt
+#'   to configure the chat.
+#' @param base_url character or \code{NULL}, optional base URL override
+#'   (useful for \code{Ollama} or custom endpoints).
+#' @param ... additional arguments forwarded to the \pkg{ellmer}
+#'   \code{chat_*()} constructor.
+#'
+#' @returns An \code{ellmer::Chat} object.
+#'
+#' @examples
+#' \dontrun{
+#' # Requires API key environment variable
+#' chat <- create_chat("openai", "gpt-4o")
+#' chat <- create_chat("ollama", "llama3.1",
+#'                     base_url = "http://127.0.0.1:11434")
+#' }
+#'
+#' @export
+create_chat <- function(provider,
+                        model = NULL,
+                        system_prompt = NULL,
+                        base_url = NULL,
+                        ...) {
+  stopifnot(
+    is.character(provider), length(provider) == 1L
+  )
+
+  fn_name <- paste0("chat_", provider)
+
+  args <- list(package <- "ellmer", f_name = fn_name, .if_missing = "error",
+               .call_pkg_function = TRUE, ...)
+  if (!is.null(model) && nzchar(model)) {
+    args$model <- model
+  }
+
+  if (!is.null(system_prompt) && nzchar(system_prompt)) {
+    args$system_prompt <- system_prompt
+  }
+  if (!is.null(base_url) && nzchar(base_url)) {
+    args$base_url <- base_url
+  }
+
+  do.call(call_pkg_fun, args)
+}

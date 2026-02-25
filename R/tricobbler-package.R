@@ -21,6 +21,7 @@ NULL
 
 
 .onLoad <- function(libname, pkgname) {
+  # .onLoad_shinychat()
   S7::methods_register()
 }
 

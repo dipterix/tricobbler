@@ -498,3 +498,69 @@ AgentRuntime <- R6::R6Class(
   )
 )
 
+
+AgentRuntimeAttachmentResult <- S7::new_class(
+  "AgentRuntimeAttachmentResult",
+  parent = ellmer::ContentToolResult,
+  properties = list(
+    id = S7::class_character,
+    succeed = S7::class_logical,
+    agent_id = S7::class_character,
+    stage_name = S7::class_character,
+    state_name = S7::class_character,
+    current_attempt = S7::class_integer
+  )
+)
+
+
+as_AgentRuntimeAttachmentResult <- function(li, request = NULL) {
+  if (is.null(request) && shiny_is_running()) {
+    # shinychat so request is needed
+    request <- ellmer::ContentToolRequest(id = sprintf("Agent %s", li$agent_id),
+                                          name = li$agent_id)
+  }
+  re <- AgentRuntimeAttachmentResult(
+    extra = list(
+      # Depending on the situation, this value can be tossed away
+      value = li$result
+    ),
+    id = li$id,
+    succeed = TRUE,
+    agent_id = li$agent_id,
+    stage_name = li$stage,
+    state_name = li$state,
+    current_attempt = as.integer(li$current_attempt),
+    request = request
+  )
+  if (isTRUE(li$succeed)) {
+    re@value <- li$description
+  } else {
+    re@error <- li$description
+  }
+  re
+}
+
+contents_shinychat <- S7::new_external_generic(
+  package = "shinychat",
+  name = "contents_shinychat",
+  dispatch_args = "contents"
+)
+
+S7::method(contents_shinychat, AgentRuntimeAttachmentResult) <- function(content) {
+  # Call the super method for ContentToolResult to get shinychat's defaults
+  res <- contents_shinychat(S7::super(content, ellmer::ContentToolResult))
+
+  res$value_type <- "code"
+  res$title <- sprintf(
+    "Stage %s -> State %s -> Agent %s (attempt %d)",
+    content@stage_name,
+    content@state_name,
+    content@agent_id,
+    content@current_attempt
+  )
+
+  res
+}
+
+
+

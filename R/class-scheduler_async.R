@@ -125,9 +125,25 @@ AsyncScheduler <- R6::R6Class(
             private$.stage_resolve <- NULL
             private$.stage_reject <- NULL
             self$current_stage <- "ready"
+
+            # Attach the last completed S7 attachment (if any)
+            last_result <- NULL
+            completed_keys <- self$completed_map$keys()
+            if (length(completed_keys)) {
+              last_key <- completed_keys[[length(completed_keys)]]
+              last_summary <- self$completed_map$get(last_key)
+              last_att_id <- last_summary$attachment_id
+              if (!is.null(last_att_id)) {
+                last_result <- self$context$get_attachment(
+                  last_att_id, as_ellmer_content = TRUE
+                )
+              }
+            }
+
             self$dispatch_event(
               type = "scheduler.completed",
-              message = "All stages completed"
+              message = "All stages completed",
+              result = last_result
             )
           },
           error = function(cnd) {
@@ -229,6 +245,10 @@ AsyncScheduler <- R6::R6Class(
           promise <- runtime$run_async()
           dispatch_run_flag <- private$.run_flag
 
+          self$waiting_pool$set(runtime$policy@name, list(
+            runtime = runtime
+          ))
+
           promise <- promise$then(
             onFulfilled = function(result) {
 
@@ -237,6 +257,8 @@ AsyncScheduler <- R6::R6Class(
                              private$.run_flag)) {
                 return(invisible())
               }
+
+              tool_result <- as_AgentRuntimeAttachmentResult(result)
 
               succeed <- result$succeed
               state_name <- runtime$policy@name
@@ -264,8 +286,7 @@ AsyncScheduler <- R6::R6Class(
                     "State '%s' completed (success)",
                     state_name
                   ),
-                  runtime = runtime,
-                  result = result
+                  result = tool_result
                 )
 
                 if (isTRUE(policy@final)) {
@@ -291,8 +312,7 @@ AsyncScheduler <- R6::R6Class(
                       "State '%s' exhausted retries (%d/%d)",
                       state_name, runtime$attempt, max_retry
                     ),
-                    runtime = runtime,
-                    result = result
+                    result = tool_result
                   )
 
                   if (isTRUE(policy@critical)) {
@@ -381,8 +401,6 @@ AsyncScheduler <- R6::R6Class(
                       "State '%s' failed; redirecting to '%s'",
                       state_name, target
                     ),
-                    runtime = runtime,
-                    result = result,
                     target = target
                   )
                 } else {
@@ -397,8 +415,7 @@ AsyncScheduler <- R6::R6Class(
                       "State '%s' failed (attempt %d/%d); will retry",
                       state_name, runtime$attempt, max_retry
                     ),
-                    runtime = runtime,
-                    result = result
+                    result = tool_result
                   )
                 }
               }
@@ -407,6 +424,15 @@ AsyncScheduler <- R6::R6Class(
               self$advance()
             },
             onRejected = function(e) {
+
+              # Safety net: catches errors thrown by
+              # run_async()'s own .record_result() / context
+              # callbacks. Without this, a failing callback
+              # would leave the state stranded in waiting_pool
+              # and stall the stage. result is NULL because
+              # the promise rejected before .record_result()
+              # produced an S7 attachment.
+
               # Guard: stale callback after stop()/restart
               if (!identical(dispatch_run_flag,
                              private$.run_flag)) {
@@ -434,18 +460,12 @@ AsyncScheduler <- R6::R6Class(
                   "State '%s' failed unexpectedly: %s",
                   state_name, conditionMessage(e)
                 ),
-                state_name = state_name,
-                stage = runtime$policy@stage,
-                error = e
+                result = NULL
               )
 
               self$advance()
             }
           )
-          self$waiting_pool$set(runtime$policy@name, list(
-            runtime = runtime,
-            promise = promise
-          ))
           return(runtime$policy@name)
         }
       )

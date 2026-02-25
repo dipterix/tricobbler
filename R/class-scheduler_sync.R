@@ -469,9 +469,25 @@ Scheduler <- R6::R6Class(
       })
 
       self$current_stage <- "ready"
+
+      # Attach the last completed S7 attachment (if any)
+      last_result <- NULL
+      completed_keys <- self$completed_map$keys()
+      if (length(completed_keys)) {
+        last_key <- completed_keys[[length(completed_keys)]]
+        last_summary <- self$completed_map$get(last_key)
+        last_att_id <- last_summary$attachment_id
+        if (!is.null(last_att_id)) {
+          last_result <- self$context$get_attachment(
+            last_att_id, as_ellmer_content = TRUE
+          )
+        }
+      }
+
       self$dispatch_event(
         type = "scheduler.completed",
-        message = "All stages completed"
+        message = "All stages completed",
+        result = last_result
       )
 
       invisible(self)
@@ -687,34 +703,30 @@ Scheduler <- R6::R6Class(
         runtime = runtime
       ))
 
-      # Run synchronously; runtime$run() executes the agent
-      # and calls .record_result(), returning the attachment.
-      # Use rlang::try_fetch so unexpected errors (e.g. from
-      # .record_result()) also get a backtrace attached.
-      # Anchor top-of-trace so scheduler frames above are trimmed.
-      trace_top <- rlang::current_env()
-      result <- rlang::try_fetch(
-        runtime$run(),
-        error = function(cnd) {
-          cnd$trace <- cnd$trace %||% rlang::trace_back(top = trace_top)
-          structure(
-            list(succeed = FALSE, error = cnd,
-                 ._unexpected = TRUE),
-            class = "tricobbler_unexpected_error"
-          )
+      result <- tryCatch(
+        {
+          res <- runtime$run()
+          list(ok = TRUE, value = res)
+        },
+        error = function(e) {
+          list(ok = FALSE, error = e)
         }
       )
 
-      # Guard: if the scheduler was stopped or restarted
-      # since this dispatch began, discard silently
-      if (!identical(dispatch_run_flag, private$.run_flag)) {
-        return(invisible(0L))
-      }
+      if (!result$ok) {
+        # Safety net: catches errors thrown by run()'s own
+        # .record_result() / context callbacks (e.g. disk
+        # failure). Without this, the error would propagate
+        # and crash the scheduler. result is NULL because
+        # .record_result() never produced an S7 attachment.
 
-      self$waiting_pool$remove(state_name)
+        # Guard: stale dispatch after stop()/restart
+        if (!identical(dispatch_run_flag, private$.run_flag)) {
+          return(invisible(0L))
+        }
 
-      # --- Handle unexpected error (e.g. .record_result() threw) ---
-      if (inherits(result, "tricobbler_unexpected_error")) {
+        self$waiting_pool$remove(state_name)
+
         runtime_summary <- list(
           policy = runtime$policy,
           agent = runtime$agent,
@@ -733,14 +745,24 @@ Scheduler <- R6::R6Class(
             "State '%s' failed unexpectedly: %s",
             state_name, conditionMessage(result$error)
           ),
-          state_name = state_name,
-          stage = runtime$policy@stage,
-          error = result$error
+          result = NULL
         )
+
         return(invisible(1L))
       }
 
-      # --- Normal result from .record_result() ---
+      result <- result$value
+      tool_result <- as_AgentRuntimeAttachmentResult(result)
+
+      # Guard: if the scheduler was stopped or restarted
+      # since this dispatch began, discard silently
+      if (!identical(dispatch_run_flag, private$.run_flag)) {
+        return(invisible(0L))
+      }
+
+      # Result is recorded so the waiting pool is released
+      self$waiting_pool$remove(state_name)
+
       succeed <- result$succeed
       policy <- runtime$policy
 
@@ -763,8 +785,7 @@ Scheduler <- R6::R6Class(
           message = sprintf(
             "State '%s' completed (success)", state_name
           ),
-          runtime = runtime,
-          result = result
+          result = tool_result
         )
 
         # Final flag: stop dispatching new runtimes
@@ -793,8 +814,7 @@ Scheduler <- R6::R6Class(
               "State '%s' exhausted retries (%d/%d)",
               state_name, runtime$attempt, max_retry
             ),
-            runtime = runtime,
-            result = result
+            result = tool_result
           )
 
           if (isTRUE(policy@critical)) {
@@ -891,8 +911,6 @@ Scheduler <- R6::R6Class(
               "State '%s' failed; redirecting to '%s'",
               state_name, target
             ),
-            runtime = runtime,
-            result = result,
             target = target
           )
         } else {
@@ -908,8 +926,7 @@ Scheduler <- R6::R6Class(
               "State '%s' failed (attempt %d/%d); will retry",
               state_name, runtime$attempt, max_retry
             ),
-            runtime = runtime,
-            result = result
+            result = tool_result
           )
         }
       }

@@ -40,8 +40,12 @@ Imports:
     utils,
     yaml
 Suggests: 
+    bslib,
     cli,
+    htmltools,
     later,
+    shiny (>= 1.8.0),
+    shinychat (>= 0.3.0),
     spelling,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
@@ -65,6 +69,7 @@ Collate:
     'class-skill.R'
     'generic-as_agent.R'
     'helper-agents.R'
+    'helper-discovery.R'
     'helper-docopt.R'
     'helper-ellmer_types.R'
     'helper-logger.R'
@@ -75,5 +80,7 @@ Collate:
     'mcp-tooldef-context.R'
     'mcp-tooldef-package.R'
     'mcp-tools.R'
+    'shiny-app.R'
+    'shiny-chat-module.R'
     'tricobbler-package.R'
     'workflow-io.R'

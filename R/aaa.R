@@ -162,3 +162,20 @@ call_pkg_fun <- function(package,
   }
 
 }
+
+shiny_is_running <- function(){
+  if (requireNamespace('shiny', quietly = TRUE)) {
+    return(isTRUE(!is.null(shiny::getDefaultReactiveDomain())))
+  }
+  return(FALSE)
+}
+
+require_shinychat <- function() {
+  if (!package_installed("shinychat")) {
+    stop("Package 'shinychat' (>= 0.3.0) is required.")
+  }
+  if (!package_installed("shinychat")) {
+    stop("Package 'shinychat' is required.")
+  }
+  asNamespace("shinychat")
+}

@@ -90,12 +90,6 @@ workflow_list_to_manifest <- function(wf_list) {
 }
 
 
-
-
-# ===================================================================
-# Public API: workflow_save / workflow_load / workflow_list
-# ===================================================================
-
 #' @name workflow-io
 #' @title Save and Load Workflow Definitions
 #'
@@ -418,16 +412,42 @@ apply_chat_agent_override <- function(agent_config, override) {
 #'       a list with \code{manifest} (\code{\link{Manifest}}) and
 #'       \code{agents} (list of \code{\link{Agent}} objects)
 #'   }
+#' @param work_path character or \code{NULL}, directory used to resolve
+#'   relative agent script paths. By default, this is the directory
+#'   containing \code{file}. Set this to the original skill directory
+#'   when loading from a temporary \verb{YAML} copy so that script
+#'   agents are found correctly.
 #' @export
 workflow_load <- function(file, name = NULL, scheduler_class = Scheduler,
-                          config = scheduler_config_default()) {
+                          config = scheduler_config_default(),
+                          work_path = dirname(file)) {
   # DIPSAUS DEBUG START
   # self <- workflow_load('inst/skills/skill-creator/tricobbler-workflow.yaml', 'sandboxed-import-bids-skill')
   # file <- self$save_workflow(tempfile())
   # name <- 'sandboxed-import-bids-skill'
-  if (!file.exists(file)) {
-    stop(sprintf("Workflow file not found: %s", file))
+
+  if (grepl("^[a-zA-Z0-9]+[:]{2,3}[a-zA-Z0-9_-]+$", file)) {
+    # special e.g. "tricobbler::weather"
+    parts <- strsplit(file, "[:]+", perl = TRUE)[[1]]
+    pkg <- parts[[1]]
+    skill_name <- parts[[2]]
+
+    wf_file <- c(
+      system.file("skills", skill_name, "tricobbler-workflow.yaml",
+                  package = pkg),
+      file.path(tools::R_user_dir(pkg, which = "data"),
+                "skills", skill_name, "tricobbler-workflow.yaml"
+      )
+    )
+  } else {
+    wf_file <- file
   }
+  wf_file <- wf_file[file.exists(wf_file)]
+
+  if (!length(wf_file)) {
+    stop(sprintf("Workflow file/symbol not found: %s", file))
+  }
+  file <- wf_file[[1]]
   txt <- paste(readLines(file, warn = FALSE), collapse = "\n")
   parse_env <- new.env(parent = baseenv())
   parse_env$config <- config
@@ -464,7 +484,12 @@ workflow_load <- function(file, name = NULL, scheduler_class = Scheduler,
   # Reconstruct agents
   agent_configs <- li$agents %||% list()
   agent_overrides <- as.list(config$agents)
-  base_dir <- dirname(normalizePath(file, mustWork = FALSE))
+  # work_path overrides the base directory for resolving script paths
+  if (is.null(work_path)) {
+    base_dir <- dirname(normalizePath(file, mustWork = FALSE))
+  } else {
+    base_dir <- normalizePath(work_path, mustWork = FALSE)
+  }
 
   # Only reconstruct agents referenced by this workflow
   needed_ids <- unique(vapply(

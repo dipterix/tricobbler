@@ -2,3 +2,12 @@ url: http://dipterix.org/tricobbler/
 template:
   bootstrap: 5
 
+reference:
+  - title: Shiny Integration
+    desc: Interactive chat UI with resource discovery and workflow orchestration
+    contents:
+      - tricobbler-shiny
+      - tricobbler-app
+      - discover_resources
+      - provider_choices
+      - create_chat

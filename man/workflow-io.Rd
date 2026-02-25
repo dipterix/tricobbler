@@ -19,7 +19,8 @@ workflow_load(
   file,
   name = NULL,
   scheduler_class = Scheduler,
-  config = scheduler_config_default()
+  config = scheduler_config_default(),
+  work_path = dirname(file)
 )
 
 workflow_list(file)
@@ -62,6 +63,12 @@ substitution in the \code{YAML} file (default:
 \code{$\{ \}} delimiters are interpolated via \code{glue::glue()}
 before parsing. The \code{config} object is also forwarded to the
 scheduler constructor.}
+
+\item{work_path}{character or \code{NULL}, directory used to resolve
+relative agent script paths. By default, this is the directory
+containing \code{file}. Set this to the original skill directory
+when loading from a temporary \verb{YAML} copy so that script
+agents are found correctly.}
 }
 \value{
 \code{workflow_save()}: invisibly returns the file path

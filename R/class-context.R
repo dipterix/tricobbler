@@ -331,7 +331,7 @@ AgentContext <- R6::R6Class(
     #' @param items integer, number of results to retrieve
     #' @param simplify logical, if \code{TRUE} and \code{items == 1}, return
     #'   a single result instead of a list
-    last_results = function(items = 1, simplify = length(items) == 1) {
+    last_results = function(items = 1, simplify = length(items) == 1, as_ellmer_content = FALSE) {
       idx <- private$.index$list()
       if (!is.data.frame(idx) || !nrow(idx)) {
         return(NULL)
@@ -343,7 +343,11 @@ AgentContext <- R6::R6Class(
       ret <- lapply(fnames, function(fname) {
         fpath <- file.path(attachment_root, paste0(fname, ".rds"))
         if (file.exists(fpath)) {
-          return(readRDS(fpath))
+          res <- readRDS(fpath)
+          if (as_ellmer_content) {
+            res <- as_AgentRuntimeAttachmentResult(res)
+          }
+          return(res)
         }
         return(NULL)
       })
@@ -358,7 +362,7 @@ AgentContext <- R6::R6Class(
     #'    (filename from \code{record_attachment}). Alternatively, a
     #'    \code{\link{StatePolicy}} object to retrieve the latest attachment
     #'    for that state.
-    get_attachment = function(attachment_id) {
+    get_attachment = function(attachment_id, as_ellmer_content = FALSE) {
       if (missing(attachment_id)) {
         stop("AgentContext$get_attachment(): `attachment_id` is required")
       }
@@ -391,7 +395,11 @@ AgentContext <- R6::R6Class(
 
       fpath <- file.path(self$attachment_path, paste0(attachment_id, ".rds"))
       if (file.exists(fpath)) {
-        return(readRDS(fpath))
+        res <- readRDS(fpath)
+        if (as_ellmer_content) {
+          res <- as_AgentRuntimeAttachmentResult(res)
+        }
+        return(res)
       }
 
       in_history <- private$.index$exists(attachment_id)
@@ -415,7 +423,7 @@ AgentContext <- R6::R6Class(
     #' @description Retrieve the latest attachment from a specific state
     #' @param state character, the name of the state
     #' @param stage character, optional stage name to narrow down the search
-    get_attachment_by_state = function(state, stage) {
+    get_attachment_by_state = function(state, stage, as_ellmer_content = FALSE) {
       if (missing(state) || length(state) != 1 || !nzchar(state)) {
         stop("AgentContext$get_attachment_by_state(): `state` is required.")
       }
@@ -434,7 +442,11 @@ AgentContext <- R6::R6Class(
 
       fpath <- file.path(self$attachment_path, paste0(fname, ".rds"))
       if (file.exists(fpath)) {
-        return(readRDS(fpath))
+        res <- readRDS(fpath)
+        if (as_ellmer_content) {
+          res <- as_AgentRuntimeAttachmentResult(res)
+        }
+        return(res)
       }
 
       stop(

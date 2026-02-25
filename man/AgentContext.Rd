@@ -242,7 +242,11 @@ succeeded}
 \subsection{Method \code{last_results()}}{
 Retrieve the most recent result(s)
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$last_results(items = 1, simplify = length(items) == 1)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$last_results(
+  items = 1,
+  simplify = length(items) == 1,
+  as_ellmer_content = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -262,7 +266,7 @@ a single result instead of a list}
 \subsection{Method \code{get_attachment()}}{
 Retrieve a specific attachment by its identifier
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_attachment(attachment_id)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_attachment(attachment_id, as_ellmer_content = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -282,7 +286,7 @@ for that state.}
 \subsection{Method \code{get_attachment_by_state()}}{
 Retrieve the latest attachment from a specific state
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_attachment_by_state(state, stage)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{AgentContext$get_attachment_by_state(state, stage, as_ellmer_content = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
