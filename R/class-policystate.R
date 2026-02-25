@@ -315,7 +315,7 @@ StatePolicy <- S7::new_class(
     # WHAT: Tools and skills available to this stage
     resources = S7::new_property(
       class = S7::class_list,
-      default = list(tools = character(0L), skills = character(0L)),
+      # default = list(tools = character(0L), skills = character(0L)),
       setter = function(self, value) {
         if (is.null(value)) {
           value <- list(tools = character(0L), skills = character(0L))

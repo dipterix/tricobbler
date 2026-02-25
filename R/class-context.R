@@ -331,6 +331,8 @@ AgentContext <- R6::R6Class(
     #' @param items integer, number of results to retrieve
     #' @param simplify logical, if \code{TRUE} and \code{items == 1}, return
     #'   a single result instead of a list
+    #' @param as_ellmer_content logical, if \code{TRUE} coerce results to
+    #'   \pkg{ellmer} content objects via \code{as_AgentRuntimeAttachmentResult()}
     last_results = function(items = 1, simplify = length(items) == 1, as_ellmer_content = FALSE) {
       idx <- private$.index$list()
       if (!is.data.frame(idx) || !nrow(idx)) {
@@ -362,6 +364,8 @@ AgentContext <- R6::R6Class(
     #'    (filename from \code{record_attachment}). Alternatively, a
     #'    \code{\link{StatePolicy}} object to retrieve the latest attachment
     #'    for that state.
+    #' @param as_ellmer_content logical, if \code{TRUE} coerce the result to
+    #'   an \pkg{ellmer} content object
     get_attachment = function(attachment_id, as_ellmer_content = FALSE) {
       if (missing(attachment_id)) {
         stop("AgentContext$get_attachment(): `attachment_id` is required")
@@ -423,6 +427,8 @@ AgentContext <- R6::R6Class(
     #' @description Retrieve the latest attachment from a specific state
     #' @param state character, the name of the state
     #' @param stage character, optional stage name to narrow down the search
+    #' @param as_ellmer_content logical, if \code{TRUE} coerce the result to
+    #'   an \pkg{ellmer} content object
     get_attachment_by_state = function(state, stage, as_ellmer_content = FALSE) {
       if (missing(state) || length(state) != 1 || !nzchar(state)) {
         stop("AgentContext$get_attachment_by_state(): `state` is required.")

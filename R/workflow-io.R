@@ -359,7 +359,8 @@ workflow_save <- function(file, manifest = NULL, agents = NULL,
 
 #' Apply provider-aware chat override to an agent config
 #' @param agent_config list, YAML agent config
-#' @param override list or NULL, override from config$agents[[agent_id]]
+#' @param override list or \code{NULL}, override from
+#'   \code{config$agents[[agent_id]]}
 #' @returns merged agent config
 #' @noRd
 apply_chat_agent_override <- function(agent_config, override) {

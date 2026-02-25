@@ -40,7 +40,6 @@ Imports:
     utils,
     yaml
 Suggests: 
-    bslib,
     cli,
     htmltools,
     later,

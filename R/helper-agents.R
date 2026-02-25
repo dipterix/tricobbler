@@ -353,7 +353,7 @@ create_chat <- function(provider,
 
   fn_name <- paste0("chat_", provider)
 
-  args <- list(package <- "ellmer", f_name = fn_name, .if_missing = "error",
+  args <- list(package = "ellmer", f_name = fn_name, .if_missing = "error",
                .call_pkg_function = TRUE, ...)
   if (!is.null(model) && nzchar(model)) {
     args$model <- model

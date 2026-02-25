@@ -256,6 +256,9 @@ Retrieve the most recent result(s)
 
 \item{\code{simplify}}{logical, if \code{TRUE} and \code{items == 1}, return
 a single result instead of a list}
+
+\item{\code{as_ellmer_content}}{logical, if \code{TRUE} coerce results to
+\pkg{ellmer} content objects via \code{as_AgentRuntimeAttachmentResult()}}
 }
 \if{html}{\out{</div>}}
 }
@@ -276,6 +279,9 @@ Retrieve a specific attachment by its identifier
 (filename from \code{record_attachment}). Alternatively, a
 \code{\link{StatePolicy}} object to retrieve the latest attachment
 for that state.}
+
+\item{\code{as_ellmer_content}}{logical, if \code{TRUE} coerce the result to
+an \pkg{ellmer} content object}
 }
 \if{html}{\out{</div>}}
 }
@@ -295,6 +301,9 @@ Retrieve the latest attachment from a specific state
 \item{\code{state}}{character, the name of the state}
 
 \item{\code{stage}}{character, optional stage name to narrow down the search}
+
+\item{\code{as_ellmer_content}}{logical, if \code{TRUE} coerce the result to
+an \pkg{ellmer} content object}
 }
 \if{html}{\out{</div>}}
 }

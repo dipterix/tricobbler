@@ -177,5 +177,6 @@ require_shinychat <- function() {
   if (!package_installed("shinychat")) {
     stop("Package 'shinychat' is required.")
   }
+
   asNamespace("shinychat")
 }

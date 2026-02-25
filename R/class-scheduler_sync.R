@@ -208,6 +208,8 @@ Scheduler <- R6::R6Class(
     #' @param agents list, collection of \code{\link{Agent}} objects
     #' @param context \code{\link{AgentContext}} object, execution environment
     #'    (default: new \code{\link{AgentContext}})
+    #' @param config list, scheduler configuration from
+    #'   \code{scheduler_config_default()}
     initialize = function(
       manifest,
       agents = list(),

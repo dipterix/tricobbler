@@ -9,7 +9,7 @@ StatePolicy(
   description = character(0),
   stage = character(0),
   agent_id = character(0),
-  resources = list(tools = character(0), skills = character(0)),
+  resources = list(),
   accessibility = "all",
   parameters = list(),
   max_retry = 0L,

@@ -107,6 +107,9 @@ Initialize scheduler with manifest blueprint and agents
 
 \item{\code{context}}{\code{\link{AgentContext}} object, execution environment
 (default: new \code{\link{AgentContext}})}
+
+\item{\code{config}}{list, scheduler configuration from
+\code{scheduler_config_default()}}
 }
 \if{html}{\out{</div>}}
 }

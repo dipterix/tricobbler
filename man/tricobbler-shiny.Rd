@@ -3,19 +3,20 @@
 \name{tricobbler-shiny}
 \alias{tricobbler-shiny}
 \alias{tricobbler_chat_ui}
+\alias{tricobbler_chat_button}
 \alias{tricobbler_chat_server}
 \title{\verb{Shiny} Chat Module for \pkg{tricobbler}}
 \usage{
 tricobbler_chat_ui(id, title = "TriCobbler", ...)
 
-tricobbler_chat_server(
+tricobbler_chat_button(
   id,
-  client = NULL,
-  tools = TRUE,
-  skills = TRUE,
-  workflows = TRUE,
-  system_prompt = NULL
+  label = "Open Chat",
+  icon = shiny::icon("comments"),
+  ...
 )
+
+tricobbler_chat_server(input, output, session, chat = NULL)
 }
 \arguments{
 \item{id}{character, the \code{Shiny} module \verb{ID}}
@@ -26,32 +27,77 @@ tricobbler_chat_server(
 \item{...}{additional arguments passed to
 \code{shinychat::chat_ui()}}
 
-\item{client}{an \code{ellmer::Chat} object or \code{NULL}.
-If provided, the chat is cloned per session. If \code{NULL},
-a new chat is constructed from the \verb{UI} provider
-selection.}
+\item{label}{character, text displayed on the button
+(default: \code{"Open Chat"})}
 
-\item{tools}{logical, character vector, or \code{NULL}. Passed
-to \code{\link{discover_resources}()}; controls which
-\verb{MCP} tools are available for selection.}
+\item{icon}{a \code{Shiny} icon tag for the button
+(default: \code{shiny::icon("comments")})}
 
-\item{skills}{logical, character vector, or \code{NULL}. Passed
-to \code{\link{discover_resources}()}; controls which skills
-are available for selection.}
+\item{input, output, session}{standard \code{Shiny} module
+arguments, passed from the enclosing
+\code{shiny::moduleServer()} call.}
 
-\item{workflows}{logical, character vector, or \code{NULL}.
-Passed to \code{\link{discover_resources}()}; controls which
-workflow \verb{YAML} files are available for selection.}
-
-\item{system_prompt}{character or \code{NULL}, default system
-prompt used when constructing a chat from the \verb{UI}.
-Ignored when \code{client} is provided.}
+\item{chat}{an \code{ellmer::Chat} object. The chat client
+used for conversational mode.}
 }
 \value{
 \code{tricobbler_chat_ui()}: A \code{Shiny} \verb{UI} element
-(typically a \pkg{bslib} page layout).
+(a \code{fluidPage} with a two-column layout).
 
-\code{tricobbler_chat_server()}: invisible \code{NULL}
+\code{tricobbler_chat_button()}: A \code{Shiny}
+\code{actionButton}. Clicking it opens a full-screen modal
+dialog containing the same chat interface as
+\code{tricobbler_chat_ui()}. Requires the corresponding
+\code{tricobbler_chat_server()} to be registered for the
+same module \code{id}.
+
+\code{tricobbler_chat_server()}: A named \code{list} with the
+following elements:
+\describe{
+\item{\code{reactives}}{\code{reactiveValues} object tracking
+module state. Named fields:
+\code{workflow_running} (logical),
+\code{workflow_context} (text summary carried into the next
+normal-mode chat turn), \code{update_chat} and
+\code{update_resources} (timestamp sentinels).}
+\item{\code{resources}}{Plain \pkg{base} environment exposing
+four mutable slots that the caller populates before calling
+\code{update_resources()}:
+\code{chat} (\code{ellmer::Chat} or \code{NULL}),
+\code{tools} (\pkg{fastmap} of \code{ellmer::ToolDef}),
+\code{skills} (\pkg{fastmap} of \code{TricobblerSkill}),
+\code{workflows} (\pkg{fastmap} of
+\code{TricobblerScheduler}).}
+\item{\code{extract_tools}}{\code{function()} --- collects and
+returns all active \code{ellmer::ToolDef} objects from both
+the \code{tools} and \code{skills} fastmaps as a flat
+\code{list}.}
+\item{\code{update_chat}}{\code{function(provider, model = NULL,
+    system_prompt = NULL, base_url = NULL, ...)} --- replaces the
+active \code{ellmer::Chat}. \code{provider} may be a
+provider-suffix string (e.g. \code{"openai"}), an existing
+\code{Chat} object (used as-is), or \code{NULL} to clear.
+Sidebar inputs are refreshed to reflect the new
+configuration.}
+\item{\code{update_resources}}{\code{function(selected_tools,
+    selected_skills, selected_workflow)} --- validates and
+re-renders the sidebar resource checkboxes and workflow
+dropdown. All three arguments are optional; when omitted,
+current sidebar selections are preserved.}
+\item{\code{active_workflow}}{\code{function()} --- returns the
+\code{TricobblerScheduler} currently selected in the
+\emph{Workflows} dropdown, or \code{NULL} when
+\code{"(none)"} is selected or the entry has been removed
+from \code{resources$workflows}.}
+\item{\code{run_workflow}}{\code{async function(user_input)} ---
+\pkg{coro} async function that stops any previous run,
+applies current sidebar agent configurations, registers
+progress event listeners, sets
+\code{manifest@master@parameters$user_prompt} to
+\code{user_input}, and awaits \code{scheduler$start()}.
+Workflow results are streamed to the chat panel via
+\pkg{shinychat}.}
+}
 }
 \description{
 A \pkg{shiny} module providing an interactive chat interface with
@@ -69,21 +115,21 @@ updates streamed to the chat.
 }
 \details{
 The module uses \pkg{shinychat} for the chat \verb{UI} and
-\pkg{ellmer} for \verb{LLM} communication. Resources (tools,
-skills, workflows) are discovered via
-\code{\link{discover_resources}()} and presented in a sidebar
-for selection.
+\pkg{ellmer} for \verb{LLM} communication. The caller is
+responsible for resource discovery and injection: after calling
+\code{tricobbler_chat_server()}, populate the returned
+\code{resources} environment's \code{tools}, \code{skills},
+and \code{workflows} \pkg{fastmap} objects, then call
+\code{update_resources()} to refresh the sidebar.
 
-For multi-user \code{Shiny} apps, each session gets its own
-cloned chat client.
+See \code{\link{tricobbler_demo_app}()} for a complete example
+of this pattern.
 }
 \section{Provider configuration}{
 
-If \code{client} is provided, the \verb{LLM} provider
-controls are populated from the chat object's configuration.
-Users can still override via the \verb{UI} controls. If
-\code{client = NULL}, users must select a provider and model
-from the sidebar.
+If \code{chat} is provided, the \verb{LLM} provider controls
+are populated from the chat object's configuration. Users can
+still override via the \verb{UI} controls.
 }
 
 \section{Workflow mode}{
@@ -100,7 +146,7 @@ mode.
 }
 
 \seealso{
-\code{\link{tricobbler_app}()},
+\code{\link{tricobbler_demo_app}()},
 \code{\link{discover_resources}()},
 \code{\link{provider_choices}()},
 \code{\link{create_chat}()}

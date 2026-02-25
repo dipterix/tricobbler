@@ -548,7 +548,7 @@ contents_shinychat <- S7::new_external_generic(
 
 S7::method(contents_shinychat, AgentRuntimeAttachmentResult) <- function(content) {
   # Call the super method for ContentToolResult to get shinychat's defaults
-  res <- contents_shinychat(S7::super(content, ellmer::ContentToolResult))
+  res <- shinychat::contents_shinychat(S7::super(content, ellmer::ContentToolResult))
 
   res$value_type <- "code"
   res$title <- sprintf(
